@@ -148,7 +148,10 @@ export async function applyMetadata(client: ManyfoldClient, model: { id: string 
     const url = httpUrl(input.sourceUrl);
     if (!url) fail('links', 'The source URL is not a valid http(s) URL.');
     else {
-      const text = input.sourceLinkText?.trim();
+      // One trailing space: Manyfold 0.153.0's LinkList writes the text as plain inline text right before the site-label <a>
+      // (sanitize is an output helper there), so without it the two run together ("...BaysMakerWorld").
+      const trimmed = input.sourceLinkText?.trim();
+      const text = trimmed ? `${trimmed} ` : undefined;
       add('links', { links: [text ? { url, text } : { url }] }, (r) => Array.isArray(r.links) && r.links.some((l) => (l as Json)?.url === url));
     }
   }

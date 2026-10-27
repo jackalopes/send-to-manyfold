@@ -268,7 +268,7 @@ describe('applyMetadata', () => {
       name: 'Popup Title',
       caption: 'Short caption',
       description: 'Long description.\n\nLicense: CC BY-NC 4.0',
-      links: [{ url: 'https://www.printables.com/model/123-thing', text: 'Printables' }],
+      links: [{ url: 'https://www.printables.com/model/123-thing', text: 'Printables ' }],
       'spdx:license': { '@type': 'spdx:License', licenseId: 'CC-BY-NC-4.0' },
       creator: { '@id': '/creators/probe-maker' },
       keywords: ['Tag One', 'two'],
@@ -278,6 +278,19 @@ describe('applyMetadata', () => {
     expect(result.failed).toEqual([]);
     expect(result.saved.sort()).toEqual(['caption', 'creator', 'license', 'links', 'name', 'notes', 'preview', 'sensitive', 'tags'].sort());
     expect(srv.model.name).toBe('Popup Title');
+  });
+
+  it('sends the link text with exactly one trailing space, and no text when it is blank', async () => {
+    const url = 'https://www.printables.com/model/123-thing';
+    const linksFor = async (sourceLinkText: string) => {
+      const srv = modelServer();
+      const s = stub(srv.handler);
+      await applyMetadata(client(s.fetch), { id: 'abc123' }, { name: 'Title', sourceUrl: url, sourceLinkText });
+      return s.calls.find((c) => c.method === 'PATCH')!.json!.links;
+    };
+    expect(await linksFor('Dragon')).toEqual([{ url, text: 'Dragon ' }]);
+    expect(await linksFor('  Dragon \n')).toEqual([{ url, text: 'Dragon ' }]);
+    expect(await linksFor('   ')).toEqual([{ url }]);
   });
 
   it('always sets the title and keeps an unmapped license in the notes (no license field sent)', async () => {
