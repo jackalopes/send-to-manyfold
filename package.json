@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test:e2e": "node e2e/run.ts",
     "test:built": "wxt build && REQUIRE_BUILT_MANIFEST=1 vitest run src/offscreen/worker-gate.test.ts",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "icons": "node scripts/build-icons.mjs"
   },
   "dependencies": {
     "preact": "11.0.2"
@@ -23,6 +24,7 @@
     "@babel/core": "7.29.7",
     "@eslint/js": "10.0.1",
     "@preact/preset-vite": "2.10.6",
+    "@resvg/resvg-js": "2.6.2",
     "@types/chrome": "0.3.6",
     "@types/node": "22.20.5",
     "eslint": "10.13.0",

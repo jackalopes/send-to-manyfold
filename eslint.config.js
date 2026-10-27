@@ -5,4 +5,5 @@ export default tseslint.config(
   { ignores: ['.output/**', '.wxt/**', 'node_modules/**', 'dist/**', '.superpowers/**', '.claude/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  { files: ['scripts/**/*.mjs'], languageOptions: { globals: { process: 'readonly', console: 'readonly' } } },
 );

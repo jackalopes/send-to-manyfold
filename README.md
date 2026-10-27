@@ -97,6 +97,7 @@ npm run lint
 npm run typecheck
 npm run build
 npm run test:built   # builds, then checks the built manifest
+npm run icons        # regenerate src/public/icon/*.png after editing assets/brand/icon.svg
 npm run test:e2e     # end-to-end test against a throwaway Manyfold
 npm run zip
 ```

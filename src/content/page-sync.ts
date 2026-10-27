@@ -14,9 +14,9 @@ export interface PageSyncDeps {
 
 const CSS = `
 button { all: initial; font: 600 13px/1 system-ui, sans-serif; cursor: pointer; padding: 8px 12px; margin-left: 8px;
-  border-radius: 6px; background: #2e7d32; color: #fff; display: inline-block; }
-button:hover { background: #1b5e20; }
-button:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
+  border-radius: 6px; background: #08566A; color: #fff; display: inline-block; }
+button:hover { background: #054152; }
+button:focus-visible { outline: 2px solid #fff; outline-offset: 0; box-shadow: 0 0 0 4px #08566A; }
 `;
 
 function createButton(doc: Document, onClick: () => void): HTMLElement {

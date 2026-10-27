@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { MESSAGES } from '../pipeline/errors';
 import type { SendSessions } from './sessions';
@@ -14,6 +14,16 @@ const BUILT = join(__dirname, '../../.output/chrome-mv3/manifest.json');
 describe('the built manifest names the worker the offscreen gate derives from', () => {
   it('src/entrypoints/background.ts exists (WXT turns it into background.service_worker)', () => {
     expect(existsSync(join(__dirname, '../entrypoints/background.ts'))).toBe(true);
+  });
+
+  it.skipIf(!existsSync(BUILT) && !process.env.REQUIRE_BUILT_MANIFEST)('the built manifest lists the four icon sizes (icons and action.default_icon) and the files exist', () => {
+    const manifest = JSON.parse(readFileSync(BUILT, 'utf8')) as { icons?: Record<string, string>; action?: { default_icon?: Record<string, string> } };
+    for (const size of ['16', '32', '48', '128']) {
+      for (const map of [manifest.icons, manifest.action?.default_icon]) {
+        expect(map?.[size]).toBe(`icon/${size}.png`);
+        expect(existsSync(join(dirname(BUILT), `icon/${size}.png`))).toBe(true);
+      }
+    }
   });
 
   // With REQUIRE_BUILT_MANIFEST set (CI after `npm run build`, `npm run test:built`), a missing build fails instead of skipping.
