@@ -1,0 +1,39 @@
+# Throwaway Manyfold for the end-to-end test. Run via `npm run test:e2e` (compose project `stm-e2e`), never by hand
+# against a real library: the credentials below are public test values and the volumes are deleted after each run.
+# Bound to 127.0.0.1:3215 so it cannot clash with a developer instance on the usual 3214.
+name: stm-e2e
+
+services:
+  app:
+    image: ghcr.io/manyfold3d/manyfold:0.153.0
+    ports:
+      - 127.0.0.1:3215:3214
+    environment:
+      PUID: 1000
+      PGID: 1000
+      MULTIUSER: enabled
+      SECRET_KEY_BASE: e2e0000000000000000000000000000000000000000000000000000000000000e2e0000000000000000000000000000000000000000000000000000000000000
+      REDIS_URL: redis://redis:6379/1
+      DATABASE_ADAPTER: postgresql
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: manyfold
+      DATABASE_PASSWORD: e2e-only-password
+      DATABASE_NAME: manyfold
+    volumes:
+      - models:/models
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:15.19
+    environment:
+      POSTGRES_USER: manyfold
+      POSTGRES_PASSWORD: e2e-only-password
+
+  redis:
+    image: redis:7.4.12
+
+volumes:
+  models:

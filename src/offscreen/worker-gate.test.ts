@@ -1,0 +1,99 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
+import { MESSAGES } from '../pipeline/errors';
+import type { SendSessions } from './sessions';
+import { classifySender, createOffscreenListener, serviceWorkerUrlFrom } from './worker-gate';
+
+const EXT = 'chrome-extension://abc/';
+const getURL = (path: string) => `${EXT}${path.replace(/^\//, '')}`;
+const SW = `${EXT}background.js`;
+
+describe('serviceWorkerUrlFrom', () => {
+  it('uses the manifest value, not a literal file name', () => {
+    expect(serviceWorkerUrlFrom({ background: { service_worker: 'background.js' } }, getURL)).toBe(SW);
+    expect(serviceWorkerUrlFrom({ background: { service_worker: 'sw/renamed-worker.js' } }, getURL)).toBe(`${EXT}sw/renamed-worker.js`);
+  });
+
+  it('is undefined when the manifest names no worker', () => {
+    expect(serviceWorkerUrlFrom({}, getURL)).toBeUndefined();
+    expect(serviceWorkerUrlFrom({ background: {} }, getURL)).toBeUndefined();
+  });
+});
+
+const BUILT = join(__dirname, '../../.output/chrome-mv3/manifest.json');
+
+describe('the built manifest names the worker the offscreen gate derives from', () => {
+  it('src/entrypoints/background.ts exists (WXT turns it into background.service_worker)', () => {
+    expect(existsSync(join(__dirname, '../entrypoints/background.ts'))).toBe(true);
+  });
+
+  // With REQUIRE_BUILT_MANIFEST set (CI after `npm run build`, `npm run test:built`), a missing build fails instead of skipping.
+  it.skipIf(!existsSync(BUILT) && !process.env.REQUIRE_BUILT_MANIFEST)('.output/chrome-mv3/manifest.json has background.service_worker (run `npm run build` first)', () => {
+    const manifest = JSON.parse(readFileSync(BUILT, 'utf8')) as { background?: { service_worker?: string } };
+    expect(manifest.background?.service_worker).toBe('background.js');
+    expect(serviceWorkerUrlFrom(manifest, getURL)).toBe(SW);
+  });
+});
+
+describe('classifySender', () => {
+  it('accepts only the service worker', () => {
+    expect(classifySender({ id: 'abc', url: SW }, SW, EXT)).toBe('worker');
+  });
+
+  it.each([
+    ['a content script (the extension id, but a tab and the page URL)', { id: 'abc', url: 'https://www.printables.com/model/1', tab: { id: 3 } }],
+    ['a content script that claims the worker URL from a tab', { id: 'abc', url: SW, tab: { id: 3 } }],
+    ['a sender without a URL', { id: 'abc' }],
+  ])('ignores %s', (_what, sender) => {
+    expect(classifySender(sender, SW, EXT)).toBe('ignore');
+  });
+
+  it('compares origin and path only: a query or hash on the worker URL is still the worker', () => {
+    expect(classifySender({ url: `${SW}?x` }, SW, EXT)).toBe('worker');
+    expect(classifySender({ url: `${SW}#y` }, SW, EXT)).toBe('worker');
+  });
+
+  it('a different path or origin is not the worker, whatever the query', () => {
+    expect(classifySender({ url: `${EXT}background.js.map?x` }, SW, EXT)).toBe('blocked');
+    expect(classifySender({ url: `${EXT}other/background.js` }, SW, EXT)).toBe('blocked');
+    expect(classifySender({ url: 'chrome-extension://other/background.js' }, SW, EXT)).toBe('ignore');
+    expect(classifySender({ url: 'not a url' }, SW, EXT)).toBe('ignore');
+  });
+
+  it('an extension context that is not the expected worker is blocked (and so is everything when the manifest names none)', () => {
+    expect(classifySender({ id: 'abc', url: `${EXT}options.html` }, SW, EXT)).toBe('blocked');
+    expect(classifySender({ id: 'abc', url: `${EXT}background.js` }, undefined, EXT)).toBe('blocked');
+  });
+});
+
+describe('createOffscreenListener', () => {
+  function setup(workerUrl: string | undefined) {
+    const sessions = { status: vi.fn(() => []) } as unknown as SendSessions;
+    const warn = vi.fn();
+    const listen = createOffscreenListener({ sessions, workerUrl, extensionOrigin: EXT, warn });
+    return { listen, warn };
+  }
+  const status = { to: 'offscreen', type: 'status' };
+
+  it('routes the worker requests', () => {
+    expect(setup(SW).listen(status, { url: SW })).toEqual({ ok: true, sends: [] });
+  });
+
+  it('stays silent for content scripts and non-offscreen messages', () => {
+    const { listen, warn } = setup(SW);
+    expect(listen(status, { url: 'https://github.com/a/b/blob/main/x.stl', tab: { id: 1 } })).toBeUndefined();
+    expect(listen({ event: 'progress' }, { url: `${EXT}other.js` })).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('a request from an unexpected worker URL gets a typed offscreen-blocked error and one warning without data', () => {
+    const { listen, warn } = setup(SW);
+    const blocked = { ok: false, error: { code: 'offscreen-blocked', message: MESSAGES['offscreen-blocked'], stage: 'downloading' } };
+    expect(listen(status, { url: `${EXT}renamed.js` })).toEqual(blocked);
+    expect(listen({ to: 'offscreen', type: 'cancel', sendId: 's1' }, { url: `${EXT}renamed.js` })).toEqual(blocked);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]!.join(' ')).toContain(`${EXT}renamed.js`);
+    expect(warn.mock.calls[0]!.join(' ')).toContain(SW);
+  });
+});

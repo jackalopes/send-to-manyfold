@@ -4,3 +4,7 @@ dist/
 .wxt/
 logs/
 .claude/settings.local.json
+.superpowers/
+
+# end-to-end test token (written at runtime)
+e2e/.token
