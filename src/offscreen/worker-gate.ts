@@ -5,20 +5,19 @@ import type { SendSessions } from './sessions';
 
 /**
  * Who may drive the offscreen document: only the extension's service worker. Content scripts carry the extension
- * id too, but have `sender.tab` and their page's URL. The worker's URL comes from the manifest WXT generated,
- * never from a hard-coded file name.
+ * id too, but have `sender.tab` and their page's URL.
  */
+
+/**
+ * The worker file WXT generates from `src/entrypoints/background.ts`. A constant because offscreen documents have
+ * no `chrome.runtime.getManifest` (only `getURL`, `id` and messaging); the built-manifest test pins it.
+ */
+export const SERVICE_WORKER_PATH = 'background.js';
 
 export interface SenderInfo {
   id?: string;
   url?: string;
   tab?: unknown;
-}
-
-/** `chrome.runtime.getManifest()` is typed for MV2 and MV3; only an MV3 `background.service_worker` counts. */
-export function serviceWorkerUrlFrom(manifest: { background?: object }, getURL: (path: string) => string): string | undefined {
-  const file = (manifest.background as { service_worker?: unknown } | undefined)?.service_worker;
-  return typeof file === 'string' && file ? getURL(file) : undefined;
 }
 
 export type SenderVerdict = 'worker' | 'blocked' | 'ignore';
@@ -66,7 +65,7 @@ export function createOffscreenListener(deps: OffscreenListenerDeps) {
     if (verdict === 'ignore' || !parseOffscreenRequest(message)) return undefined;
     if (!warned) {
       warned = true;
-      deps.warn(`Send To Manyfold: the transfer page refused a request from ${sender.url}; it accepts only the service worker ${deps.workerUrl ?? '(none named in the manifest)'}.`);
+      deps.warn(`Send To Manyfold: the transfer page refused a request from ${sender.url}; it accepts only the service worker ${deps.workerUrl ?? '(none)'}.`);
     }
     return BLOCKED;
   };

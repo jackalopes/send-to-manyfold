@@ -1,4 +1,5 @@
 import { classifyFile, type SourceFile, type SourceModel } from '../types';
+import { makerworldAnchor } from './anchors';
 import { DownloadAccessDenied, DownloadBlocked, DownloadFailed, DownloadLoginRequired } from './errors';
 import type { ExtractOptions, ResolvedDownload, SiteAdapter } from './index';
 import { CLIENT_HEADERS, LICENSE_LABELS, type MwDesign, type MwInstance, type MwModelFile } from './makerworld-data';
@@ -36,6 +37,7 @@ export function createMakerWorld(deps: MakerWorldDeps = {}): SiteAdapter {
 
   return {
     id: 'makerworld',
+    downloadAnchor: makerworldAnchor,
 
     matches(url: URL): boolean {
       return url.protocol === 'https:' && HOSTS.has(url.hostname) && MODEL_PATH.test(url.pathname);

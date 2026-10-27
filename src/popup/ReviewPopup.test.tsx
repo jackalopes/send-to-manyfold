@@ -85,7 +85,7 @@ describe('ReviewPopup', () => {
     expect(root.textContent).toContain('API key');
     expect(root.querySelector<HTMLInputElement>('input[type=text]')?.readOnly).toBe(true);
     [...root.querySelectorAll('button')].find((b) => b.textContent === 'Open in Manyfold importer')!.click();
-    expect(opened).toEqual(['http://m/models?q=https%3A%2F%2Fp%2F1']);
+    expect(opened).toEqual(['http://m/imports/new?url=https%3A%2F%2Fp%2F1']);
   });
 
   it('shows a settings button when nothing is configured', async () => {

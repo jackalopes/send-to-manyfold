@@ -19,8 +19,8 @@ export interface MetadataInput {
   /** Explicit SPDX id (e.g. chosen in the popup). Overrides the mapping of `licenseText`. */
   licenseId?: string;
   sourceUrl?: string;
-  /** Link text for the source URL, e.g. "Printables". */
-  sourceLabel?: string;
+  /** Link text for the source URL: the source model's own name, e.g. "Articulated Dragon". */
+  sourceLinkText?: string;
   /** Matched by name (case-insensitive) or created, with `url` as its profile link. */
   creator?: { name: string; url?: string };
   /** Already-resolved creator id (`/creators/<slug>` or its URL). Takes precedence over `creator`. */
@@ -66,7 +66,7 @@ export function metadataInputFromSource(source: SourceModel, popup: PopupChoices
   if (source.licenseText !== undefined) input.licenseText = source.licenseText;
   if (popup.licenseId !== undefined) input.licenseId = popup.licenseId;
   if (!popup.omitSourceLink) input.sourceUrl = source.sourceUrl;
-  if (!popup.omitSourceLink && source.site !== 'other') input.sourceLabel = SITE_LABELS[source.site];
+  if (!popup.omitSourceLink && source.site !== 'other') input.sourceLinkText = source.title.trim() || SITE_LABELS[source.site];
   if (source.creator) input.creator = source.creator;
   input.tags = source.tags;
   input.sensitive = popup.sensitive;
@@ -148,7 +148,7 @@ export async function applyMetadata(client: ManyfoldClient, model: { id: string 
     const url = httpUrl(input.sourceUrl);
     if (!url) fail('links', 'The source URL is not a valid http(s) URL.');
     else {
-      const text = input.sourceLabel?.trim();
+      const text = input.sourceLinkText?.trim();
       add('links', { links: [text ? { url, text } : { url }] }, (r) => Array.isArray(r.links) && r.links.some((l) => (l as Json)?.url === url));
     }
   }

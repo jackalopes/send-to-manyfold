@@ -74,7 +74,7 @@ Open the extension's options page (right-click the toolbar icon, then Options).
 ## Known limitations
 
 - Downloads from Printables, MakerWorld and GitHub have not been tried in a real browser at the time of writing. Treat them as unverified.
-- The Thingiverse hand-off to Manyfold's importer is unverified.
+- The Thingiverse import itself (with an API key set in Manyfold) is untested.
 - Files from private GitHub repositories cannot be sent: downloads are made without cookies.
 - The extension has not been loaded in a real Chrome yet. In particular, whether the injected button can open the toolbar popup is unverified (if it cannot, use the toolbar icon).
 - There is no injected button on MakerWorld pages or GitHub release pages. Use the toolbar icon there.

@@ -28,3 +28,13 @@ describe('Options insecure-URL warning', () => {
     expect(root.textContent).not.toContain('travels unencrypted');
   });
 });
+
+describe('Options token help', () => {
+  it('is open while no token is saved and links to the saved Manyfold\'s New API key page', async () => {
+    stubStorage('http://192.168.1.5:3214');
+    render(<Options />, root);
+    await vi.waitFor(() => expect(root.querySelector('a[href="http://192.168.1.5:3214/oauth/applications/new"]')).not.toBeNull());
+    expect(root.querySelector('details')?.open).toBe(true);
+    expect(root.textContent).toContain('urn:ietf:wg:oauth:2.0:oob');
+  });
+});

@@ -31,7 +31,7 @@ describe('popup state machine', () => {
     const t = { ...model, delivery: 'manyfold-import' as const };
     expect(reduce(reduce(initialState, { type: 'extractStarted' }), { type: 'extracted', model: t, form, baseUrl: 'http://m' })).toMatchObject({
       phase: 'handoff',
-      url: 'http://m/models?q=https%3A%2F%2Fp%2F1',
+      url: 'http://m/imports/new?url=https%3A%2F%2Fp%2F1',
     });
   });
 

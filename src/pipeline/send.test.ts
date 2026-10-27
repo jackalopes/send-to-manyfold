@@ -84,7 +84,7 @@ describe('sendModel: upload shape and order', () => {
       description: 'Edited',
       licenseText: 'CC BY 4.0',
       sourceUrl: 'https://www.printables.com/model/1-thing',
-      sourceLabel: 'Printables',
+      sourceLinkText: 'Readme Title',
       creator: { name: 'Maker' },
       sensitive: true,
       collectionIds: ['c1'],
@@ -212,7 +212,7 @@ describe('sendModel: delivery', () => {
     const req = request([file('a.stl')]);
     req.source = source([], { site: 'thingiverse', sourceUrl: 'https://www.thingiverse.com/thing:763622', delivery: 'manyfold-import' });
     const r = await sendModel(req, h.deps, noop);
-    expect(r).toEqual({ status: 'handoff', url: `${BASE}/models?q=${encodeURIComponent('https://www.thingiverse.com/thing:763622')}` });
+    expect(r).toEqual({ status: 'handoff', url: `${BASE}/imports/new?url=${encodeURIComponent('https://www.thingiverse.com/thing:763622')}` });
     expect(h.log).toEqual([]);
   });
 

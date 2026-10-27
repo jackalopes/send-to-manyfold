@@ -70,14 +70,27 @@ export function Options() {
         <input type="password" value={s.token} autoComplete="off" style={{ display: 'block', width: '100%' }}
           onInput={(e) => setS({ ...s, token: e.currentTarget.value })} />
       </label>
-      <details>
+      <details open={!s.token}>
         <summary>How to create a token</summary>
+        <p>Manyfold makes you create an <strong>API key</strong> first, then an <strong>access token</strong> inside it. Only the token goes here.</p>
         <ol>
-          <li>In Manyfold, open <code>/oauth/applications</code> (the "API keys" page; its menu location is unverified). Sign in as a user with upload permission (contributor role or higher).</li>
-          <li>Choose "New API key", give it the <code>read</code>, <code>write</code> and <code>upload</code> scopes, and save.</li>
-          <li>On its page choose "New Access Token", select the same scopes and an expiry, then copy the token (shown once) and paste it above.</li>
-          <li><em>These steps come from Manyfold's source and have not been tried on a live instance.</em></li>
+          <li>
+            Sign in to Manyfold as a user who can upload (contributor role or higher). Open your account menu (top right) and choose <strong>API keys</strong>, under Developers
+            {savedUrl ? <>, or open <a href={`${savedUrl}/oauth/applications/new`} target="_blank" rel="noreferrer">New API key</a> directly</> : null}.
+          </li>
+          <li>
+            Click <strong>New API key</strong> and fill in:
+            <ul>
+              <li><strong>Name</strong>: anything, for example <code>Send To Manyfold</code>.</li>
+              <li><strong>Redirect URI</strong>: <code>urn:ietf:wg:oauth:2.0:oob</code></li>
+              <li><strong>Scopes</strong>: select <code>read</code>, <code>write</code> and <code>upload</code> (hold Ctrl, or Cmd on a Mac, to pick several).</li>
+            </ul>
+            Leave Confidential as it is and click <strong>Save API key details</strong>.
+          </li>
+          <li>On the API key's page, scroll to <strong>Access Tokens</strong> and click <strong>New Access Token</strong>. Pick an <strong>Expiration</strong> (6 months at most), select the same three scopes, and click <strong>Submit</strong>.</li>
+          <li>Reveal the token and copy it. Manyfold shows it only once. Paste it above, click <strong>Save</strong>, then <strong>Test connection</strong>.</li>
         </ol>
+        <p>When the token expires, repeat steps 3 and 4 with the same API key.</p>
       </details>
       <fieldset>
         <legend>Prefill fields</legend>

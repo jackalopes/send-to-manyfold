@@ -1,25 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { MESSAGES } from '../pipeline/errors';
 import type { SendSessions } from './sessions';
-import { classifySender, createOffscreenListener, serviceWorkerUrlFrom } from './worker-gate';
+import { classifySender, createOffscreenListener, SERVICE_WORKER_PATH } from './worker-gate';
 
 const EXT = 'chrome-extension://abc/';
 const getURL = (path: string) => `${EXT}${path.replace(/^\//, '')}`;
 const SW = `${EXT}background.js`;
-
-describe('serviceWorkerUrlFrom', () => {
-  it('uses the manifest value, not a literal file name', () => {
-    expect(serviceWorkerUrlFrom({ background: { service_worker: 'background.js' } }, getURL)).toBe(SW);
-    expect(serviceWorkerUrlFrom({ background: { service_worker: 'sw/renamed-worker.js' } }, getURL)).toBe(`${EXT}sw/renamed-worker.js`);
-  });
-
-  it('is undefined when the manifest names no worker', () => {
-    expect(serviceWorkerUrlFrom({}, getURL)).toBeUndefined();
-    expect(serviceWorkerUrlFrom({ background: {} }, getURL)).toBeUndefined();
-  });
-});
 
 const BUILT = join(__dirname, '../../.output/chrome-mv3/manifest.json');
 
@@ -31,8 +19,21 @@ describe('the built manifest names the worker the offscreen gate derives from', 
   // With REQUIRE_BUILT_MANIFEST set (CI after `npm run build`, `npm run test:built`), a missing build fails instead of skipping.
   it.skipIf(!existsSync(BUILT) && !process.env.REQUIRE_BUILT_MANIFEST)('.output/chrome-mv3/manifest.json has background.service_worker (run `npm run build` first)', () => {
     const manifest = JSON.parse(readFileSync(BUILT, 'utf8')) as { background?: { service_worker?: string } };
-    expect(manifest.background?.service_worker).toBe('background.js');
-    expect(serviceWorkerUrlFrom(manifest, getURL)).toBe(SW);
+    expect(manifest.background?.service_worker).toBe(SERVICE_WORKER_PATH);
+    expect(getURL(SERVICE_WORKER_PATH)).toBe(SW);
+  });
+
+  // Measured in Chromium 145: an offscreen document's chrome.runtime has getURL, id and messaging, but not
+  // getManifest; no other chrome.* namespace exists there. Mocked unit tests cannot see this.
+  it.skipIf(!existsSync(BUILT) && !process.env.REQUIRE_BUILT_MANIFEST)('the built offscreen code uses only the chrome APIs an offscreen document has', () => {
+    const chunks = join(BUILT, '../chunks');
+    const file = readdirSync(chunks).find((f) => /^offscreen-.*\.js$/.test(f));
+    expect(file).toBeDefined();
+    const code = readFileSync(join(chunks, file!), 'utf8');
+    const used = new Set([...code.matchAll(/\bchrome\.(\w+)(?:\.(\w+))?/g)].map((m) => `${m[1]}.${m[2] ?? ''}`));
+    const allowed = ['runtime.getURL', 'runtime.id', 'runtime.sendMessage', 'runtime.onMessage', 'runtime.connect', 'runtime.onConnect'];
+    expect([...used].filter((api) => !allowed.includes(api))).toEqual([]);
+    expect(used).toContain('runtime.onMessage');
   });
 });
 

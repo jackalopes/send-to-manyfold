@@ -255,7 +255,7 @@ describe('applyMetadata', () => {
       description: 'Long description.',
       licenseText: 'CC BY-NC 4.0',
       sourceUrl: 'https://www.printables.com/model/123-thing',
-      sourceLabel: 'Printables',
+      sourceLinkText: 'Printables',
       creator: { name: 'probe maker' },
       tags: ['Tag One', 'tag one', ' ', 'two'],
       sensitive: true,
@@ -453,7 +453,7 @@ describe('metadataInputFromSource', () => {
     const src: SourceModel = { site: 'printables', sourceUrl: 'https://www.printables.com/model/1-x', title: 'T', tags: ['a'], files: [] };
     const input = metadataInputFromSource(src, { name: 'T', sensitive: false, omitSourceLink: true });
     expect(input.sourceUrl).toBeUndefined();
-    expect(input.sourceLabel).toBeUndefined();
+    expect(input.sourceLinkText).toBeUndefined();
     expect(input.tags).toEqual(['a']);
   });
 
@@ -461,7 +461,7 @@ describe('metadataInputFromSource', () => {
     const other: SourceModel = { site: 'other', sourceUrl: 'https://example.com/thing', title: 'Page', tags: [], files: [] };
     const input = metadataInputFromSource(other, { name: 'Page', sensitive: false });
     expect(input.sourceUrl).toBe('https://example.com/thing');
-    expect(input.sourceLabel).toBeUndefined();
+    expect(input.sourceLinkText).toBeUndefined();
   });
 
   const source: SourceModel = {
@@ -475,19 +475,27 @@ describe('metadataInputFromSource', () => {
     files: [],
   };
 
-  it('uses the popup title, the site label for the link, and carries the rest over', () => {
+  it('uses the popup title, the source model name for the link text, and carries the rest over', () => {
     expect(metadataInputFromSource(source, { name: 'Popup Title', sensitive: false, collectionIds: ['c1'], previewFilename: 'cover.jpg' })).toEqual({
       name: 'Popup Title',
       description: 'Desc',
       licenseText: 'CC BY 4.0',
       sourceUrl: 'https://www.printables.com/model/1-thing',
-      sourceLabel: 'Printables',
+      sourceLinkText: 'Readme Title',
       creator: { name: 'Maker', url: 'https://www.printables.com/@Maker' },
       tags: ['a', 'b'],
       sensitive: false,
       collectionIds: ['c1'],
       preview: { filename: 'cover.jpg' },
     });
+  });
+
+  it('trims the source model name for the link text', () => {
+    expect(metadataInputFromSource({ ...source, title: '  Spaced Name \n' }, { name: 'Edited', sensitive: false }).sourceLinkText).toBe('Spaced Name');
+  });
+
+  it('falls back to the site label when the source model name is blank', () => {
+    expect(metadataInputFromSource({ ...source, title: '   ' }, { name: 'Edited', sensitive: false }).sourceLinkText).toBe('Printables');
   });
 
   it('omits the preview when there is no cover image', () => {

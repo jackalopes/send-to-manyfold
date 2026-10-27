@@ -9,6 +9,11 @@ export interface PageWatchDeps {
   page: Page;
   /** Window events: `pageshow` and WXT's `wxt:locationchange` (carries the destination URL as `newUrl`). */
   on(type: 'pageshow' | 'wxt:locationchange', handler: (e: { newUrl: URL }) => void): void;
+  /**
+   * Every same-document navigation (`history.pushState`/`replaceState`, hash changes), including one that keeps
+   * the URL: Chrome marks the tab as loading for it, which clears the badge, but `wxt:locationchange` skips it.
+   */
+  onSameDocumentNavigation(handler: () => void): void;
   /** Calls back on every DOM change; returns a stopper. */
   observeDom(callback: () => void): () => void;
   setTimeout?: (fn: () => void, ms: number) => unknown;
@@ -16,9 +21,9 @@ export interface PageWatchDeps {
 
 /**
  * When the page state is sent to the background. The unconditional re-send (`settle`) happens only on load, on
- * `pageshow` and once after a navigation has settled. DOM changes (sites churn constantly) only run a plain `sync`,
- * which keeps the button in place and reports when the supported/unsupported state actually changed, so a busy
- * page does not wake the service worker.
+ * `pageshow` and once after a navigation (any same-document one, even to the same URL) has settled. DOM changes
+ * (sites churn constantly) only run a plain `sync`, which keeps the button in place and reports when the
+ * supported/unsupported state actually changed, so a busy page does not wake the service worker.
  */
 export function watchPage(deps: PageWatchDeps) {
   const later = deps.setTimeout ?? ((fn, ms) => setTimeout(fn, ms));
@@ -46,6 +51,10 @@ export function watchPage(deps: PageWatchDeps) {
       // The navigation event fires before `location` changes: use its destination now, the settled DOM later.
       deps.on('wxt:locationchange', (e) => {
         deps.page.sync(e.newUrl.href);
+        wantSettle = true;
+        schedule();
+      });
+      deps.onSameDocumentNavigation(() => {
         wantSettle = true;
         schedule();
       });

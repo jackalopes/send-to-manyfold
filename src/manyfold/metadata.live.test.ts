@@ -72,7 +72,7 @@ describe.skipIf(!url || !token)('live Manyfold metadata update', () => {
       description: 'Live description.',
       licenseText: 'CC BY-NC 4.0',
       sourceUrl: 'https://www.printables.com/model/1-live',
-      sourceLabel: 'Printables',
+      sourceLinkText: 'Printables',
       creator: { name: creatorName, url: 'https://www.printables.com/@LiveCreator' },
       collectionIds: [collection!.id],
       tags: ['Live', 'live', 'probe'],

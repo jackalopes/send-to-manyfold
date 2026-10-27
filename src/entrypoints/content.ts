@@ -35,6 +35,11 @@ export default defineContentScript({
       page,
       setTimeout: (fn, ms) => ctx.setTimeout(fn, ms),
       on: (type, handler) => ctx.addEventListener(window, type, (e) => handler(e as unknown as { newUrl: URL })),
+      // Navigation API (Chrome 102+). A cross-document navigation is left out: the new page reports itself.
+      onSameDocumentNavigation: (handler) =>
+        ctx.addEventListener(navigation, 'navigate', (e) => {
+          if ((e as NavigateEvent).destination.sameDocument) handler();
+        }),
       observeDom: (callback) => {
         const observer = new MutationObserver(callback);
         observer.observe(document.documentElement, { childList: true, subtree: true });

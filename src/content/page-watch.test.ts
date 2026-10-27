@@ -22,6 +22,7 @@ function setup() {
   const w = watchPage({
     page,
     on: (type, handler) => void (handlers[type] = handler as never),
+    onSameDocumentNavigation: (handler) => void (handlers['sameDocumentNavigation'] = handler),
     observeDom: (cb) => {
       mutate = cb;
       return stop;
@@ -90,6 +91,21 @@ describe('watchPage', () => {
     vi.advanceTimersByTime(SETTLE_MS);
     t.mutate();
     vi.advanceTimersByTime(SETTLE_MS * 3);
+    expect(t.reports).toHaveLength(before + 1);
+  });
+
+  // Next.js (MakerWorld) calls history.replaceState with the URL unchanged after load. Chrome still marks the tab
+  // as loading, which clears the badge, but WXT's location watcher ignores a navigation to the same URL.
+  it('a same-document navigation that keeps the URL re-sends the state once the page has settled', () => {
+    const t = setup();
+    t.w.start();
+    vi.advanceTimersByTime(SETTLE_MS);
+    const before = t.reports.length;
+    t.handlers['sameDocumentNavigation']!();
+    expect(t.reports).toHaveLength(before);
+    vi.advanceTimersByTime(SETTLE_MS);
+    expect(t.reports).toHaveLength(before + 1);
+    vi.advanceTimersByTime(SETTLE_MS * 5);
     expect(t.reports).toHaveLength(before + 1);
   });
 });

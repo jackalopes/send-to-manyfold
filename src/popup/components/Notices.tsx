@@ -37,7 +37,7 @@ export function HandoffView({ model, form, url, openUrl }: { model?: SourceModel
       </p>
       {form ? <DetailsFields form={form} onPatch={() => undefined} readOnly /> : null}
       <button type="button" onClick={() => openUrl(url)}>Open in Manyfold importer</button>
-      <p class="meta">Manyfold's administrator must have set a Thingiverse API key for this to work. This flow has not been verified yet.</p>
+      <p class="meta">The importer's Import button appears only if your Manyfold administrator has set a Thingiverse API key (Manyfold settings, Integrations).</p>
     </section>
   );
 }
