@@ -153,6 +153,8 @@ export class SendSessions {
       result = await work(deps, onProgress, controller.signal);
     } catch (e) {
       const error: SendError = toSendError(e, 'downloading');
+      // Never log the connection (it holds the token): the error itself only.
+      if (error.code === 'unknown') console.error('Send To Manyfold: unexpected send failure', e);
       // A failed retry before the pipeline ran leaves the retained state untouched, so it stays retryable.
       const retryable = isRetry && !!this.deps.store.get(session.sendId);
       result = { status: 'failed', stage: 'downloading', error, models: [], ...(retryable ? { retryToken: session.sendId } : {}) };

@@ -1,8 +1,12 @@
 import { MESSAGES, type SendErrorCode } from '../pipeline/errors';
 import type { SendStage } from '../pipeline/types';
 
-/** User-facing text for an error code. Raw error text is never shown. */
-export function errorText(code: string): string {
+/**
+ * User-facing text for an error: the pipeline's own message when there is one (it is fixed text plus file names,
+ * never raw exception text), else the fixed text for the code.
+ */
+export function errorText(code: string, message?: string): string {
+  if (message?.trim()) return message;
   return Object.hasOwn(MESSAGES, code) ? MESSAGES[code as SendErrorCode] : MESSAGES.unknown;
 }
 

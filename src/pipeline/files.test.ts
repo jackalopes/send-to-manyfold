@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coverFileName, sanitizeFileName, uniqueNames, uploadName } from './files';
+import { coverFileName, isHttps, sanitizeFileName, uniqueNames, uploadName } from './files';
 
 describe('sanitizeFileName', () => {
   it.each([
@@ -34,5 +34,13 @@ describe('coverFileName', () => {
     expect(coverFileName('https://media.example.com/img/cover%20shot.jpg?w=800')).toBe('cover shot.jpg');
     expect(coverFileName('https://media.example.com/img/abc123')).toBe('abc123.jpg');
     expect(coverFileName('https://media.example.com/')).toBe('cover.jpg');
+  });
+});
+
+describe('isHttps', () => {
+  it('accepts only https URLs', () => {
+    expect(isHttps('https://a.example/f.stl')).toBe(true);
+    expect(isHttps('http://a.example/f.stl')).toBe(false);
+    expect(isHttps('not a url')).toBe(false);
   });
 });

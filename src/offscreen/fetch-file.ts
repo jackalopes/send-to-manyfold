@@ -1,6 +1,6 @@
 import { DownloadFailed } from '../adapters/errors';
 import { MESSAGES, PipelineError } from '../pipeline/errors';
-import { MAX_UPLOAD_BYTES } from '../pipeline/files';
+import { isHttps, MAX_UPLOAD_BYTES } from '../pipeline/files';
 
 /**
  * The offscreen document's `SendDeps.fetchFile`: downloads an `https:` link into memory (a Blob; nothing touches the
@@ -39,14 +39,6 @@ export function createFetchFile(fetchImpl: typeof fetch = (...a) => fetch(...a),
     }
     return new Blob(chunks, { type });
   };
-}
-
-function isHttps(url: string): boolean {
-  try {
-    return new URL(url).protocol === 'https:';
-  } catch {
-    return false;
-  }
 }
 
 const notHttps = () => new PipelineError('download-not-https', MESSAGES['download-not-https']);

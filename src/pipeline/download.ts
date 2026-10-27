@@ -1,5 +1,5 @@
 import { isAbort, PipelineError } from './errors';
-import { coverFileName, isArchiveName, MAX_UPLOAD_BYTES, stem, uniqueNames, uploadName } from './files';
+import { coverFileName, isArchiveName, isHttps, MAX_UPLOAD_BYTES, stem, uniqueNames, uploadName } from './files';
 import type { ModelGroup, SendState } from './state';
 import type { SendDeps, SendProgress } from './types';
 
@@ -76,10 +76,3 @@ function tooLarge(name: string): PipelineError {
   return new PipelineError('too-large', `"${name}" is larger than Manyfold accepts (1 GiB).`);
 }
 
-function isHttps(url: string): boolean {
-  try {
-    return new URL(url).protocol === 'https:';
-  } catch {
-    return false;
-  }
-}

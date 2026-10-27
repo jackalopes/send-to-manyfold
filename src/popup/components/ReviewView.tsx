@@ -33,7 +33,7 @@ export function ReviewView(p: ReviewViewProps) {
         if (canSend(p.form)) p.onSend();
       }}
     >
-      {p.sendError ? <p role="alert" class="error">{errorText(p.sendError.code)}</p> : null}
+      {p.sendError ? <p role="alert" class="error">{errorText(p.sendError.code, p.sendError.message)}</p> : null}
       {warn ? (
         <div role="alert" class="warning">
           <p>

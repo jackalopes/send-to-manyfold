@@ -7,6 +7,14 @@ describe('errorText', () => {
     expect(errorText('upload-failed')).toBe(MESSAGES['upload-failed']);
     expect(errorText('not-configured')).toBe(MESSAGES['not-configured']);
   });
+  it("shows the error's own specific message when present", () => {
+    const m = 'Manyfold refused the upload of "x.stl" (HTTP 413).';
+    expect(errorText('upload-failed', m)).toBe(m);
+  });
+  it('falls back to the code text for an empty message', () => {
+    expect(errorText('upload-failed', '')).toBe(MESSAGES['upload-failed']);
+    expect(errorText('SOMETHING_ELSE', '  ')).toBe(MESSAGES.unknown);
+  });
   it('falls back to the generic message for an unknown code', () => {
     expect(errorText('SOMETHING_ELSE')).toBe(MESSAGES.unknown);
   });

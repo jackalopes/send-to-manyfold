@@ -49,7 +49,7 @@ export interface FailedViewProps {
 export function FailedView(p: FailedViewProps) {
   return (
     <section>
-      <p role="alert" class="error">{errorText(p.error.code)}</p>
+      <p role="alert" class="error">{errorText(p.error.code, p.error.message)}</p>
       <p class="meta">Stopped at: {stageLabel(p.stage)}</p>
       {p.ambiguous ? <p class="warning">The model may already exist in Manyfold. Check your library, then choose Send anyway only if it is not there.</p> : null}
       {p.models.length ? (

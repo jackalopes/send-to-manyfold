@@ -144,3 +144,15 @@ describe('parseTabNotice', () => {
     expect(parseTabNotice({ to: 'content', type: 'openPopup' })).toBeUndefined();
   });
 });
+
+describe('error message length cap', () => {
+  const failed = (message: string) => ({
+    event: 'result',
+    sendId: 's1',
+    result: { status: 'failed', stage: 'creating', error: { code: 'create-failed', message, stage: 'creating' }, models: [] },
+  });
+  it('accepts a 500 character message and rejects a longer one', () => {
+    expect(parseSendEvent(failed('x'.repeat(500)))).toBeDefined();
+    expect(parseSendEvent(failed('x'.repeat(501)))).toBeUndefined();
+  });
+});

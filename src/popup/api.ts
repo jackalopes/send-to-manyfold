@@ -1,6 +1,7 @@
 import { MESSAGES, type SendError } from '../pipeline/errors';
 import { isRecord } from '../pipeline/guards';
 import {
+  isOffscreenUrl,
   parseExtractReply,
   parseSendEvent,
   type AckReply,
@@ -28,7 +29,7 @@ export interface PopupApiDeps {
 export function isOffscreenSender(sender: { url?: string; tab?: unknown }, offscreenUrl: string): boolean {
   const url = sender.url;
   if (sender.tab || !url) return false;
-  return url === offscreenUrl || url.startsWith(`${offscreenUrl}?`) || url.startsWith(`${offscreenUrl}#`);
+  return isOffscreenUrl(url, offscreenUrl);
 }
 
 export type ExtractResult = { ok: true; model: SourceModel } | { ok: false; code: string };

@@ -1,9 +1,8 @@
-import { classifyFile } from '../types';
+import { classifyFile, isArchiveExtension } from '../types';
 
 /** Manyfold's Tus server accepts at most 1 GiB per file (`Tus-Max-Size: 1073741824` on 0.153.0). */
 export const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
 
-const ARCHIVE_EXTENSIONS = new Set(['zip', 'rar', '7z', 'tar', 'gz', 'tgz', 'bz2']);
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif']);
 
 /** Last path segment without control characters, trimmed. Empty when nothing usable is left. */
@@ -13,6 +12,14 @@ export function sanitizeFileName(raw: string): string {
   const last = cleaned.split(/[/\\]/).pop() ?? '';
   const name = last.trim();
   return name === '.' || name === '..' ? '' : name;
+}
+
+export function isHttps(url: string): boolean {
+  try {
+    return new URL(url).protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 export function extensionOf(name: string): string {
@@ -33,7 +40,7 @@ export function uploadName(listed: string, resolved: string | undefined): string
 }
 
 export function isArchiveName(name: string): boolean {
-  return ARCHIVE_EXTENSIONS.has(extensionOf(name)) || classifyFile(name) === 'archive';
+  return isArchiveExtension(extensionOf(name)) || classifyFile(name) === 'archive';
 }
 
 /** Makes names distinct (ignoring case) by numbering repeats before the extension: `part (2).stl`. */

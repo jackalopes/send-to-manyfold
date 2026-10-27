@@ -1,5 +1,6 @@
 import type { ManyfoldClient } from './client';
-import { ManyfoldError } from './errors';
+import { isArchiveExtension } from '../types';
+import { FORBIDDEN_TEXT, ManyfoldError, RATE_LIMITED_TEXT, UNAUTHORIZED_TEXT } from './errors';
 import { collectionUrl } from './paths';
 import type { CreatedModel, ModelFile, UploadedFile } from './types';
 
@@ -8,7 +9,6 @@ export type { CreatedModel, ModelFile, UploadedFile } from './types';
 const TUS_VERSION = '1.0.0';
 const DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024;
 const CHUNK_TIMEOUT_MS = 120_000;
-const ARCHIVE_EXTENSIONS = new Set(['zip', 'rar', '7z', 'gz', 'gzip', 'bz2', 'tar', 'tgz']);
 const ARCHIVE_MIME = /zip|rar|7z|gzip|bzip|x-tar|compressed/i;
 /** Polls with an unchanged file list before an archive-containing list is accepted as final (nested archives). */
 const STABLE_POLLS = 3;
@@ -283,10 +283,10 @@ function throwIfFatal(res: Response, what: string, uploadUrl?: string): void {
   if (isNoLibraryRedirect(res)) {
     throw new ManyfoldError('no-library', 'Manyfold has no library yet. Create a library in Manyfold first, then try again.');
   }
-  if (res.status === 401) throw new ManyfoldError('unauthorized', 'Manyfold rejected the API token. Check it in the extension settings.');
-  if (res.status === 403) throw new ManyfoldError('forbidden', 'The API token lacks permission for this (it needs the read, write and upload scopes).');
+  if (res.status === 401) throw new ManyfoldError('unauthorized', UNAUTHORIZED_TEXT);
+  if (res.status === 403) throw new ManyfoldError('forbidden', FORBIDDEN_TEXT);
   if (res.status === 413) throw new ManyfoldError('too-large', `"${what}" is larger than this Manyfold server accepts.`, uploadUrl);
-  if (res.status === 429) throw new ManyfoldError('rate-limited', 'Manyfold is limiting requests. Wait a minute and try again.', uploadUrl);
+  if (res.status === 429) throw new ManyfoldError('rate-limited', RATE_LIMITED_TEXT, uploadUrl);
 }
 
 function isNoLibraryRedirect(res: Response): boolean {
@@ -314,7 +314,7 @@ function extension(name: string): string {
 }
 
 function isArchiveName(name: string): boolean {
-  return ARCHIVE_EXTENSIONS.has(extension(name));
+  return isArchiveExtension(extension(name));
 }
 
 function isArchiveMime(mime: string | undefined): boolean {

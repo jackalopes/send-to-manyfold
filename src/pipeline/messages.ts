@@ -140,7 +140,10 @@ const isProgress = (v: unknown): v is SendProgress =>
   isRecord(v) &&
   hasShape(v, { stage: isStage, label: isString, fileIndex: optNumber, fileCount: optNumber, sent: optNumber, total: optNumber, modelIndex: optNumber, modelCount: optNumber });
 
-const isWireError = (v: unknown): v is WireError => isRecord(v) && hasShape(v, { code: isString, message: isString });
+/** The message is shown to the user, so a sane length is enforced on arrival. */
+export const MAX_ERROR_MESSAGE = 500;
+const isWireError = (v: unknown): v is WireError =>
+  isRecord(v) && hasShape(v, { code: isString, message: (m) => isString(m) && m.length <= MAX_ERROR_MESSAGE });
 
 /** Results come from our own pipeline; this checks the discriminant and the fields a page branches on. */
 const isResult = (v: unknown): v is SendResult => {
@@ -187,6 +190,11 @@ const CONTENT: Shapes = { extract: {}, resolveDownload: { site: isSite, file: is
 function parseRequest<T>(m: unknown, to: string, shapes: Shapes): T | undefined {
   if (!isRecord(m) || m.to !== to || !isString(m.type) || !Object.hasOwn(shapes, m.type)) return undefined;
   return hasShape(m, shapes[m.type]!) ? (m as T) : undefined;
+}
+
+/** Whether a sender URL is the offscreen document (the page itself, with an optional query or hash). */
+export function isOffscreenUrl(url: string, offscreenUrl: string): boolean {
+  return url === offscreenUrl || url.startsWith(`${offscreenUrl}?`) || url.startsWith(`${offscreenUrl}#`);
 }
 
 export const parseBackgroundRequest = (m: unknown) => parseRequest<BackgroundRequest>(m, 'background', BACKGROUND);

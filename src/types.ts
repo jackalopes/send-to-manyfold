@@ -46,7 +46,13 @@ export interface SourceModel {
 
 const MODEL_EXTENSIONS = new Set(['stl', '3mf', 'obj', 'step', 'stp']);
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif']);
+/** Archives the site adapters list as files (a GitHub blob link to one is a supported page). */
 const ARCHIVE_EXTENSIONS = new Set(['zip', 'rar', '7z', 'tar', 'gz']);
+/** Everything the pipeline and the uploader treat as an archive: the listed ones plus the compressed-tar and gzip variants. */
+const ARCHIVE_EXTENSIONS_ANY = new Set([...ARCHIVE_EXTENSIONS, 'tgz', 'bz2', 'gzip']);
+
+/** Whether a (lower-case) file extension is an archive Manyfold unpacks. */
+export const isArchiveExtension = (ext: string): boolean => ARCHIVE_EXTENSIONS_ANY.has(ext);
 
 export function classifyFile(name: string): SourceFile['kind'] {
   const dot = name.lastIndexOf('.');

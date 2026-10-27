@@ -1,5 +1,5 @@
 import { VENDOR_ACCEPT, type ManyfoldClient } from './client';
-import { ManyfoldError } from './errors';
+import { FORBIDDEN_TEXT, ManyfoldError, RATE_LIMITED_TEXT, UNAUTHORIZED_TEXT } from './errors';
 import { mapLicense } from './licenses';
 import { collectionPath, toPath } from './paths';
 import type { SiteId, SourceModel } from '../types';
@@ -306,10 +306,10 @@ async function call(client: ManyfoldClient, path: string, init: RequestInit = {}
 }
 
 async function describeFailure(res: Response): Promise<string> {
-  if (res.status === 401) return 'Manyfold rejected the API token. Check it in the extension settings.';
-  if (res.status === 403) return 'The API token lacks permission for this (it needs the read, write and upload scopes).';
+  if (res.status === 401) return UNAUTHORIZED_TEXT;
+  if (res.status === 403) return FORBIDDEN_TEXT;
   if (res.status === 404) return 'Not found in Manyfold (HTTP 404).';
-  if (res.status === 429) return 'Manyfold is limiting requests. Wait a minute and try again.';
+  if (res.status === 429) return RATE_LIMITED_TEXT;
   if (res.status >= 500) return `Manyfold server error (HTTP ${res.status}).`;
   try {
     if (/json/i.test(res.headers.get('Content-Type') ?? '')) {

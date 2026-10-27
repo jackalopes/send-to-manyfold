@@ -55,7 +55,11 @@ export default defineBackground(() => {
     void router.handleEvent(message, sender);
     const reply = router.handleMessage(message, sender);
     if (!reply) return false;
-    reply.then(sendResponse, () => sendResponse({ ok: false, error: { code: 'unknown', message: 'Something went wrong while sending.', stage: 'downloading' } }));
+    reply.then(sendResponse, (e) => {
+      // Log the cause (an error never carries the token); the popup only gets the generic text.
+      console.error('Send To Manyfold: request failed', message?.type, e);
+      sendResponse({ ok: false, error: { code: 'unknown', message: 'Something went wrong while sending.', stage: 'downloading' } });
+    });
     return true;
   });
 

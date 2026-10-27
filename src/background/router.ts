@@ -2,6 +2,7 @@ import type { HistoryEntry } from '../history';
 import { MESSAGES, type SendErrorCode } from '../pipeline/errors';
 import { isRecord } from '../pipeline/guards';
 import {
+  isOffscreenUrl,
   parseBackgroundRequest,
   parseSendEvent,
   type AckReply,
@@ -113,23 +114,19 @@ export function createBackgroundRouter(deps: BackgroundRouterDeps) {
     handleMessage(raw: unknown, sender: Sender): Promise<Reply> | undefined {
       const m = parseBackgroundRequest(raw);
       if (!m || !sender.url?.startsWith(deps.extensionOrigin)) return undefined;
-      if (OFFSCREEN_ONLY.has(m.type) && !isOffscreen(sender.url, deps.offscreenUrl)) return undefined;
+      if (OFFSCREEN_ONLY.has(m.type) && !isOffscreenUrl(sender.url, deps.offscreenUrl)) return undefined;
       return handle(m);
     },
 
     /** Offscreen broadcasts (from the offscreen document only): a finished or released send may leave it idle. */
     async handleEvent(raw: unknown, sender: Sender): Promise<void> {
-      if (sender.tab || !sender.url || !isOffscreen(sender.url, deps.offscreenUrl)) return;
+      if (sender.tab || !sender.url || !isOffscreenUrl(sender.url, deps.offscreenUrl)) return;
       const e = parseSendEvent(raw);
       if (e && e.event !== 'progress') await closeIfIdle();
     },
 
     closeIfIdle,
   };
-}
-
-function isOffscreen(url: string, offscreenUrl: string): boolean {
-  return url === offscreenUrl || url.startsWith(`${offscreenUrl}?`) || url.startsWith(`${offscreenUrl}#`);
 }
 
 function fail(code: SendErrorCode): Fail {

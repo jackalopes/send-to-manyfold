@@ -60,6 +60,9 @@ export function Options() {
         <input type="text" value={s.manyfoldUrl} placeholder="http://192.168.1.5:3214" style={{ display: 'block', width: '100%' }}
           onInput={(e) => setS({ ...s, manyfoldUrl: e.currentTarget.value })} />
       </label>
+      <p style={{ margin: '0.25rem 0', fontSize: '0.85em', color: '#555' }}>
+        Without http:// or https:// the address defaults to https://, except IP addresses, localhost and .local/.lan/.home.arpa/.internal names. For a LAN name over http, type http://nas:3214.
+      </p>
       {isInsecurePublicUrl(savedUrl) ? (
         <p role="alert" style={{ color: '#b00020' }}>
           Warning: the saved URL uses http: on a public host, so your API token travels unencrypted. Use an https: address.
