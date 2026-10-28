@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { adapterFor } from './index';
+import { github } from './github';
 import { githubAnchor, makerworldAnchor, printablesAnchor, thingiverseAnchor } from './anchors';
 
 const fixture = (name: string): Document => new DOMParser().parseFromString(readFileSync(join(__dirname, 'fixtures', name), 'utf8'), 'text/html');
@@ -48,7 +49,7 @@ describe('download control anchors (saved pages)', () => {
   it('is exposed on the adapters', () => {
     expect(adapterFor(new URL('https://www.printables.com/model/3161-x'))?.downloadAnchor).toBe(printablesAnchor);
     expect(adapterFor(new URL('https://www.thingiverse.com/thing:763622'))?.downloadAnchor).toBe(thingiverseAnchor);
-    expect(adapterFor(new URL('https://github.com/a/b/blob/main/x.stl'))?.downloadAnchor).toBe(githubAnchor);
+    expect(github.downloadAnchor).toBe(githubAnchor);
     expect(adapterFor(new URL('https://makerworld.com/en/models/1-x'))?.downloadAnchor).toBe(makerworldAnchor);
   });
 });

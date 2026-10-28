@@ -11,7 +11,7 @@ describe('UnsupportedView', () => {
   it('tells the user to reload a model page that is not detected', () => {
     render(<UnsupportedView />, root);
     expect(root.textContent).toContain("This page isn't supported yet");
-    expect(root.textContent).toContain('If this is a model page on Printables, Thingiverse, MakerWorld or GitHub, reload the page and try again.');
+    expect(root.textContent).toContain('If this is a model page on Printables, Thingiverse or MakerWorld, reload the page and try again.');
   });
 });
 

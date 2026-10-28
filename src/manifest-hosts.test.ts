@@ -27,9 +27,6 @@ const MODEL_PAGES = [
   'https://makerworld.com/en/models/1272656-original-3dbenchy',
   'https://makerworld.com/models/1704385',
   'https://www.makerworld.com/de/models/2158060-benchy-original',
-  'https://github.com/VoronDesign/Voron-2/blob/Voron2.4/STLs/Electronics_Bay/Controller_Mounts/Octopus_bracket_set.stl',
-  'https://github.com/openbikesensor/OpenBikeSensor3dPrintableCase/releases/tag/v0.3.63',
-  'https://github.com/VoronDesign/Voron-2/releases',
 ];
 
 describe('content script matches', () => {
@@ -43,14 +40,13 @@ describe('content script matches', () => {
     'https://www.printables.com/@Prusa3D',
     'https://www.thingiverse.com/search?q=benchy',
     'https://makerworld.com/en',
-    'https://github.com/VoronDesign/Voron-2',
   ])('also inject on the rest of the site (%s), so in-site navigation to a model page finds the script', (href) => {
     expect(adapterFor(new URL(href))).toBeUndefined();
     expect(matchedBy(CONTENT_SCRIPT_MATCHES, href)).toBe(true);
   });
 
   it.each(['https://example.com/model/1', 'http://www.printables.com/model/1-x', 'https://printables.com.evil.example/model/1', 'https://notprintables.com/model/1'])(
-    'never inject outside the four sites (%s)',
+    'never inject outside the three sites (%s)',
     (href) => {
       expect(matchedBy(CONTENT_SCRIPT_MATCHES, href)).toBe(false);
     },
@@ -66,7 +62,7 @@ describe('content script matches', () => {
 });
 
 describe('subdomain wildcards stay on the named sites', () => {
-  it.each(['https://gist.github.com/x/1', 'https://docs.github.com/en', 'https://api.printables.com/graphql/'])('the content script also matches %s (inert: no adapter matches it)', (href) => {
+  it.each(['https://api.printables.com/graphql/', 'https://www.thingiverse.com/x'])('the content script also matches %s (inert: no adapter matches it)', (href) => {
     expect(matchedBy(CONTENT_SCRIPT_MATCHES, href)).toBe(true);
     expect(adapterFor(new URL(href))).toBeUndefined();
   });
@@ -80,17 +76,26 @@ describe('download host permissions (fetches from the offscreen document)', () =
     ['Printables signed file link', 'https://files.printables.com/media/prints/3161/stls/123914_x/3dbenchy.stl?token=abc'],
     ['Printables cover', 'https://media.printables.com/media/prints/3161/images/x/thumbs/cover/800x800/jpg/benchy.jpg'],
     ['MakerWorld signed link and cover', 'https://makerworld.bblmw.com/makerworld/model/US988acfe8c03702/272525070/instance/file.3mf?exp=1&key=sig'],
-    ['GitHub raw link', 'https://github.com/VoronDesign/Voron-2/raw/Voron2.4/STLs/a.stl'],
-    ['GitHub raw redirect', 'https://raw.githubusercontent.com/VoronDesign/Voron-2/Voron2.4/STLs/a.stl'],
-    ['GitHub LFS redirect', 'https://media.githubusercontent.com/media/huggingface/lerobot/main/x.png'],
-    ['GitHub release asset redirect (current host)', 'https://release-assets.githubusercontent.com/github-production-release-asset/1/2?sig=x'],
-    ['GitHub release asset redirect (older host)', 'https://objects.githubusercontent.com/github-production-release-asset-2e65be/1/2?sig=x'],
-    ['GitHub cover (social preview)', 'https://repository-images.githubusercontent.com/157293887/790af080'],
-    ['GitHub cover (generated card)', 'https://opengraph.githubassets.com/d1b18e/openbikesensor/x/releases/tag/v0.3.63'],
-    ['GitHub cover (avatar)', 'https://avatars.githubusercontent.com/u/1?v=4'],
   ])('cover the %s', (_what, href) => {
     expect(matchedBy(DOWNLOAD_HOST_PERMISSIONS, href)).toBe(true);
   });
+});
+
+describe('GitHub is switched off for v1', () => {
+  it('has no adapter: a GitHub blob URL is not a model page', () => {
+    expect(adapterFor(new URL('https://github.com/VoronDesign/Voron-2/blob/Voron2.4/STLs/a.stl'))).toBeUndefined();
+    expect(adapterFor(new URL('https://github.com/o/r/releases/tag/v1.0'))).toBeUndefined();
+  });
+  it('is in no manifest list', () => {
+    for (const p of [...CONTENT_SCRIPT_MATCHES, ...DOWNLOAD_HOST_PERMISSIONS]) expect(p).not.toMatch(/github/i);
+  });
+  it.each(['https://github.com/o/r', 'https://gist.github.com/x/1', 'https://raw.githubusercontent.com/o/r/main/a.stl', 'https://opengraph.githubassets.com/x'])(
+    'neither list matches %s',
+    (href) => {
+      expect(matchedBy(CONTENT_SCRIPT_MATCHES, href)).toBe(false);
+      expect(matchedBy(DOWNLOAD_HOST_PERMISSIONS, href)).toBe(false);
+    },
+  );
 });
 
 describe('MINIMUM_CHROME_VERSION', () => {

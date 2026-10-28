@@ -6,6 +6,14 @@ import { extractWithFallback } from './fallback';
 import { github } from './github';
 import { adapterFor } from './index';
 
+// GitHub is switched off for v1 (not in ADAPTERS). These tests still exercise the dormant adapter through
+// adapterFor / extractWithFallback, so adapterFor is wrapped here to include it.
+vi.mock('./index', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./index')>();
+  const { github: gh } = await import('./github');
+  return { ...actual, adapterFor: (url: URL) => actual.adapterFor(url) ?? (gh.matches(url) ? gh : undefined) };
+});
+
 function fixtureHtml(name: string): string {
   return readFileSync(join(__dirname, 'fixtures', name), 'utf8');
 }
@@ -113,7 +121,7 @@ describe('github.matches', () => {
     expect(github.matches(new URL(u))).toBe(false);
   });
 
-  it('is registered in adapterFor', () => {
+  it('is found by adapterFor (wrapped above: it is not in the real ADAPTERS while switched off)', () => {
     expect(adapterFor(VORON_BLOB_URL)).toBe(github);
     expect(adapterFor(OBS_TAG_URL)).toBe(github);
     expect(adapterFor(new URL(`${VORON_REPO}/releases`))).toBe(github);

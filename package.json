@@ -2,7 +2,7 @@
   "name": "send-to-manyfold",
   "version": "0.1.0",
   "private": true,
-  "description": "Send 3D models from Printables, Thingiverse, MakerWorld and GitHub to your Manyfold instance.",
+  "description": "Send 3D models from Printables, Thingiverse and MakerWorld to your Manyfold instance.",
   "license": "MIT",
   "type": "module",
   "scripts": {

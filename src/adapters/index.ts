@@ -1,5 +1,4 @@
 import type { Delivery, SiteId, SourceFile, SourceModel } from '../types';
-import { github } from './github';
 import { makerworld } from './makerworld';
 import { printables } from './printables';
 import { thingiverse } from './thingiverse';
@@ -47,7 +46,8 @@ export interface SiteAdapter {
   resolveDownloadUrl?(file: SourceFile): Promise<string | ResolvedDownload>;
 }
 
-const ADAPTERS: SiteAdapter[] = [printables, thingiverse, makerworld, github];
+// GitHub is switched off for v1 (unverified, needs community feedback); its adapter stays in ./github.ts.
+const ADAPTERS: SiteAdapter[] = [printables, thingiverse, makerworld];
 
 export function adapterFor(url: URL): SiteAdapter | undefined {
   return ADAPTERS.find((a) => a.matches(url));

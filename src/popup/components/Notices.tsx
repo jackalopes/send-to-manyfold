@@ -8,8 +8,8 @@ export function UnsupportedView() {
   return (
     <section>
       <p role="status"><strong>This page isn't supported yet.</strong></p>
-      <p>Open a model page on Printables, Thingiverse, MakerWorld or GitHub (a file or a release), then click the toolbar icon again.</p>
-      <p>If this is a model page on Printables, Thingiverse, MakerWorld or GitHub, reload the page and try again.</p>
+      <p>Open a model page on Printables, Thingiverse or MakerWorld, then click the toolbar icon again.</p>
+      <p>If this is a model page on Printables, Thingiverse or MakerWorld, reload the page and try again.</p>
     </section>
   );
 }

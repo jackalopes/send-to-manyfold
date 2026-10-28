@@ -1,8 +1,8 @@
 # Send To Manyfold
 
-A Chrome extension that sends 3D models from Printables, Thingiverse, MakerWorld and GitHub to your own [Manyfold](https://manyfold.app) library. It uploads the files and fills in the details (title, description, creator, license, tags, source link, cover image) for you.
+A Chrome extension that sends 3D models from Printables, Thingiverse and MakerWorld to your own [Manyfold](https://manyfold.app) library. It uploads the files and fills in the details (title, description, creator, license, tags, source link, cover image) for you.
 
-Not affiliated with Manyfold, Printables, Thingiverse, MakerWorld or GitHub.
+Not affiliated with Manyfold, Printables, Thingiverse or MakerWorld.
 
 > Status: version 0.1.0, not yet published to the Chrome Web Store. It has been tested with automated tests and against a throwaway Manyfold 0.153.0, but see [Known limitations](#known-limitations): several parts have not yet been tried in a real browser.
 
@@ -14,10 +14,12 @@ Open a model page, click the toolbar icon (or the green "Send to Manyfold" butto
 |---|---|---|
 | Printables | model pages (`/model/...`) | Downloads the files and uploads them to Manyfold. |
 | MakerWorld | model pages (`/models/...`) | Downloads the files and uploads them to Manyfold. |
-| GitHub | a single model or archive file (`/blob/...`), a release page (`/releases/tag/...`) or the releases list | Downloads the files and uploads them to Manyfold. Whole repositories and folders are not supported. |
 | Thingiverse | thing pages (`/thing:...`) | Does not upload files. The popup shows the details and hands the page over to Manyfold's own Thingiverse importer. This needs a Thingiverse API key set up by your Manyfold admin. |
 
 On any other page the popup says the page is not supported and sends nothing.
+
+GitHub support is planned. Tell us what you'd expect it to do.
+<!-- TODO: link to GitHub issues once public -->
 
 ## Requirements
 
@@ -70,15 +72,14 @@ Open the extension's options page (right-click the toolbar icon, then Options).
 - No analytics, no tracking, no other servers.
 - Your Manyfold address and token are stored in Chrome's local extension storage (`chrome.storage.local`) on your computer.
 - The extension never reads or copies the login tokens of the source sites.
-- The only automatic request is a read-only check, sent to your own Manyfold, of whether the model page you're on is already saved (a search by the page's link, so it can show a check). Nothing else is sent until you press Send. On the four supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
+- The only automatic request is a read-only check, sent to your own Manyfold, of whether the model page you're on is already saved (a search by the page's link, so it can show a check). Nothing else is sent until you press Send. On the three supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
 
 ## Known limitations
 
-- Downloads from Printables, MakerWorld and GitHub have not been tried in a real browser at the time of writing. Treat them as unverified.
+- Downloads from Printables and MakerWorld have not been tried in a real browser at the time of writing. Treat them as unverified.
 - The Thingiverse import itself (with an API key set in Manyfold) is untested.
-- Files from private GitHub repositories cannot be sent: downloads are made without cookies.
 - The extension has not been loaded in a real Chrome yet. In particular, whether the injected button can open the toolbar popup is unverified (if it cannot, use the toolbar icon).
-- There is no injected button on MakerWorld pages or GitHub release pages. Use the toolbar icon there.
+- There is no injected button on MakerWorld pages. Use the toolbar icon there.
 - The injected buttons depend on each site's page layout and may stop appearing when a site changes. The toolbar icon keeps working.
 - Thingiverse files are not uploaded (see above).
 - Files over 1 GiB are not accepted by Manyfold and are disabled in the popup.

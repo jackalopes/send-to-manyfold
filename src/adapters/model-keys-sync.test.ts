@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { adapterFor } from './index';
+import { github } from './github';
+import { adapterFor as activeAdapterFor } from './index';
 import { modelKey } from './model-keys';
+
+/** The live adapters plus the dormant GitHub one (switched off for v1), so model-keys' GitHub patterns stay in sync. */
+const adapterFor = (url: URL) => activeAdapterFor(url) ?? (github.matches(url) ? github : undefined);
 
 /**
  * `model-keys.ts` repeats each adapter's URL patterns by hand (the background bundle must not import the

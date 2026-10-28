@@ -2,9 +2,9 @@
  * Every host the manifest names, in one place (used by wxt.config.ts and the content script).
  *
  * Wildcards: `*.example.com` matches the bare host and every subdomain. They are used so that Chrome's "Site access"
- * list (one row per distinct pattern) stays short: 7 rows instead of 18. Subdomains of the named sites only; nothing else.
+ * list (one row per distinct pattern) stays short. Subdomains of the named sites only; nothing else.
  *
- * Content script matches: each supported site and its subdomains (www., and e.g. gist.github.com, where no adapter
+ * Content script matches: each supported site and its subdomains (www. and other subdomains, where no adapter
  * matches, so the script stays inert). These sites navigate inside the page (SvelteKit,
  * Next.js, Turbo), and Chrome injects only on document loads, so a model page reached from a listing would have no
  * script with model-path patterns. The script is inert until asked; each adapter's `matches` decides at request
@@ -21,7 +21,6 @@ export const CONTENT_SCRIPT_MATCHES = [
   'https://*.printables.com/*',
   'https://*.thingiverse.com/*',
   'https://*.makerworld.com/*',
-  'https://*.github.com/*',
 ] as const;
 
 export const DOWNLOAD_HOST_PERMISSIONS = [
@@ -29,12 +28,12 @@ export const DOWNLOAD_HOST_PERMISSIONS = [
   'https://*.printables.com/*',
   // MakerWorld: the design-service answer is a signed makerworld.bblmw.com link; covers are there too.
   'https://makerworld.bblmw.com/*',
-  // GitHub: /raw/ and /releases/download/ links on github.com redirect to *.githubusercontent.com (raw, media,
-  // release-assets, objects); covers: repository-images and avatars there, plus opengraph.githubassets.com.
-  'https://github.com/*',
-  'https://*.githubusercontent.com/*',
-  'https://opengraph.githubassets.com/*',
 ] as const;
+
+// GitHub is switched off for v1. To bring it back, add 'https://*.github.com/*' to CONTENT_SCRIPT_MATCHES, and to
+// DOWNLOAD_HOST_PERMISSIONS 'https://github.com/*' (/raw/ and /releases/download/ links redirect to
+// *.githubusercontent.com), 'https://*.githubusercontent.com/*' (raw, media, release-assets, objects, covers) and
+// 'https://opengraph.githubassets.com/*' (generated cover cards); then add `github` back to ADAPTERS.
 
 /**
  * `chrome.action.openPopup` (the injected button opens the toolbar popup) is available to every extension from
