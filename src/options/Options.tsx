@@ -108,6 +108,7 @@ export function Options() {
               <input type="password" value={s.token} autoComplete="off"
                 onInput={(e) => setS({ ...s, token: e.currentTarget.value })} />
             </label>
+            <p class="sub">The token is stored only in this browser and is sent only to the Manyfold address above.</p>
           </div>
           <div class="row">
             <p class={`msg test-result ${test.level}`} role={test.level === 'error' ? 'alert' : 'status'}>

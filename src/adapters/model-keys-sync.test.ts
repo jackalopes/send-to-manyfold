@@ -101,7 +101,7 @@ describe('model-keys and the adapters agree on which URLs are model pages', () =
 });
 
 // Known differences, found while writing this test. Each is pinned as it is today, and listed as a todo so the
-// decision is not lost (see docs/refactoring-notes.md). None breaks the feature: a page the adapters do not offer
+// decision is not lost. None breaks the feature: a page the adapters do not offer
 // either never reaches the lookup, or gets a lookup that finds nothing.
 describe('known differences between model-keys and the adapters', () => {
   const list = 'https://github.com/owner/repo/releases';

@@ -13,7 +13,7 @@ export default defineConfig({
   }),
   manifest: {
     name: 'Send To Manyfold',
-    description: 'Send 3D models from Printables, Thingiverse and MakerWorld to your Manyfold instance.',
+    description: 'Unofficial. Send 3D models from Printables, Thingiverse and MakerWorld to your Manyfold instance.',
     // chrome.action.openPopup (the injected button) needs Chrome 127; see manifest-hosts.ts.
     minimum_chrome_version: MINIMUM_CHROME_VERSION,
     // WXT lists public/icon/*.png under `icons` but not under `action`.

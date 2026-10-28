@@ -3,7 +3,7 @@ dist/
 .output/
 .wxt/
 logs/
-.claude/settings.local.json
+.claude/
 .superpowers/
 
 # end-to-end test token (written at runtime)

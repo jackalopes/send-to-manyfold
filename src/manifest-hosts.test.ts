@@ -81,6 +81,18 @@ describe('download host permissions (fetches from the offscreen document)', () =
   });
 });
 
+describe('Printables download permissions are narrowed to the two download hosts', () => {
+  it('list exactly files. and media. (no wildcard)', () => {
+    expect(DOWNLOAD_HOST_PERMISSIONS.filter((p) => p.includes('printables'))).toEqual(['https://files.printables.com/*', 'https://media.printables.com/*']);
+  });
+  it.each(['https://www.printables.com/model/3161', 'https://api.printables.com/graphql/', 'https://slicer.printables.com/app', 'https://printables.com/', 'https://evilfiles.printables.com.evil.example/x'])(
+    'do not match %s (content script only)',
+    (href) => {
+      expect(matchedBy(DOWNLOAD_HOST_PERMISSIONS, href)).toBe(false);
+    },
+  );
+});
+
 describe('GitHub is switched off for v1', () => {
   it('has no adapter: a GitHub blob URL is not a model page', () => {
     expect(adapterFor(new URL('https://github.com/VoronDesign/Voron-2/blob/Voron2.4/STLs/a.stl'))).toBeUndefined();

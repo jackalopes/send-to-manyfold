@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy - Send To Manyfold</title>
+<meta name="description" content="Privacy policy for the Send To Manyfold Chrome extension.">
+<meta name="color-scheme" content="light dark">
+<style>
+:root { --bg: #ffffff; --fg: #1d2330; --muted: #566074; --link: #0b5cad; --rule: #d6dbe4; --code: #eef1f6; }
+@media (prefers-color-scheme: dark) { :root { --bg: #14171f; --fg: #e6e9f0; --muted: #a3acbf; --link: #7db4f0; --rule: #333a49; --code: #232837; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 1rem/1.6 system-ui, sans-serif; }
+main { max-width: 42rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 .25rem; }
+h2 { font-size: 1.2rem; margin: 2rem 0 .5rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+a { color: var(--link); }
+a:focus-visible { outline: 3px solid var(--link); outline-offset: 2px; }
+.meta { color: var(--muted); margin: 0 0 1.5rem; }
+code { background: var(--code); padding: .1em .35em; border-radius: 4px; font-size: .92em; }
+li { margin: .3rem 0; }
+.skip { position: absolute; left: -999px; }
+.skip:focus { left: 1rem; top: 1rem; background: var(--bg); padding: .5rem; }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to the policy</a>
+<main id="content">
+  <p><a href="../">Send To Manyfold</a></p>
+  <h1>Privacy policy</h1>
+  <p class="meta">Send To Manyfold, version 0.1.0. Last updated 2026-10-28.</p>
+  <p>Send To Manyfold is an unofficial Chrome extension that sends 3D models from Printables, Thingiverse and MakerWorld to your own Manyfold server. It is not affiliated with, made by or endorsed by Manyfold, Printables, Thingiverse or MakerWorld. It is open source (MIT) at <a href="https://github.com/jackalopes/send-to-manyfold">github.com/jackalopes/send-to-manyfold</a>.</p>
+  <p>In short: the extension has no server of its own. The developer receives no data from it. Everything it sends goes to the model site you are using or to your own Manyfold server.</p>
+
+  <h2>What the extension accesses</h2>
+  <ul>
+    <li>The model page you are on, on <code>printables.com</code>, <code>thingiverse.com</code> and <code>makerworld.com</code>. When you open the popup, it reads the page's title, description, creator name, license, tags, images and file list, so you can review them before sending. On any other page, it reads nothing.</li>
+    <li>The address (URL) of that model page, to check whether it is already in your Manyfold (see below).</li>
+    <li>Your settings: your Manyfold address, your Manyfold access token and your prefill options.</li>
+  </ul>
+  <p>The extension never reads or copies your login tokens or cookies for the model sites. When it asks a site for a download link, the browser attaches your own session to that request, as it does when you click download yourself.</p>
+
+  <h2>What is sent, and where</h2>
+  <ul>
+    <li><strong>To the model site you are on</strong> (and its download and image hosts): the requests needed to get the model's details and download links, using your own logged-in session in the page. The files are then downloaded without your cookies.</li>
+    <li><strong>To your own Manyfold server</strong>, only the address you typed in the options page:
+      <ul>
+        <li>Automatically, on a model page: a read-only search for the page's URL, to show a check mark ("In Manyfold") when the model is already saved. This is the only automatic request. It sends the URL of the model page you are viewing to your server.</li>
+        <li>When you press Send: the model's files, title, description, creator, license, tags, source link and images that you reviewed, and the folder or collection you chose.</li>
+        <li>When you press "Test connection": a request that checks the address and token.</li>
+      </ul>
+    </li>
+    <li>Your Manyfold access token is sent only to your Manyfold server, in the <code>Authorization</code> header. It is never sent to the model sites, to the developer or to anyone else.</li>
+  </ul>
+  <p>Plain <code>http://</code> addresses are allowed, because self-hosted servers on home networks often have no TLS certificate. An <code>http://</code> address sends your token and data unencrypted across your network. The options page warns when an <code>http://</code> address points at a public host. Use <code>https://</code> whenever your server has it.</p>
+
+  <h2>What is stored on your computer</h2>
+  <ul>
+    <li>Your Manyfold address, your token and your settings, in Chrome's local extension storage (<code>chrome.storage.local</code>).</li>
+    <li>A local history of what you sent (to warn about duplicates), also in <code>chrome.storage.local</code>.</li>
+    <li>Temporary per-tab send progress, in <code>chrome.storage.session</code>, which Chrome clears when the browser closes.</li>
+  </ul>
+  <p>None of this is synced or sent to the developer.</p>
+
+  <h2>What the extension does not do</h2>
+  <ul>
+    <li>No analytics, tracking, advertising or telemetry.</li>
+    <li>No third-party servers. Your data is not sold or transferred to third parties, and not used for anything other than sending models to your Manyfold server.</li>
+    <li>No use of data to decide creditworthiness or for lending.</li>
+    <li>No remote code. All code is in the extension package.</li>
+  </ul>
+
+  <h2>Limited Use</h2>
+  <p>Send To Manyfold's use of user data complies with the Chrome Web Store User Data Policy, including the Limited Use requirements. User data is used only to provide the extension's single purpose, sending a model you choose to your own Manyfold server. It is not transferred to others, not used for advertising, not used to determine creditworthiness, and no human reads it.</p>
+
+  <h2>Permissions</h2>
+  <p>The extension asks Chrome for access to your Manyfold address at the moment you save it, and to that one address only. You can remove this access at any time at <code>chrome://extensions</code>.</p>
+
+  <h2>Removing your data</h2>
+  <p>Uninstalling the extension deletes everything it stored. To keep the extension but remove the data, clear the token and address in the options page, or clear the extension's storage in Chrome. Models already sent are in your Manyfold server, which you control. Delete them there. You should also delete or revoke the access token in Manyfold if you no longer want the extension to use it.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, the new version will be posted here with a new date. The history is in the project's repository.</p>
+
+  <h2>Contact</h2>
+  <p>Questions or concerns: open an issue at <a href="https://github.com/jackalopes/send-to-manyfold/issues">github.com/jackalopes/send-to-manyfold/issues</a>.</p>
+</main>
+</body>
+</html>

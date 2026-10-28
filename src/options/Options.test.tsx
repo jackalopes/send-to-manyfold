@@ -29,6 +29,14 @@ describe('Options insecure-URL warning', () => {
   });
 });
 
+describe('Options token note', () => {
+  it('says where the token is stored and where it is sent', async () => {
+    stubStorage('http://192.168.1.5:3214');
+    render(<Options />, root);
+    await vi.waitFor(() => expect(root.textContent).toContain('The token is stored only in this browser and is sent only to the Manyfold address above.'));
+  });
+});
+
 describe('Options token help', () => {
   it('is open while no token is saved and links to the saved Manyfold\'s New API key page', async () => {
     stubStorage('http://192.168.1.5:3214');

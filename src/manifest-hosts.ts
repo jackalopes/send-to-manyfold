@@ -24,8 +24,11 @@ export const CONTENT_SCRIPT_MATCHES = [
 ] as const;
 
 export const DOWNLOAD_HOST_PERMISSIONS = [
-  // Printables: files.printables.com (signed download links), media.printables.com (covers).
-  'https://*.printables.com/*',
+  // Printables: files.printables.com (signed download links; the page's own PUBLIC_FILES_ROOT_URL) and
+  // media.printables.com (covers; PUBLIC_MEDIA_ROOT_URL and every og:image in the fixtures). Narrower than
+  // `*.printables.com` on purpose: www., api. and slicer. are never fetched from the offscreen document.
+  'https://files.printables.com/*',
+  'https://media.printables.com/*',
   // MakerWorld: the design-service answer is a signed makerworld.bblmw.com link; covers are there too.
   'https://makerworld.bblmw.com/*',
 ] as const;

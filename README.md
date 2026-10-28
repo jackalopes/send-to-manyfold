@@ -61,12 +61,15 @@ Open the extension's options page (right-click the toolbar icon, then Options).
 
 - Manyfold address and token. Saving asks Chrome for permission to talk to that one address.
   An address typed without `http://` or `https://` is treated as `https://`, except IP addresses, `localhost` and `.local`, `.lan`, `.home.arpa` and `.internal` names, which get `http://`. For a plain LAN name served over http, such as `nas:3214`, type the scheme: `http://nas:3214`.
+  Plain `http://` is allowed because self-hosted servers on home networks often have no TLS certificate. The token is sent only to the address you typed. The options page warns when an `http://` address points at a public host. Use `https://` whenever your server has it.
 - "Test connection". When Manyfold does not tell tokens its version, this says just "Connected." That is expected. Version 0.147.0 or newer is still required.
 - Which fields to prefill: title, description, creator, license, tags, source link, images.
 - Include preview images.
 - A default collection and a default "sensitive" flag.
 
 ## Privacy
+
+The full policy is at <https://jackalopes.github.io/send-to-manyfold/privacy/>.
 
 - The extension talks only to the source site you are on and its download and image hosts, and to your own Manyfold server. It reads the model page and resolves download links using your logged-in session in the page; the files are then downloaded without your cookies.
 - No analytics, no tracking, no other servers.
@@ -86,7 +89,6 @@ Open the extension's options page (right-click the toolbar icon, then Options).
 - Collections can only be chosen when the model is created.
 - Manyfold limits how fast models can be created. Large batches are paced and may wait.
 - The Manyfold version check is best-effort (see Settings).
-- Extension icons are not added yet (TODO), so Chrome shows its default icon.
 
 ## Development
 
@@ -106,7 +108,7 @@ npm run zip
 
 `npm run test:e2e` needs Docker. It starts Manyfold 0.153.0, Postgres and Redis in containers (about 2 GB to pull the first time) and removes them afterwards.
 
-Stack: [WXT](https://wxt.dev), Preact, TypeScript, Vitest. Design notes are in `docs/`: `spec.md`, `build-decisions.md`, `research/` and `store-listing.md`.
+Stack: [WXT](https://wxt.dev), Preact, TypeScript, Vitest.
 
 Dependency pins:
 
