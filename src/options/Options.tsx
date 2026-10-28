@@ -13,7 +13,7 @@ const LABELS: Record<PrefillField, string> = {
   tags: 'Tags', sourceUrl: 'Source URL', images: 'Images',
 };
 
-/** TODO: the owner confirms the real repository URL. */
+/** The project's GitHub repository (confirmed by the owner). */
 export const GITHUB_URL = 'https://github.com/jackalopes/send-to-manyfold';
 
 function manifestVersion(): string | undefined {
