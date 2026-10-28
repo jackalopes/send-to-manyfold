@@ -1,6 +1,6 @@
 import './options.css';
 import { useEffect, useState } from 'preact/hooks';
-import { runConnectionCheck, type ConnectionLevel } from '../connection-test';
+import { CONNECTED_WORD, runConnectionCheck, type ConnectionLevel } from '../connection-test';
 import type { NamedRef } from '../manyfold/metadata';
 import { CollectionPicker, lastSegment } from '../ui/CollectionPicker';
 import { loadCollectionOptions } from './collections';
@@ -38,7 +38,7 @@ function Switch({ label, sub, checked, onChange }: { label: string; sub?: string
 
 export function Options() {
   const [s, setS] = useState<Settings>(defaultSettings());
-  const [test, setTest] = useState<{ level: ConnectionLevel; text: string }>({ level: 'ok', text: '' });
+  const [test, setTest] = useState<{ level: ConnectionLevel; text: string; connected?: boolean }>({ level: 'ok', text: '' });
   const [save, setSave] = useState<{ level: ConnectionLevel; text: string }>({ level: 'ok', text: '' });
   const [savedUrl, setSavedUrl] = useState('');
   const [collections, setCollections] = useState<NamedRef[] | undefined>();
@@ -68,7 +68,7 @@ export function Options() {
   async function onTest() {
     setTest({ level: 'ok', text: 'Testing connection...' });
     const check = await runConnectionCheck(s.manyfoldUrl, s.token);
-    setTest({ level: check.level, text: check.message });
+    setTest({ level: check.level, text: check.message, connected: check.connected });
     if (check.level !== 'error') setCollections(await loadCollectionOptions(s));
   }
 
@@ -111,7 +111,8 @@ export function Options() {
           </div>
           <div class="row">
             <p class={`msg test-result ${test.level}`} role={test.level === 'error' ? 'alert' : 'status'}>
-              {test.text ? `${test.level === 'warning' ? 'Warning: ' : ''}${test.text}` : ''}
+              {test.level === 'warning' ? 'Warning: ' : ''}
+              {test.connected ? <><strong class="ok">{CONNECTED_WORD}</strong>{test.text.slice(CONNECTED_WORD.length)}</> : test.text}
             </p>
             <button type="button" class="btn ghost" onClick={() => void onTest()}>Test connection</button>
           </div>

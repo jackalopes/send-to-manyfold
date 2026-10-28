@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { connectionLevel, runConnectionCheck, runConnectionTest } from './connection-test';
+import { connectionLevel, describeResult, runConnectionCheck, runConnectionTest } from './connection-test';
 
 describe('runConnectionTest', () => {
   it('invalid URL: no permission request, no test', async () => {
@@ -42,7 +42,20 @@ describe('connectionLevel', () => {
 describe('runConnectionCheck', () => {
   it('returns the message with its level', async () => {
     const deps = { requestPermission: async () => true, test: async () => ({ ok: true as const, version: '1.0.0', detail: 'Heads up.' }) };
-    expect(await runConnectionCheck('m.local', 't', deps)).toEqual({ message: 'Connected to Manyfold 1.0.0. Heads up.', level: 'warning' });
-    expect(await runConnectionCheck('http:///x', 't', deps)).toMatchObject({ level: 'error' });
+    expect(await runConnectionCheck('m.local', 't', deps)).toEqual({ message: 'Connected to Manyfold 1.0.0. Heads up.', level: 'warning', connected: true });
+    expect(await runConnectionCheck('http:///x', 't', deps)).toMatchObject({ level: 'error', connected: false });
+  });
+});
+
+describe('describeResult', () => {
+  it('says just "Connected." when the version is unknown', () => {
+    expect(describeResult({ ok: true, version: 'unknown' })).toBe('Connected.');
+  });
+  it('names the version when known, and appends a detail', () => {
+    expect(describeResult({ ok: true, version: '0.153.0' })).toBe('Connected to Manyfold 0.153.0.');
+    expect(describeResult({ ok: true, version: 'unknown', detail: 'Heads up.' })).toBe('Connected. Heads up.');
+  });
+  it('keeps the error labels', () => {
+    expect(describeResult({ ok: false, reason: 'unauthorized' })).toBe('Token rejected');
   });
 });

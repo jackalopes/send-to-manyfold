@@ -59,7 +59,7 @@ Open the extension's options page (right-click the toolbar icon, then Options).
 
 - Manyfold address and token. Saving asks Chrome for permission to talk to that one address.
   An address typed without `http://` or `https://` is treated as `https://`, except IP addresses, `localhost` and `.local`, `.lan`, `.home.arpa` and `.internal` names, which get `http://`. For a plain LAN name served over http, such as `nas:3214`, type the scheme: `http://nas:3214`.
-- "Test connection". Manyfold usually does not tell tokens its version, so this normally says "version unknown". That is expected. Version 0.147.0 or newer is still required.
+- "Test connection". When Manyfold does not tell tokens its version, this says just "Connected." That is expected. Version 0.147.0 or newer is still required.
 - Which fields to prefill: title, description, creator, license, tags, source link, images.
 - Include preview images.
 - A default collection and a default "sensitive" flag.

@@ -59,6 +59,7 @@ label.row { cursor: pointer; }
 .msg.error { color: var(--danger); }
 .msg.warning { color: var(--warn); }
 .test-result.ok, .save-result.ok { color: var(--muted); }
+.test-result strong.ok { color: var(--ok); font-weight: 700; }
 .row.stack > .msg.error { margin-top: 8px; }
 a { color: var(--teal); }
 details summary { cursor: pointer; color: var(--teal); font-weight: 500; }

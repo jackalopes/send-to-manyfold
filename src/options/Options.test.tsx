@@ -119,3 +119,27 @@ describe('Options status placement', () => {
     expect(root.querySelector('.connection .test-result')?.textContent).not.toBe('Saved.');
   });
 });
+
+describe('Options connected styling', () => {
+  const runTest = async () => {
+    render(<Options />, root);
+    await vi.waitFor(() => expect((root.querySelector('input') as HTMLInputElement).value).toBe('http://192.168.1.5:3214'));
+    click([...root.querySelectorAll('button')].find((b) => b.textContent === 'Test connection')!);
+    await vi.waitFor(() => expect(root.querySelector('.connection .test-result')?.textContent).not.toMatch(/^$|Testing/));
+  };
+  it('shows "Connected" in a bold green element after a successful test, keeping the sentence intact', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 't' }, { permissions: { request: vi.fn(async () => true), contains: vi.fn(async () => true) } });
+    await runTest();
+    const el = root.querySelector('.connection .test-result');
+    const strong = el?.querySelector('strong.ok');
+    expect(strong?.textContent).toBe('Connected');
+    expect(el?.textContent).toBe('Connected.');
+  });
+  it('has no such element after an error', async () => {
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 't' }, { permissions: { request: vi.fn(async () => true), contains: vi.fn(async () => true) } });
+    await runTest();
+    expect(root.querySelector('.connection .test-result')?.textContent).toMatch(/^Token rejected/);
+    expect(root.querySelector('.connection .test-result strong')).toBeNull();
+  });
+});
