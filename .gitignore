@@ -8,3 +8,6 @@ logs/
 
 # end-to-end test token (written at runtime)
 e2e/.token
+
+# Design notes live in their own private repo (docs/.git)
+docs/
