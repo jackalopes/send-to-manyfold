@@ -94,6 +94,12 @@ describe('sendModel against a real Manyfold', () => {
     expect(await client.testConnection()).toMatchObject({ ok: true });
   });
 
+  it('testConnection verifies the token itself: ok with the real token, unauthorized with a bogus one', async () => {
+    expect(await client.testConnection()).toMatchObject({ ok: true });
+    const bogus = new ManyfoldClient(url, 'not-a-real-token', undefined, async () => true, 30_000);
+    expect(await bogus.testConnection()).toMatchObject({ ok: false, reason: 'unauthorized' });
+  });
+
   it('loose STL + cover in a collection: title, source link, license note, tags and preview are set', async () => {
     const collectionId = await createCollection(`E2E collection ${stamp}`);
     const files: SourceFile[] = [{ name: 'part.stl', kind: 'model' }];
