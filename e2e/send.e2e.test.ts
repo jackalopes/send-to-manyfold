@@ -102,7 +102,7 @@ describe('sendModel against a real Manyfold', () => {
     if (r.status !== 'done') return;
     const m = await getModel(r.modelUrl);
     expect(m.name).toBe(`E2E loose ${stamp}`);
-    expect(m.links.some((l) => l.url.includes(`${stamp}-loose`) && l.text === 'Printables')).toBe(true);
+    expect(m.links.some((l) => l.url.includes(`${stamp}-loose`) && l.text === 'Page Title ')).toBe(true);
     expect(m.description).toContain('Sent by the e2e test.');
     expect(m.description).toContain('License: CC BY-NC 4.0');
     expect(m['spdx:license']?.licenseId).toBe('CC-BY-NC-4.0');
