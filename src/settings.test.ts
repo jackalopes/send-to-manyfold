@@ -121,6 +121,13 @@ describe('saveWithPermission', () => {
     save: vi.fn(save),
   });
 
+  it('saves the token without surrounding whitespace, so a blank token stays empty', async () => {
+    const d = mk(async () => true, async () => {});
+    await saveWithPermission({ ...s, token: '  secret-token\n' }, d);
+    expect(d.save).toHaveBeenCalledWith(expect.objectContaining({ token: 'secret-token' }));
+    await saveWithPermission({ ...s, token: '   ' }, d);
+    expect(d.save).toHaveBeenLastCalledWith(expect.objectContaining({ token: '' }));
+  });
   it('does not save when permission is denied', async () => {
     const d = mk(async () => false, async () => {});
     const r = await saveWithPermission(s, d);

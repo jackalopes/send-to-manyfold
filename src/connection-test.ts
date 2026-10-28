@@ -42,6 +42,9 @@ export async function runConnectionCheck(rawUrl: string, token: string, deps: Te
   } catch {
     return { message: 'Enter a valid Manyfold URL.', level: 'error', connected: false };
   }
+  // Without a token Manyfold may serve public pages to an anonymous visitor, which would read as "Connected".
+  const bearer = token.trim();
+  if (!bearer) return { message: 'Enter your API token first.', level: 'error', connected: false };
   let granted: boolean;
   try {
     granted = await deps.requestPermission(url);
@@ -49,7 +52,7 @@ export async function runConnectionCheck(rawUrl: string, token: string, deps: Te
     return { message: 'Could not request permission for your Manyfold server.', level: 'error', connected: false };
   }
   if (!granted) return { message: 'Permission to access your Manyfold server was denied; cannot test the connection.', level: 'error', connected: false };
-  const result = await deps.test(url, token);
+  const result = await deps.test(url, bearer);
   return { message: describeResult(result), level: connectionLevel(result), connected: result.ok };
 }
 
