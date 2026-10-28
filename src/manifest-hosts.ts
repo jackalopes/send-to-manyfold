@@ -1,7 +1,11 @@
 /**
  * Every host the manifest names, in one place (used by wxt.config.ts and the content script).
  *
- * Content script matches: the whole host of each supported site. These sites navigate inside the page (SvelteKit,
+ * Wildcards: `*.example.com` matches the bare host and every subdomain. They are used so that Chrome's "Site access"
+ * list (one row per distinct pattern) stays short: 7 rows instead of 18. Subdomains of the named sites only; nothing else.
+ *
+ * Content script matches: each supported site and its subdomains (www., and e.g. gist.github.com, where no adapter
+ * matches, so the script stays inert). These sites navigate inside the page (SvelteKit,
  * Next.js, Turbo), and Chrome injects only on document loads, so a model page reached from a listing would have no
  * script with model-path patterns. The script is inert until asked; each adapter's `matches` decides at request
  * time whether the current page is a model page. Injection needs no host permission.
@@ -14,32 +18,22 @@
  */
 
 export const CONTENT_SCRIPT_MATCHES = [
-  'https://www.printables.com/*',
-  'https://printables.com/*',
-  'https://www.thingiverse.com/*',
-  'https://thingiverse.com/*',
-  'https://makerworld.com/*',
-  'https://www.makerworld.com/*',
-  'https://github.com/*',
-  'https://www.github.com/*',
+  'https://*.printables.com/*',
+  'https://*.thingiverse.com/*',
+  'https://*.makerworld.com/*',
+  'https://*.github.com/*',
 ] as const;
 
 export const DOWNLOAD_HOST_PERMISSIONS = [
-  // Printables: GetDownloadLink returns signed files.printables.com links; covers are on media.printables.com.
-  'https://files.printables.com/*',
-  'https://media.printables.com/*',
+  // Printables: files.printables.com (signed download links), media.printables.com (covers).
+  'https://*.printables.com/*',
   // MakerWorld: the design-service answer is a signed makerworld.bblmw.com link; covers are there too.
   'https://makerworld.bblmw.com/*',
-  // GitHub: /raw/ and /releases/download/ links on github.com redirect to these hosts.
+  // GitHub: /raw/ and /releases/download/ links on github.com redirect to *.githubusercontent.com (raw, media,
+  // release-assets, objects); covers: repository-images and avatars there, plus opengraph.githubassets.com.
   'https://github.com/*',
-  'https://raw.githubusercontent.com/*',
-  'https://media.githubusercontent.com/*',
-  'https://release-assets.githubusercontent.com/*',
-  'https://objects.githubusercontent.com/*',
-  // GitHub cover images (repo social preview, generated card, avatar).
-  'https://repository-images.githubusercontent.com/*',
+  'https://*.githubusercontent.com/*',
   'https://opengraph.githubassets.com/*',
-  'https://avatars.githubusercontent.com/*',
 ] as const;
 
 /**

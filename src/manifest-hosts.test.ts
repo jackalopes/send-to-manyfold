@@ -2,13 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { adapterFor } from './adapters/index';
 import { CONTENT_SCRIPT_MATCHES, DOWNLOAD_HOST_PERMISSIONS, MINIMUM_CHROME_VERSION } from './manifest-hosts';
 
-/** Chrome match pattern semantics for `https://host/path` patterns (scheme and host exact, `*` in the path = anything). */
+/**
+ * Chrome match pattern semantics for `https://host/path` patterns: scheme exact, `*` in the path = anything, and a
+ * leading `*.` in the host matches the bare host and every subdomain of it.
+ */
 function matches(pattern: string, href: string): boolean {
   const m = /^(https):\/\/([^/]+)(\/.*)$/.exec(pattern);
   if (!m) throw new Error(`unsupported pattern ${pattern}`);
   const url = new URL(href);
   const path = new RegExp(`^${m[3]!.split('*').map((s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
-  return url.protocol === `${m[1]}:` && url.hostname === m[2] && path.test(url.pathname + url.search);
+  const host = m[2]!;
+  const hostOk = host.startsWith('*.') ? url.hostname === host.slice(2) || url.hostname.endsWith(host.slice(1)) : url.hostname === host;
+  return url.protocol === `${m[1]}:` && hostOk && path.test(url.pathname + url.search);
 }
 const matchedBy = (patterns: readonly string[], href: string) => patterns.some((p) => matches(p, href));
 
@@ -44,7 +49,7 @@ describe('content script matches', () => {
     expect(matchedBy(CONTENT_SCRIPT_MATCHES, href)).toBe(true);
   });
 
-  it.each(['https://example.com/model/1', 'https://gist.github.com/x/1', 'http://www.printables.com/model/1-x', 'https://printables.com.evil.example/model/1'])(
+  it.each(['https://example.com/model/1', 'http://www.printables.com/model/1-x', 'https://printables.com.evil.example/model/1', 'https://notprintables.com/model/1'])(
     'never inject outside the four sites (%s)',
     (href) => {
       expect(matchedBy(CONTENT_SCRIPT_MATCHES, href)).toBe(false);
@@ -53,10 +58,20 @@ describe('content script matches', () => {
 
   it('are https-only and never broad', () => {
     for (const p of [...CONTENT_SCRIPT_MATCHES, ...DOWNLOAD_HOST_PERMISSIONS]) {
-      expect(p).toMatch(/^https:\/\/[a-z0-9.-]+\//);
+      // https only; a host is a name or `*.name` (subdomains of one registrable domain), never a bare `*`.
+      expect(p).toMatch(/^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+\//);
       expect(p).not.toContain('<all_urls>');
-      expect(p).not.toMatch(/^https:\/\/\*/);
     }
+  });
+});
+
+describe('subdomain wildcards stay on the named sites', () => {
+  it.each(['https://gist.github.com/x/1', 'https://docs.github.com/en', 'https://api.printables.com/graphql/'])('the content script also matches %s (inert: no adapter matches it)', (href) => {
+    expect(matchedBy(CONTENT_SCRIPT_MATCHES, href)).toBe(true);
+    expect(adapterFor(new URL(href))).toBeUndefined();
+  });
+  it.each(['https://githubusercontent.com.evil.example/x', 'https://evilgithub.com/x', 'https://example.com/x'])('no download host pattern matches %s', (href) => {
+    expect(matchedBy(DOWNLOAD_HOST_PERMISSIONS, href)).toBe(false);
   });
 });
 
