@@ -1,5 +1,5 @@
 import './options.css';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { CONNECTED_WORD, runConnectionCheck, type ConnectionLevel } from '../connection-test';
 import type { NamedRef } from '../manyfold/metadata';
 import { CollectionPicker, lastSegment } from '../ui/CollectionPicker';
@@ -15,6 +15,9 @@ const LABELS: Record<PrefillField, string> = {
 
 /** The project's GitHub repository (confirmed by the owner). */
 export const GITHUB_URL = 'https://github.com/jackalopes/send-to-manyfold';
+
+/** How long the Save button reads "Saved ✓" after a save. */
+const SAVED_FLASH_MS = 2000;
 
 function manifestVersion(): string | undefined {
   try {
@@ -40,6 +43,8 @@ export function Options() {
   const [s, setS] = useState<Settings>(defaultSettings());
   const [test, setTest] = useState<{ level: ConnectionLevel; text: string; connected?: boolean }>({ level: 'ok', text: '' });
   const [save, setSave] = useState<{ level: ConnectionLevel; text: string }>({ level: 'ok', text: '' });
+  const [justSaved, setJustSaved] = useState(false);
+  const savedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [savedUrl, setSavedUrl] = useState('');
   const [collections, setCollections] = useState<NamedRef[] | undefined>();
 
@@ -53,15 +58,23 @@ export function Options() {
 
   async function onSave(e: Event) {
     e.preventDefault();
+    // Clear first so a repeat save changes the live region again and is announced again.
+    setSave({ level: 'ok', text: '' });
     const result = await saveWithPermission(s);
     if (!result.ok) {
+      setJustSaved(false);
       setSave({ level: 'error', text: result.message });
       return;
     }
     const saved = await loadSettings();
     setS(saved);
     setSavedUrl(saved.manyfoldUrl);
-    setSave({ level: 'ok', text: 'Saved.' });
+    setSave(saved.token
+      ? { level: 'ok', text: 'Settings saved.' }
+      : { level: 'warning', text: 'Settings saved. Add an API token before sending.' });
+    setJustSaved(true);
+    clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setJustSaved(false), SAVED_FLASH_MS);
     setCollections(await loadCollectionOptions(saved));
   }
 
@@ -173,7 +186,7 @@ export function Options() {
 
         <div class="actions">
           <p class={`msg save-result ${save.level}`} role={save.level === 'error' ? 'alert' : 'status'}>{save.text}</p>
-          <button type="submit" class="btn primary">Save</button>
+          <button type="submit" class={`btn primary${justSaved ? ' saved' : ''}`}>{justSaved ? 'Saved ✓' : 'Save'}</button>
         </div>
       </form>
       <footer>

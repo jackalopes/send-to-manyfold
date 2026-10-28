@@ -121,10 +121,82 @@ describe('Options status placement', () => {
     await vi.waitFor(() => expect(root.querySelector('.connection .test-result')?.textContent).toBeTruthy());
     expect(root.querySelector('.save-result')?.textContent).toBe('');
     submit();
-    await vi.waitFor(() => expect(root.querySelector('.save-result')?.textContent).toBe('Saved.'));
+    await vi.waitFor(() => expect(root.querySelector('.save-result')?.textContent).toContain('Settings saved.'));
     expect(root.querySelector('.save-result')?.getAttribute('role')).toBe('status');
     expect(root.querySelector('.actions')?.contains(root.querySelector('.save-result'))).toBe(true);
-    expect(root.querySelector('.connection .test-result')?.textContent).not.toBe('Saved.');
+    expect(root.querySelector('.connection .test-result')?.textContent).not.toContain('Settings saved.');
+  });
+});
+
+describe('Options save acknowledgement', () => {
+  const saveBtn = () => root.querySelector('button[type="submit"]') as HTMLButtonElement;
+  const status = () => root.querySelector('.save-result') as HTMLElement;
+  const ready = async () => {
+    render(<Options />, root);
+    await vi.waitFor(() => expect((root.querySelector('input') as HTMLInputElement).value).toBe('http://192.168.1.5:3214'));
+  };
+  afterEach(() => vi.useRealTimers());
+
+  it('with a token: the button reads "Saved ✓" for about 2 s and the status line says "Settings saved."', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
+    await ready();
+    expect(saveBtn().textContent).toBe('Save');
+    submit();
+    await vi.waitFor(() => expect(saveBtn().textContent).toBe('Saved ✓'));
+    expect(status().textContent).toBe('Settings saved.');
+    expect(status().classList.contains('ok')).toBe(true);
+    vi.advanceTimersByTime(2100);
+    await vi.waitFor(() => expect(saveBtn().textContent).toBe('Save'));
+  });
+  it('a repeat save clears the status line first so it is announced again, and restarts the 2 s', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
+    await ready();
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toBe('Settings saved.'));
+    vi.advanceTimersByTime(1500);
+    const seen: string[] = [];
+    const watch = new MutationObserver(() => seen.push(status().textContent ?? ''));
+    watch.observe(status(), { childList: true, characterData: true, subtree: true });
+    submit();
+    await vi.waitFor(() => expect(seen).toEqual(['', 'Settings saved.']));
+    watch.disconnect();
+    vi.advanceTimersByTime(1000);
+    expect(saveBtn().textContent).toBe('Saved ✓');
+    vi.advanceTimersByTime(1200);
+    await vi.waitFor(() => expect(saveBtn().textContent).toBe('Save'));
+  });
+  it('without a token: saves, and warns that a token is needed to send', async () => {
+    const set = stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: '' });
+    await ready();
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toContain('Settings saved.'));
+    expect(set).toHaveBeenCalled();
+    expect(status().textContent).toContain('Add an API token before sending.');
+    expect(status().classList.contains('warning')).toBe(true);
+    expect(status().getAttribute('role')).toBe('status');
+  });
+  it('an error keeps role="alert" and the button stays "Save"', async () => {
+    stubFull({ manyfoldUrl: '', token: 'tok' });
+    render(<Options />, root);
+    await vi.waitFor(() => expect(root.querySelector('input')).not.toBeNull());
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toBe('Enter a valid Manyfold URL.'));
+    expect(status().getAttribute('role')).toBe('alert');
+    expect(saveBtn().textContent).toBe('Save');
+  });
+});
+
+describe('Options Test connection without a token', () => {
+  it('asks for the token and sends no request', async () => {
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: '' });
+    render(<Options />, root);
+    await vi.waitFor(() => expect((root.querySelector('input') as HTMLInputElement).value).toBe('http://192.168.1.5:3214'));
+    click([...root.querySelectorAll('button')].find((b) => b.textContent === 'Test connection')!);
+    await vi.waitFor(() => expect(root.querySelector('.test-result')?.textContent).toBe('Enter your API token first.'));
+    expect(root.querySelector('.test-result')?.getAttribute('role')).toBe('alert');
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
 

@@ -54,11 +54,13 @@ label.row { cursor: pointer; }
 .grid .row:nth-child(2) { border-top: 0; }
 .btn { border: 0; border-radius: 18px; padding: 8px 20px; font: inherit; font-weight: 500; cursor: pointer; }
 .primary { background: var(--teal); color: var(--btn-text); }
+.primary.saved { background: var(--ok); }
 .ghost { background: transparent; color: var(--teal); border: 1px solid var(--field-line); flex: none; }
 .msg { margin: 0; font-size: 13px; }
 .msg.error { color: var(--danger); }
 .msg.warning { color: var(--warn); }
-.test-result.ok, .save-result.ok { color: var(--muted); }
+.test-result.ok { color: var(--muted); }
+.save-result.ok { color: var(--ok); font-weight: 500; }
 .test-result strong.ok { color: var(--ok); font-weight: 700; }
 .row.stack > .msg.error { margin-top: 8px; }
 a { color: var(--teal); }
