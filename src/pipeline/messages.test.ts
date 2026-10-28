@@ -7,6 +7,8 @@ import {
   parseOffscreenRequest,
   parseResolveReply,
   parseSendEvent,
+  parseModelStatus,
+  parseReportState,
   parseTabNotice,
   type BackgroundRequest,
   type ContentRequest,
@@ -136,12 +138,42 @@ describe('replies from the content script', () => {
 });
 
 describe('parseTabNotice', () => {
-  it('accepts the page state and the button click, and nothing else', () => {
-    expect(parseTabNotice({ to: 'background', type: 'pageState', supported: true })).toBeDefined();
+  const page = 'https://www.printables.com/model/3161-x';
+  it('accepts the page state (with the page URL), and the two button clicks, and nothing else', () => {
+    expect(parseTabNotice({ to: 'background', type: 'pageState', supported: true, url: page })).toBeDefined();
+    expect(parseTabNotice({ to: 'background', type: 'pageState', supported: false, url: page })).toBeDefined();
     expect(parseTabNotice({ to: 'background', type: 'openPopup' })).toBeDefined();
-    expect(parseTabNotice({ to: 'background', type: 'pageState', supported: 1 })).toBeUndefined();
+    expect(parseTabNotice({ to: 'background', type: 'openModel', url: page })).toBeDefined();
+    expect(parseTabNotice({ to: 'background', type: 'openModel' })).toBeUndefined();
+    expect(parseTabNotice({ to: 'background', type: 'openModel', url: 5 })).toBeUndefined();
+    expect(parseTabNotice({ to: 'background', type: 'pageState', supported: 1, url: page })).toBeUndefined();
+    expect(parseTabNotice({ to: 'background', type: 'pageState', supported: true })).toBeUndefined();
+    expect(parseTabNotice({ to: 'background', type: 'pageState', supported: true, url: 5 })).toBeUndefined();
     expect(parseTabNotice({ to: 'background', type: 'send' })).toBeUndefined();
     expect(parseTabNotice({ to: 'content', type: 'openPopup' })).toBeUndefined();
+  });
+});
+
+describe('parseReportState', () => {
+  it('accepts the background\'s request to report again, and nothing else', () => {
+    expect(parseReportState({ to: 'content', type: 'reportState' })).toBeDefined();
+    expect(parseReportState({ to: 'background', type: 'reportState' })).toBeUndefined();
+    expect(parseReportState({ to: 'content', type: 'extract' })).toBeUndefined();
+    expect(parseReportState('reportState')).toBeUndefined();
+  });
+});
+
+describe('parseModelStatus', () => {
+  it('accepts the background\'s status for the content script, and nothing else', () => {
+    expect(parseModelStatus({ to: 'content', type: 'modelStatus', key: 'printables:3161', count: 2 })).toBeDefined();
+    expect(parseModelStatus({ to: 'content', type: 'modelStatus', key: 'printables:3161', count: -1 })).toBeUndefined();
+    expect(parseModelStatus({ to: 'content', type: 'modelStatus', key: 'k', count: '2' })).toBeUndefined();
+    expect(parseModelStatus({ to: 'content', type: 'modelStatus', count: 1 })).toBeUndefined();
+    expect(parseModelStatus({ to: 'content', type: 'extract' })).toBeUndefined();
+    expect(parseModelStatus({ to: 'background', type: 'modelStatus', key: 'k', count: 1 })).toBeUndefined();
+  });
+  it('is not a request the content responder answers', () => {
+    expect(parseContentRequest({ to: 'content', type: 'modelStatus', key: 'k', count: 1 })).toBeUndefined();
   });
 });
 

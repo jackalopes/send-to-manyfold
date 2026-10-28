@@ -32,6 +32,7 @@ function deps(over: { api?: Partial<PopupApi>; delivery?: SourceModel['delivery'
     api,
     loadSettings: async () => ({ ...defaultSettings(), manyfoldUrl: 'http://m', token: 'tok' }),
     findPriorSend: async () => undefined,
+    lookupModel: async () => ({ status: 'none' }),
     search: '',
     listCollections: async () => [{ id: '/collections/c1', name: 'Boats' }],
     openUrl: (u) => void opened.push(u),
@@ -92,5 +93,52 @@ describe('ReviewPopup', () => {
     const { d } = deps();
     mount({ ...d, loadSettings: async () => defaultSettings() });
     await vi.waitFor(() => expect(root.textContent).toContain('Open settings'));
+  });
+
+  describe('already in Manyfold warning', () => {
+    const m = (id: string) => ({ id, name: id, url: `http://m/models/${id}` });
+    const link = (text: string) => [...root.querySelectorAll('a')].find((a) => a.textContent === text)!;
+
+    it('one match: links to that model, which opens in a new tab', async () => {
+      const { d, opened } = deps();
+      mount({ ...d, lookupModel: async () => ({ status: 'found', models: [m('a')], listUrl: 'http://m/models?link=p' }) });
+      await vi.waitFor(() => expect(root.textContent).toContain('This page is already in your Manyfold.'));
+      link('Open it in Manyfold').click();
+      expect(opened).toEqual(['http://m/models/a']);
+    });
+
+    it('several matches: says how many and links to the filtered list', async () => {
+      const { d, opened } = deps();
+      mount({ ...d, lookupModel: async () => ({ status: 'found', models: [m('a'), m('b')], listUrl: 'http://m/models?link=p' }) });
+      await vi.waitFor(() => expect(root.textContent).toContain('This page matches 2 models already in your Manyfold.'));
+      link('See them in Manyfold').click();
+      expect(opened).toEqual(['http://m/models?link=p']);
+    });
+
+    it('none: no warning even if this browser sent it before', async () => {
+      const { d } = deps();
+      mount({ ...d, lookupModel: async () => ({ status: 'none' }), findPriorSend: async () => ({ sourceUrl: 'https://p/1', manyfoldUrl: 'http://m/models/z', at: 1 }) });
+      await vi.waitFor(() => expect(root.querySelector('button[type=submit]')).toBeTruthy());
+      await new Promise((r) => setTimeout(r, 20));
+      expect(root.querySelector('.warning')).toBeNull();
+    });
+
+    it('unknown: falls back to this browser\'s history and says so', async () => {
+      const { d, opened } = deps();
+      mount({ ...d, lookupModel: async () => ({ status: 'unknown', reason: 'error' }), findPriorSend: async () => ({ sourceUrl: 'https://p/1', manyfoldUrl: 'http://m/models/z', at: 1 }) });
+      await vi.waitFor(() => expect(root.textContent).toContain('This page was sent from this browser on'));
+      link('Open it in Manyfold').click();
+      expect(opened).toEqual(['http://m/models/z']);
+    });
+
+    it('"Send anyway" dismisses the warning and enables sending', async () => {
+      const { d } = deps();
+      mount({ ...d, lookupModel: async () => ({ status: 'found', models: [m('a')], listUrl: 'http://m/models?link=p' }) });
+      await vi.waitFor(() => expect(root.querySelector('.warning')).toBeTruthy());
+      expect(root.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(true);
+      [...root.querySelectorAll('button')].find((b) => b.textContent === 'Send anyway')!.click();
+      await vi.waitFor(() => expect(root.querySelector('.warning')).toBeNull());
+      expect(root.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false);
+    });
   });
 });

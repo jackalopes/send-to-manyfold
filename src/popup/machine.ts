@@ -1,10 +1,16 @@
 import type { HistoryEntry } from '../history';
+import type { FoundModel } from '../manyfold/lookup';
 import type { SendError } from '../pipeline/errors';
 import { handoffUrl } from '../pipeline/handoff';
 import type { SendStatus } from '../pipeline/messages';
 import type { SendProgress, SendResult, SendStage, SentModel } from '../pipeline/types';
 import type { SourceModel } from '../types';
 import type { ReviewForm } from './state';
+
+/** Why the review form warns that this page was sent before: Manyfold has it, or (when Manyfold could not say) this browser's history. */
+export type PriorSend =
+  | { source: 'manyfold'; models: FoundModel[]; /** Manyfold's model list filtered to this page. */ listUrl: string }
+  | { source: 'history'; entry: HistoryEntry };
 
 /** What the popup shows. Pure data: the component renders it, `reduce` moves it. */
 export type PopupState =
@@ -14,7 +20,7 @@ export type PopupState =
   | { phase: 'unsupported' }
   /** Extraction or setup failed before a send; `code` maps to a `MESSAGES` text. */
   | { phase: 'error'; code: string }
-  | { phase: 'review'; model: SourceModel; form: ReviewForm; prior?: HistoryEntry; duplicateDismissed: boolean; sendError?: SendError }
+  | { phase: 'review'; model: SourceModel; form: ReviewForm; prior?: PriorSend; duplicateDismissed: boolean; sendError?: SendError }
   | { phase: 'sending'; model?: SourceModel; form?: ReviewForm; sendId?: string; progress?: SendProgress; cancelling?: boolean }
   | { phase: 'done'; result: Extract<SendResult, { status: 'done' }> }
   | FailedLike<'failed'>
@@ -38,7 +44,7 @@ export type PopupAction =
   | { type: 'extractStarted' }
   | { type: 'extracted'; model: SourceModel; form: ReviewForm; baseUrl: string }
   | { type: 'extractFailed'; code: string }
-  | { type: 'priorFound'; prior: HistoryEntry }
+  | { type: 'priorFound'; prior: PriorSend }
   | { type: 'duplicateDismissed' }
   | { type: 'formChanged'; form: ReviewForm }
   | { type: 'sendClicked' }

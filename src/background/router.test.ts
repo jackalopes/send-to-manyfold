@@ -12,6 +12,10 @@ const fromOffscreen = { id: 'abc', url: OFFSCREEN };
 const fromContent = { id: 'abc', url: 'https://www.printables.com/model/1-x', tab: { id: 5 } as chrome.tabs.Tab };
 const settings = { manyfoldUrl: 'http://m.local:3214', token: TOKEN };
 
+function memoryStore(map = new Map<string, number>()): BackgroundRouterDeps['sendTabs'] {
+  return { get: async (id) => map.get(id), set: async (id, tab) => void map.set(id, tab), remove: async (id) => void map.delete(id) };
+}
+
 function setup(over: Partial<BackgroundRouterDeps> = {}) {
   let open = false;
   const api = {
@@ -33,6 +37,7 @@ function setup(over: Partial<BackgroundRouterDeps> = {}) {
     hasPermission: vi.fn(async () => true),
     recordSend: vi.fn(async () => undefined),
     newSendId: () => `s${++n}`,
+    sendTabs: memoryStore(),
     extensionOrigin: EXT,
     offscreenUrl: OFFSCREEN,
     ...over,
@@ -143,6 +148,68 @@ describe('background router: requests from the offscreen document', () => {
     expect(ok.deps.recordSend).toHaveBeenCalledWith(entry);
     const broken = setup({ recordSend: async () => Promise.reject(new Error('quota')) });
     await expect(broken.router.handleMessage({ to: 'background', type: 'recordSend', entry }, fromOffscreen)).resolves.toMatchObject({ ok: false });
+  });
+});
+
+describe('background router: a finished send tells the source tab', () => {
+  const done = { status: 'done', modelUrl: 'http://m/models/1', models: [] } as const;
+  const send = (router: ReturnType<typeof setup>['router'], tabId: number) => router.handleMessage({ to: 'background', type: 'send', request: req, tabId }, fromPage);
+
+  it('a successful result calls onSendDone with the tab the send was started for, once', async () => {
+    const onSendDone = vi.fn();
+    const { router } = setup({ onSendDone });
+    await send(router, 5);
+    await router.handleEvent({ event: 'result', sendId: 's1', result: done }, fromOffscreen);
+    await router.handleEvent({ event: 'result', sendId: 's1', result: done }, fromOffscreen);
+    expect(onSendDone).toHaveBeenCalledTimes(1);
+    expect(onSendDone).toHaveBeenCalledWith(5);
+  });
+
+  it('still refreshes the tab after the worker restarted mid-send (a new router over the same session store)', async () => {
+    const map = new Map<string, number>();
+    const first = setup({ sendTabs: memoryStore(map) });
+    await send(first.router, 5);
+    const onSendDone = vi.fn();
+    const second = setup({ sendTabs: memoryStore(map), onSendDone });
+    await second.router.handleEvent({ event: 'result', sendId: 's1', result: done }, fromOffscreen);
+    expect(onSendDone).toHaveBeenCalledWith(5);
+    expect(map.size).toBe(0);
+  });
+
+  it('forgets the tab of a send that expired or was discarded', async () => {
+    const map = new Map<string, number>();
+    const { router } = setup({ sendTabs: memoryStore(map) });
+    await send(router, 5);
+    expect(map.size).toBe(1);
+    await router.handleEvent({ event: 'expired', sendId: 's1' }, fromOffscreen);
+    expect(map.size).toBe(0);
+  });
+
+  it('a failed, handed-off or progress event does not', async () => {
+    const onSendDone = vi.fn();
+    const { router } = setup({ onSendDone });
+    await send(router, 5);
+    await router.handleEvent({ event: 'result', sendId: 's1', result: { status: 'handoff', url: 'http://m/' } }, fromOffscreen);
+    await router.handleEvent({ event: 'result', sendId: 's1', result: { status: 'unsupported' } }, fromOffscreen);
+    expect(onSendDone).not.toHaveBeenCalled();
+  });
+
+  it('a retry that names a new tab refreshes that tab', async () => {
+    const onSendDone = vi.fn();
+    const { router } = setup({ onSendDone });
+    await send(router, 5);
+    await router.handleMessage({ to: 'background', type: 'retry', sendId: 's1', tabId: 8 }, fromPage);
+    await router.handleEvent({ event: 'result', sendId: 's1', result: done }, fromOffscreen);
+    expect(onSendDone).toHaveBeenCalledWith(8);
+  });
+
+  it('only the offscreen document can report a result; an unknown send id is ignored', async () => {
+    const onSendDone = vi.fn();
+    const { router } = setup({ onSendDone });
+    await send(router, 5);
+    await router.handleEvent({ event: 'result', sendId: 's1', result: done }, fromPage);
+    await router.handleEvent({ event: 'result', sendId: 'zzz', result: done }, fromOffscreen);
+    expect(onSendDone).not.toHaveBeenCalled();
   });
 });
 

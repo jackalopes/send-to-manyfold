@@ -1,15 +1,19 @@
 import type { HistoryEntry } from '../history';
+import type { LookupResult } from '../manyfold/lookup';
 import type { SendError } from '../pipeline/errors';
 import type { SendEvent } from '../pipeline/messages';
 import type { Settings } from '../settings';
 import type { PopupApi } from './api';
-import type { PopupAction, PopupState } from './machine';
+import type { PopupAction, PopupState, PriorSend } from './machine';
 import { buildInitialForm, toSendRequest, type ReviewForm } from './state';
 
 export interface ControllerDeps {
   api: PopupApi;
   loadSettings(): Promise<Settings>;
+  /** This browser's own record of sends: the fallback when Manyfold cannot be asked. */
   findPriorSend(sourceUrl: string): Promise<HistoryEntry | undefined>;
+  /** Asks the user's Manyfold whether it already has the page; never rejects. */
+  lookupModel(pageUrl: string): Promise<LookupResult>;
   /** `location.search` of the popup page (`?tabId=` when it runs in a window). */
   search: string;
   dispatch(action: PopupAction): void;
@@ -55,6 +59,15 @@ export function createController(deps: ControllerDeps) {
     return !!status;
   }
 
+  /** Manyfold's answer wins (none means no warning); only when it is unknown does this browser's history speak. */
+  async function priorSend(sourceUrl: string): Promise<PriorSend | undefined> {
+    const found = await deps.lookupModel(sourceUrl);
+    if (found.status === 'found') return { source: 'manyfold', models: found.models, listUrl: found.listUrl };
+    if (found.status === 'none') return undefined;
+    const entry = await deps.findPriorSend(sourceUrl);
+    return entry ? { source: 'history', entry } : undefined;
+  }
+
   return {
     async init(): Promise<void> {
       api.subscribe(onEvent);
@@ -75,8 +88,11 @@ export function createController(deps: ControllerDeps) {
       const out = await api.extract(tabId);
       if (!out.ok) return dispatch({ type: 'extractFailed', code: out.code });
       dispatch({ type: 'extracted', model: out.model, form: buildInitialForm(out.model, settings), baseUrl: settings.manyfoldUrl });
-      const prior = await deps.findPriorSend(out.model.sourceUrl);
-      if (prior) dispatch({ type: 'priorFound', prior });
+      // The form is already showing; the warning joins it when the answer arrives, unless the popup has moved on.
+      const sourceUrl = out.model.sourceUrl;
+      const prior = await priorSend(sourceUrl);
+      const s = getState();
+      if (prior && s.phase === 'review' && s.model.sourceUrl === sourceUrl) dispatch({ type: 'priorFound', prior });
     },
 
     changeForm(form: ReviewForm): void {

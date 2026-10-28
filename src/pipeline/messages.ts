@@ -43,8 +43,22 @@ export type OffscreenRequest =
   | { to: 'offscreen'; type: 'discard'; sendId: string }
   | { to: 'offscreen'; type: 'status' };
 
-/** Content script -> background: whether the page is a supported model page (toolbar badge), and the injected button's click. */
-export type TabNotice = { to: 'background'; type: 'pageState'; supported: boolean } | { to: 'background'; type: 'openPopup' };
+/**
+ * Content script -> background: whether the page is a supported model page (`url`: the page it is on, for the
+ * "already in Manyfold" lookup), and the injected button's two clicks. `openModel` names the page only so the
+ * background can look it up again when it has lost what it knew (a restarted worker); the model page it opens is
+ * always the background's own lookup result, never a URL from a message.
+ */
+export type TabNotice =
+  | { to: 'background'; type: 'pageState'; supported: boolean; url: string }
+  | { to: 'background'; type: 'openPopup' }
+  | { to: 'background'; type: 'openModel'; url: string };
+
+/** Background -> content script: how many models in Manyfold match the page (0: none or unknown). `key`: the `modelKey` it was looked up for. */
+export type ModelStatus = { to: 'content'; type: 'modelStatus'; key: string; count: number };
+
+/** Background -> content script: report the page's state again (the background lost what it knew, for example in a worker restart). */
+export type ReportState = { to: 'content'; type: 'reportState' };
 
 export type ContentRequest = { to: 'content'; type: 'extract' } | { to: 'content'; type: 'resolveDownload'; site: SiteId; file: SourceFile };
 
@@ -183,7 +197,11 @@ const BACKGROUND: Shapes = {
 
 const OFFSCREEN: Shapes = { ...VERBS, start: { sendId: isId, request: isSendRequest, tabId: isInt } };
 
-const TAB: Shapes = { pageState: { supported: isBool }, openPopup: {} };
+const TAB: Shapes = { pageState: { supported: isBool, url: isString }, openPopup: {}, openModel: { url: isString } };
+
+const MODEL_STATUS: Shapes = { modelStatus: { key: isString, count: (v) => isInt(v) && v >= 0 } };
+
+const REPORT_STATE: Shapes = { reportState: {} };
 
 const CONTENT: Shapes = { extract: {}, resolveDownload: { site: isSite, file: isSourceFile } };
 
@@ -200,6 +218,8 @@ export function isOffscreenUrl(url: string, offscreenUrl: string): boolean {
 export const parseBackgroundRequest = (m: unknown) => parseRequest<BackgroundRequest>(m, 'background', BACKGROUND);
 export const parseOffscreenRequest = (m: unknown) => parseRequest<OffscreenRequest>(m, 'offscreen', OFFSCREEN);
 export const parseTabNotice = (m: unknown) => parseRequest<TabNotice>(m, 'background', TAB);
+export const parseModelStatus = (m: unknown) => parseRequest<ModelStatus>(m, 'content', MODEL_STATUS);
+export const parseReportState = (m: unknown) => parseRequest<ReportState>(m, 'content', REPORT_STATE);
 export const parseContentRequest = (m: unknown) => parseRequest<ContentRequest>(m, 'content', CONTENT);
 
 export function parseSendEvent(m: unknown): SendEvent | undefined {

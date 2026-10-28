@@ -1,6 +1,6 @@
-import type { HistoryEntry } from '../../history';
 import type { NamedRef } from '../../manyfold/metadata';
 import { SITE_NAMES } from '../site-names';
+import type { PriorSend } from '../machine';
 import { canSend, type ReviewForm } from '../state';
 import { errorText } from '../labels';
 import type { SendError } from '../../pipeline/errors';
@@ -13,7 +13,7 @@ import { ExternalLink } from './Link';
 export interface ReviewViewProps {
   model: SourceModel;
   form: ReviewForm;
-  prior?: HistoryEntry;
+  prior?: PriorSend;
   duplicateDismissed: boolean;
   sendError?: SendError;
   collections: NamedRef[] | undefined;
@@ -21,6 +21,28 @@ export interface ReviewViewProps {
   onSend(): void;
   onDismissDuplicate(): void;
   openUrl(url: string): void;
+}
+
+function PriorSendNotice({ prior, openUrl }: { prior: PriorSend; openUrl(url: string): void }) {
+  if (prior.source === 'history') {
+    return (
+      <p>
+        This page was sent from this browser on {new Date(prior.entry.at).toLocaleDateString()}.{' '}
+        <ExternalLink href={prior.entry.manyfoldUrl} onOpen={openUrl}>Open it in Manyfold</ExternalLink>
+      </p>
+    );
+  }
+  const [only, ...more] = prior.models;
+  return more.length === 0 && only ? (
+    <p>
+      This page is already in your Manyfold. <ExternalLink href={only.url} onOpen={openUrl}>Open it in Manyfold</ExternalLink>
+    </p>
+  ) : (
+    <p>
+      This page matches {prior.models.length} models already in your Manyfold.{' '}
+      <ExternalLink href={prior.listUrl} onOpen={openUrl}>See them in Manyfold</ExternalLink>
+    </p>
+  );
 }
 
 export function ReviewView(p: ReviewViewProps) {
@@ -36,10 +58,7 @@ export function ReviewView(p: ReviewViewProps) {
       {p.sendError ? <p role="alert" class="error">{errorText(p.sendError.code, p.sendError.message)}</p> : null}
       {warn ? (
         <div role="alert" class="warning">
-          <p>
-            This page was already sent on {new Date(p.prior!.at).toLocaleDateString()}.{' '}
-            <ExternalLink href={p.prior!.manyfoldUrl} onOpen={p.openUrl}>Open it in Manyfold</ExternalLink>
-          </p>
+          <PriorSendNotice prior={p.prior!} openUrl={p.openUrl} />
           <button type="button" onClick={p.onDismissDuplicate}>Send anyway</button>
         </div>
       ) : null}

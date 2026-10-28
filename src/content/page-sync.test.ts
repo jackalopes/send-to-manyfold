@@ -11,8 +11,9 @@ function setup(initial = MODEL, body = html) {
   let href = initial;
   const report = vi.fn();
   const openPopup = vi.fn();
-  const sync = createPageSync({ href: () => href, document: () => document, adapterFor, report, openPopup });
-  return { sync, report, openPopup, go: (h: string) => (href = h) };
+  const openModel = vi.fn();
+  const sync = createPageSync({ href: () => href, document: () => document, adapterFor, report, openPopup, openModel });
+  return { sync, report, openPopup, openModel, go: (h: string) => (href = h) };
 }
 /** The button lives in a closed shadow root: tests reach it through the root `attachShadow` returns. */
 let roots: ShadowRoot[] = [];
@@ -46,7 +47,7 @@ describe('page sync', () => {
     sync.sync();
     sync.sync();
     expect(report).toHaveBeenCalledTimes(1);
-    expect(report).toHaveBeenCalledWith(true);
+    expect(report).toHaveBeenCalledWith(true, MODEL);
     expect(document.querySelector('[data-testid=show-download-files]')?.nextElementSibling).toBe(host());
     expect(document.querySelectorAll(`[${BUTTON_ATTR}]`)).toHaveLength(1);
   });
@@ -79,24 +80,24 @@ describe('page sync', () => {
     expect(report).toHaveBeenCalledTimes(1);
     sync.settle();
     sync.settle();
-    expect(report.mock.calls).toEqual([[true], [true], [true]]);
+    expect(report.mock.calls).toEqual([[true, MODEL], [true, MODEL], [true, MODEL]]);
     go('https://www.printables.com/');
     sync.settle();
-    expect(report).toHaveBeenLastCalledWith(false);
+    expect(report).toHaveBeenLastCalledWith(false, 'https://www.printables.com/');
   });
 
   it('reports an unsupported page (false, once) and adds no button', () => {
     const { sync, report } = setup('https://www.printables.com/');
     sync.sync();
     sync.sync();
-    expect(report.mock.calls).toEqual([[false]]);
+    expect(report.mock.calls).toEqual([[false, 'https://www.printables.com/']]);
     expect(host()).toBeNull();
   });
 
   it('skips the button silently when the page has no download control, but still reports the page', () => {
     const { sync, report } = setup(MODEL, '<p>no controls</p>');
     sync.sync();
-    expect(report).toHaveBeenCalledWith(true);
+    expect(report).toHaveBeenCalledWith(true, MODEL);
     expect(host()).toBeNull();
   });
 
@@ -116,7 +117,7 @@ describe('page sync', () => {
     const { sync, report } = setup('https://www.printables.com/');
     sync.sync();
     sync.sync(MODEL);
-    expect(report).toHaveBeenLastCalledWith(true);
+    expect(report).toHaveBeenLastCalledWith(true, MODEL);
   });
 
   it('puts the button back when the site re-renders and drops it', () => {
@@ -136,7 +137,88 @@ describe('page sync', () => {
   });
 
   it('never throws into the page', () => {
-    const sync = createPageSync({ href: () => 'not a url', document: () => document, adapterFor, report: () => { throw new Error('x'); }, openPopup: () => undefined });
+    const sync = createPageSync({ href: () => 'not a url', document: () => document, adapterFor, report: () => { throw new Error('x'); }, openPopup: () => undefined, openModel: () => undefined });
     expect(() => sync.sync()).not.toThrow();
+  });
+
+  it('reports again when the model changes in-page, but not on DOM churn on the same model', () => {
+    const { sync, report, go } = setup();
+    sync.sync();
+    sync.sync();
+    go('https://www.printables.com/model/3161-x?utm=1');
+    sync.sync();
+    expect(report).toHaveBeenCalledTimes(1);
+    go('https://www.printables.com/model/99-y');
+    sync.sync();
+    expect(report).toHaveBeenCalledTimes(2);
+    expect(report).toHaveBeenLastCalledWith(true, 'https://www.printables.com/model/99-y');
+  });
+});
+
+describe('page sync: already in Manyfold', () => {
+  const label = () => innerButton().textContent;
+
+  it('the button says "Send to Manyfold" until told otherwise, and a click opens the popup', () => {
+    const { sync, openPopup, openModel } = setup();
+    sync.sync();
+    expect(label()).toBe('Send to Manyfold');
+    innerButton().dispatchEvent(trusted());
+    expect(openPopup).toHaveBeenCalledTimes(1);
+    expect(openModel).not.toHaveBeenCalled();
+  });
+
+  it('one match: "✓ In Manyfold", and a click asks the background to open it (the page URL only says which page to look up)', () => {
+    const { sync, openPopup, openModel } = setup();
+    sync.sync();
+    sync.showStatus('printables:3161', 1);
+    expect(label()).toBe('✓ In Manyfold');
+    innerButton().dispatchEvent(trusted());
+    expect(openModel).toHaveBeenCalledWith('https://www.printables.com/model/3161-x');
+    expect(openPopup).not.toHaveBeenCalled();
+  });
+
+  it('several matches: the count is shown', () => {
+    const { sync } = setup();
+    sync.sync();
+    sync.showStatus('printables:3161', 3);
+    expect(label()).toBe('✓ In Manyfold (3)');
+  });
+
+  it('none or unknown (0) puts the plain label and popup click back', () => {
+    const { sync, openPopup } = setup();
+    sync.sync();
+    sync.showStatus('printables:3161', 2);
+    sync.showStatus('printables:3161', 0);
+    expect(label()).toBe('Send to Manyfold');
+    innerButton().dispatchEvent(trusted());
+    expect(openPopup).toHaveBeenCalledTimes(1);
+  });
+
+  it('a status for another model than the page shows is ignored', () => {
+    const { sync } = setup();
+    sync.sync();
+    sync.showStatus('printables:99', 1);
+    expect(label()).toBe('Send to Manyfold');
+  });
+
+  it('a status that arrives before the button exists is applied when it appears', () => {
+    const { sync } = setup(MODEL, '<p>loading</p>');
+    sync.sync();
+    sync.showStatus('printables:3161', 1);
+    document.body.innerHTML = html;
+    sync.sync();
+    expect(label()).toBe('✓ In Manyfold');
+  });
+
+  it('survives the button being re-created, and resets when the page moves to another model', () => {
+    const { sync, go } = setup();
+    sync.sync();
+    sync.showStatus('printables:3161', 1);
+    host()!.remove();
+    sync.sync();
+    expect(label()).toBe('✓ In Manyfold');
+    go('https://www.printables.com/model/99-y');
+    sync.sync();
+    expect(label()).toBe('Send to Manyfold');
   });
 });

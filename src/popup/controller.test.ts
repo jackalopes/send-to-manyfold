@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { HistoryEntry } from '../history';
+import type { LookupResult } from '../manyfold/lookup';
 import type { SendEvent } from '../pipeline/messages';
 import { defaultSettings, type Settings } from '../settings';
 import type { SourceModel } from '../types';
@@ -11,7 +12,7 @@ const model: SourceModel = { site: 'printables', sourceUrl: 'https://p/1', title
 const configured: Settings = { ...defaultSettings(), manyfoldUrl: 'http://m', token: 'tok' };
 const fail = (code: string) => ({ ok: false as const, error: { code, message: 'm', stage: 'downloading' } });
 
-function setup(over: { api?: Partial<PopupApi>; settings?: Settings; prior?: HistoryEntry; search?: string } = {}) {
+function setup(over: { api?: Partial<PopupApi>; settings?: Settings; prior?: HistoryEntry; lookup?: (url: string) => Promise<LookupResult>; search?: string } = {}) {
   let state: PopupState = initialState;
   const actions: PopupAction[] = [];
   let listener: (e: SendEvent) => void = () => undefined;
@@ -33,6 +34,7 @@ function setup(over: { api?: Partial<PopupApi>; settings?: Settings; prior?: His
     api,
     loadSettings: async () => over.settings ?? configured,
     findPriorSend: async () => over.prior,
+    lookupModel: over.lookup ?? (async () => ({ status: 'unknown', reason: 'error' })),
     search: over.search ?? '',
     dispatch: (a) => { actions.push(a); state = reduce(state, a); },
     getState: () => state,
@@ -67,11 +69,50 @@ describe('popup controller', () => {
     expect(t.state().phase).toBe('unsupported');
   });
 
-  it('warns about a prior send of the same source URL', async () => {
-    const prior = { sourceUrl: 'https://p/1', manyfoldUrl: 'http://m/models/1', at: 1 };
-    const t = setup({ prior });
+  const entry: HistoryEntry = { sourceUrl: 'https://p/1', manyfoldUrl: 'http://m/models/1', at: 1 };
+  const found = (n: number): LookupResult => ({
+    status: 'found',
+    models: Array.from({ length: n }, (_, i) => ({ id: `m${i}`, name: `M${i}`, url: `http://m/models/m${i}` })),
+    listUrl: 'http://m/models?link=p',
+  });
+
+  it('warns that Manyfold already has the page, looked up by the page URL', async () => {
+    const lookup = vi.fn(async () => found(2));
+    const t = setup({ lookup });
     await t.c.init();
-    expect(t.state()).toMatchObject({ phase: 'review', prior });
+    expect(lookup).toHaveBeenCalledWith('https://p/1');
+    expect(t.state()).toMatchObject({ phase: 'review', prior: { source: 'manyfold', models: expect.any(Array), listUrl: 'http://m/models?link=p' } });
+  });
+
+  it('Manyfold saying none shows no warning, even with a local history entry', async () => {
+    const t = setup({ prior: entry, lookup: async () => ({ status: 'none' }) });
+    await t.c.init();
+    expect(t.state()).toMatchObject({ phase: 'review' });
+    expect((t.state() as { prior?: unknown }).prior).toBeUndefined();
+  });
+
+  it('an unknown answer falls back to the local history', async () => {
+    const t = setup({ prior: entry, lookup: async () => ({ status: 'unknown', reason: 'error' }) });
+    await t.c.init();
+    expect(t.state()).toMatchObject({ phase: 'review', prior: { source: 'history', entry } });
+  });
+
+  it('an unknown answer and no history shows no warning', async () => {
+    const t = setup({ lookup: async () => ({ status: 'unknown', reason: 'forbidden' }) });
+    await t.c.init();
+    expect((t.state() as { prior?: unknown }).prior).toBeUndefined();
+  });
+
+  it('shows the form before the lookup answers, and ignores an answer that arrives after the send started', async () => {
+    let answer: (r: LookupResult) => void = () => undefined;
+    const t = setup({ lookup: () => new Promise<LookupResult>((r) => { answer = r; }) });
+    const init = t.c.init();
+    await vi.waitFor(() => expect(t.state().phase).toBe('review'));
+    await t.c.send();
+    answer(found(1));
+    await init;
+    expect(t.state()).toMatchObject({ phase: 'sending' });
+    expect(t.actions.some((a) => a.type === 'priorFound')).toBe(false);
   });
 
   it('reattaches to a running send remembered for this tab and does not extract', async () => {

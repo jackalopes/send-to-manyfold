@@ -21,10 +21,15 @@ describe('popup state machine', () => {
   });
 
   it('shows a prior send as a duplicate warning that "send anyway" dismisses', () => {
-    const prior = { sourceUrl: 'https://p/1', manyfoldUrl: 'http://m/models/1', at: 5 };
+    const prior = { source: 'history' as const, entry: { sourceUrl: 'https://p/1', manyfoldUrl: 'http://m/models/1', at: 5 } };
     const s = reduce(review(), { type: 'priorFound', prior });
     expect(s).toMatchObject({ phase: 'review', prior, duplicateDismissed: false });
     expect(reduce(s, { type: 'duplicateDismissed' })).toMatchObject({ duplicateDismissed: true });
+  });
+
+  it('a late prior-send answer does not change a send in progress', () => {
+    const prior = { source: 'manyfold' as const, models: [{ id: 'a', name: 'A', url: 'http://m/models/a' }], listUrl: 'http://m/models?x' };
+    expect(reduce(sending(), { type: 'priorFound', prior })).toEqual(sending());
   });
 
   it('a Thingiverse-style model goes to the handoff view with the importer URL', () => {

@@ -31,6 +31,19 @@ export interface BackgroundRouterDeps {
   extensionOrigin: string;
   /** `chrome.runtime.getURL('offscreen.html')`: the only sender allowed to get the token. */
   offscreenUrl: string;
+  /**
+   * Which tab each send in progress came from (`chrome.storage.session`: survives a worker restart, cleared when
+   * the browser closes), so the tab can still be refreshed when the send finishes. Never rejects.
+   */
+  sendTabs: SendTabs;
+  /** A send that was started for this tab finished successfully (the tab's "already in Manyfold" state is stale). */
+  onSendDone?(tabId: number): void;
+}
+
+export interface SendTabs {
+  get(sendId: string): Promise<number | undefined>;
+  set(sendId: string, tabId: number): Promise<void>;
+  remove(sendId: string): Promise<void>;
 }
 
 export interface Sender {
@@ -47,6 +60,7 @@ const OFFSCREEN_ONLY = new Set<BackgroundRequest['type']>(['getConnection', 'res
  * restarted service worker answers `status` (and everything else) from the document that survived it.
  */
 export function createBackgroundRouter(deps: BackgroundRouterDeps) {
+  const sendTabs = deps.sendTabs;
   const connection = () => connectionFromSettings(deps.loadSettings, deps.hasPermission);
 
   const isIdle = async () => {
@@ -68,9 +82,11 @@ export function createBackgroundRouter(deps: BackgroundRouterDeps) {
         if (!conn.ok) return conn;
         const sendId = deps.newSendId();
         const started = await deps.offscreen.use(() => ask<AckReply>({ to: 'offscreen', type: 'start', sendId, request: m.request, tabId: m.tabId }));
+        if (started.ok) await sendTabs.set(sendId, m.tabId);
         return started.ok ? { ok: true, sendId } : started;
       }
       case 'retry':
+        if (m.tabId !== undefined && (await sendTabs.get(m.sendId)) !== undefined) await sendTabs.set(m.sendId, m.tabId);
         return deps.offscreen.ifOpen(
           () =>
             ask<AckReply>({
@@ -122,7 +138,13 @@ export function createBackgroundRouter(deps: BackgroundRouterDeps) {
     async handleEvent(raw: unknown, sender: Sender): Promise<void> {
       if (sender.tab || !sender.url || !isOffscreenUrl(sender.url, deps.offscreenUrl)) return;
       const e = parseSendEvent(raw);
-      if (e && e.event !== 'progress') await closeIfIdle();
+      if (!e) return;
+      if (e.event === 'result' && e.result.status === 'done') {
+        const tabId = await sendTabs.get(e.sendId);
+        await sendTabs.remove(e.sendId);
+        if (tabId !== undefined) deps.onSendDone?.(tabId);
+      } else if (e.event === 'expired' || e.event === 'discarded') await sendTabs.remove(e.sendId);
+      if (e.event !== 'progress') await closeIfIdle();
     },
 
     closeIfIdle,

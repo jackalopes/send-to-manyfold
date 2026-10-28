@@ -1,7 +1,7 @@
 import { render } from 'preact';
 import { findPriorSend } from '../../history';
-import { ManyfoldClient } from '../../manyfold/client';
-import { listCollections } from '../../manyfold/metadata';
+import { listCollectionsAt } from '../../manyfold/browser-client';
+import { createBrowserLookup } from '../../manyfold/browser-lookup';
 import { createPopupApi, isOffscreenSender } from '../../popup/api';
 import '../../popup/popup.css';
 import { ReviewPopup, type PopupDeps } from '../../popup/ReviewPopup';
@@ -32,10 +32,11 @@ const deps: PopupDeps = {
   api,
   loadSettings,
   findPriorSend,
+  lookupModel: createBrowserLookup(),
   search: location.search,
   listCollections: async () => {
     const s = await loadSettings();
-    return listCollections(new ManyfoldClient(s.manyfoldUrl, s.token));
+    return listCollectionsAt(s.manyfoldUrl, s.token);
   },
   openUrl: (url) => {
     if (/^https?:\/\//i.test(url)) void chrome.tabs.create({ url });

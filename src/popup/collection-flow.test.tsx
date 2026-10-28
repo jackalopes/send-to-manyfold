@@ -32,6 +32,7 @@ function mount(defaultCollectionId?: string) {
     api,
     loadSettings: async () => ({ ...defaultSettings(), manyfoldUrl: 'http://m', token: 't', ...(defaultCollectionId ? { defaultCollectionId } : {}) }),
     findPriorSend: async () => undefined,
+    lookupModel: async () => ({ status: 'none' }),
     search: '',
     listCollections: async () => [{ id: '/collections/c1', name: 'Boats' }],
     openUrl: () => undefined,

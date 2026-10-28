@@ -8,7 +8,7 @@ Not affiliated with Manyfold, Printables, Thingiverse, MakerWorld or GitHub.
 
 ## What it does
 
-Open a model page, click the toolbar icon (or the green "Send to Manyfold" button where the page has one), check the prefilled details, pick the files and a collection, and press Send. Nothing is sent until you press Send.
+Open a model page, click the toolbar icon (or the green "Send to Manyfold" button where the page has one), check the prefilled details, pick the files and a collection, and press Send. Apart from a read-only check of whether the page is already in your Manyfold, nothing is sent until you press Send.
 
 | Site | Pages | What happens |
 |---|---|---|
@@ -70,7 +70,7 @@ Open the extension's options page (right-click the toolbar icon, then Options).
 - No analytics, no tracking, no other servers.
 - Your Manyfold address and token are stored in Chrome's local extension storage (`chrome.storage.local`) on your computer.
 - The extension never reads or copies the login tokens of the source sites.
-- It sends nothing until you press Send. On the four supported sites it shows a toolbar badge, and on some pages a "Send to Manyfold" button.
+- The only automatic request is a read-only check, sent to your own Manyfold, of whether the model page you're on is already saved (a search by the page's link, so it can show a check). Nothing else is sent until you press Send. On the four supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
 
 ## Known limitations
 

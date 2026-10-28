@@ -1,5 +1,6 @@
 import { extractWithFallback } from '../adapters/fallback';
 import { adapterFor } from '../adapters/index';
+import { parseModelStatus, parseReportState } from '../pipeline/messages';
 import { createContentResponder } from '../content/responder';
 import { createPageSync } from '../content/page-sync';
 import { watchPage } from '../content/page-watch';
@@ -17,6 +18,15 @@ export default defineContentScript({
     const respond = createContentResponder({ location: () => new URL(location.href), document: () => document, adapterFor, extractWithFallback });
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (sender.id !== chrome.runtime.id) return false;
+      const status = parseModelStatus(message);
+      if (status) {
+        page.showStatus(status.key, status.count);
+        return false;
+      }
+      if (parseReportState(message)) {
+        page.settle(); // the background lost what it knew: say again what this page is
+        return false;
+      }
       const reply = respond(message);
       if (!reply) return false;
       void reply.then(sendResponse);
@@ -27,8 +37,9 @@ export default defineContentScript({
       href: () => location.href,
       document: () => document,
       adapterFor,
-      report: (supported) => void chrome.runtime.sendMessage({ to: 'background', type: 'pageState', supported }).catch(() => undefined),
+      report: (supported, url) => void chrome.runtime.sendMessage({ to: 'background', type: 'pageState', supported, url }).catch(() => undefined),
       openPopup: () => void chrome.runtime.sendMessage({ to: 'background', type: 'openPopup' }).catch(() => undefined),
+      openModel: (url) => void chrome.runtime.sendMessage({ to: 'background', type: 'openModel', url }).catch(() => undefined),
     });
 
     const stop = watchPage({
