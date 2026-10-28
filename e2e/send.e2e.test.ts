@@ -96,6 +96,12 @@ describe('sendModel against a real Manyfold', () => {
 
   it('testConnection verifies the token itself: ok with the real token, unauthorized with a bogus one', async () => {
     expect(await client.testConnection()).toMatchObject({ ok: true });
+    // Record the real 200 shape so a change in Manyfold/Doorkeeper's scope format is visible in the CI log.
+    const info = await client.request('/oauth/token/info');
+    const body = (await info.json()) as { scope?: unknown };
+    console.log('token info scope shape:', JSON.stringify(body.scope));
+    expect(info.status).toBe(200);
+    expect(body.scope).toBeDefined();
     const bogus = new ManyfoldClient(url, 'not-a-real-token', undefined, async () => true, 30_000);
     expect(await bogus.testConnection()).toMatchObject({ ok: false, reason: 'unauthorized' });
   });
