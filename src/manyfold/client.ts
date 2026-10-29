@@ -27,7 +27,7 @@ export class ManyfoldClient {
   /**
    * Authenticated API request to `baseUrl + path` with the vendor Accept and bearer headers.
    * `timeoutMs` overrides the client default (e.g. for large upload chunks). An `init.signal` (e.g. the user's
-   * cancel) is combined with the timeout.
+   * cancel) is combined with the timeout. Cookies are never sent (credentials: 'omit'), so auth is the token alone.
    */
   request(path: string, init: RequestInit = {}, timeoutMs: number = this.timeoutMs): Promise<Response> {
     const headers = new Headers(init.headers);
@@ -36,7 +36,7 @@ export class ManyfoldClient {
     // The caller's signal (cancel) and the timeout both apply; the reason is whichever fired first.
     const timeout = AbortSignal.timeout(timeoutMs);
     const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
-    return this.fetchImpl(`${this.baseUrl}${path}`, { ...init, headers, signal });
+    return this.fetchImpl(`${this.baseUrl}${path}`, { ...init, headers, signal, credentials: 'omit' });
   }
 
   /**
