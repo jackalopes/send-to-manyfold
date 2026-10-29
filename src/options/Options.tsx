@@ -56,15 +56,15 @@ export function Options() {
     });
   }, []);
 
-  async function onSave(e: Event) {
-    e.preventDefault();
+  /** Saves the form (same validation and permission handling as the Save button); returns the stored settings, or the error message. */
+  async function persist(): Promise<{ saved: Settings } | { error: string }> {
     // Clear first so a repeat save changes the live region again and is announced again.
     setSave({ level: 'ok', text: '' });
     const result = await saveWithPermission(s);
     if (!result.ok) {
       setJustSaved(false);
       setSave({ level: 'error', text: result.message });
-      return;
+      return { error: result.message };
     }
     const saved = await loadSettings();
     setS(saved);
@@ -75,14 +75,32 @@ export function Options() {
     setJustSaved(true);
     clearTimeout(savedTimer.current);
     savedTimer.current = setTimeout(() => setJustSaved(false), SAVED_FLASH_MS);
-    setCollections(await loadCollectionOptions(saved));
+    return { saved };
   }
 
+  async function onSave(e: Event) {
+    e.preventDefault();
+    const result = await persist();
+    if ('saved' in result) setCollections(await loadCollectionOptions(result.saved));
+  }
+
+  // Sends use the saved token, so Test connection saves the form first and checks what was stored.
   async function onTest() {
+    // No token: refuse without saving (runConnectionCheck words the reason).
+    if (!s.token.trim()) {
+      const check = await runConnectionCheck(s.manyfoldUrl, s.token);
+      setTest({ level: check.level, text: check.message, connected: check.connected });
+      return;
+    }
     setTest({ level: 'ok', text: 'Testing connection...' });
-    const check = await runConnectionCheck(s.manyfoldUrl, s.token);
+    const result = await persist();
+    if ('error' in result) {
+      setTest({ level: 'error', text: result.error });
+      return;
+    }
+    const check = await runConnectionCheck(result.saved.manyfoldUrl, result.saved.token);
     setTest({ level: check.level, text: check.message, connected: check.connected });
-    if (check.level !== 'error') setCollections(await loadCollectionOptions(s));
+    if (check.level !== 'error') setCollections(await loadCollectionOptions(result.saved));
   }
 
   const version = manifestVersion();

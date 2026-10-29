@@ -200,6 +200,61 @@ describe('Options Test connection without a token', () => {
   });
 });
 
+describe('Options Test connection saves first', () => {
+  const testBtn = () => [...root.querySelectorAll('button')].find((b) => b.textContent === 'Test connection')!;
+  const type = (input: HTMLInputElement, v: string) => { input.value = v; input.dispatchEvent(new Event('input', { bubbles: true })); };
+
+  it('persists the form, then checks the persisted token, not a stale one', async () => {
+    const seen: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (_u: RequestInfo | URL, init?: RequestInit) => {
+      seen.push(new Headers(init?.headers).get('Authorization') ?? '');
+      return new Response('{}', { status: 200 });
+    }));
+    let stored: Record<string, unknown> = { manyfoldUrl: 'http://192.168.1.5:3214', token: 'old' };
+    const order: string[] = [];
+    vi.stubGlobal('chrome', {
+      storage: { local: {
+        get: vi.fn(async () => ({ settings: stored })),
+        set: vi.fn(async (v: { settings: Record<string, unknown> }) => { order.push('set'); stored = v.settings; }),
+      } },
+      permissions: { request: vi.fn(async () => true), contains: vi.fn(async () => true) },
+    });
+    render(<Options />, root);
+    await vi.waitFor(() => expect((root.querySelector('input') as HTMLInputElement).value).toBe('http://192.168.1.5:3214'));
+    await vi.waitFor(() => expect(seen.length).toBeGreaterThan(0)); // the collection list loads with the old token on open
+    seen.length = 0;
+    type(root.querySelector('input[type="password"]') as HTMLInputElement, '  new-token ');
+    await new Promise((r) => setTimeout(r, 0));
+    click(testBtn());
+    await vi.waitFor(() => expect(root.querySelector('.connection .test-result')?.textContent).toBe('Connected.'));
+    expect(stored.token).toBe('new-token');
+    expect(order).toEqual(['set']);
+    expect(seen.length).toBeGreaterThan(0);
+    expect(new Set(seen)).toEqual(new Set(['Bearer new-token']));
+    expect(root.querySelector('.save-result')?.textContent).toBe('Settings saved.');
+  });
+  it('does not test when saving is refused, and says why', async () => {
+    const set = stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' }, { permissions: { request: vi.fn(async () => false), contains: vi.fn(async () => true) } });
+    render(<Options />, root);
+    await vi.waitFor(() => expect((root.querySelector('input') as HTMLInputElement).value).toBe('http://192.168.1.5:3214'));
+    await new Promise((r) => setTimeout(r, 20));
+    vi.mocked(fetch).mockClear();
+    click(testBtn());
+    await vi.waitFor(() => expect(root.querySelector('.test-result')?.textContent).toContain('settings not saved'));
+    expect(root.querySelector('.test-result')?.getAttribute('role')).toBe('alert');
+    expect(set).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('with no token it refuses without saving', async () => {
+    const set = stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: '' });
+    render(<Options />, root);
+    await vi.waitFor(() => expect((root.querySelector('input') as HTMLInputElement).value).toBe('http://192.168.1.5:3214'));
+    click(testBtn());
+    await vi.waitFor(() => expect(root.querySelector('.test-result')?.textContent).toBe('Enter your API token first.'));
+    expect(set).not.toHaveBeenCalled();
+  });
+});
+
 describe('Options connected styling', () => {
   const runTest = async () => {
     render(<Options />, root);

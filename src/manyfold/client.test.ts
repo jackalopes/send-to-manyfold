@@ -159,6 +159,16 @@ describe('ManyfoldClient.testConnection', () => {
   });
 });
 
+describe('ManyfoldClient.request credentials', () => {
+  it('never sends cookies, even if the caller asks for them', async () => {
+    const f = vi.fn(async () => new Response('{}'));
+    const c = new ManyfoldClient('http://m.local:3214', 'secret-token', f as unknown as typeof fetch, async () => true);
+    await c.request('/models');
+    await c.request('/models', { credentials: 'include' });
+    for (const [, init] of f.mock.calls as unknown as [string, RequestInit][]) expect(init.credentials).toBe('omit');
+  });
+});
+
 describe('ManyfoldClient.request signals', () => {
   const hang = () =>
     vi.fn((_u: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_res, rej) => {
