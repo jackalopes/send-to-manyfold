@@ -12,7 +12,7 @@ export type ManyfoldErrorCode =
   | 'metadata-failed';
 
 /** Fixed texts for the HTTP statuses every Manyfold call maps the same way. */
-export const UNAUTHORIZED_TEXT = 'Manyfold rejected the API token. Check it in the extension settings.';
+export const UNAUTHORIZED_TEXT = 'Manyfold rejected the API token — it may have been revoked, expired or mistyped. Paste a new token in the extension\'s Settings.';
 export const FORBIDDEN_TEXT = 'The API token lacks permission for this (it needs the read, write and upload scopes).';
 export const RATE_LIMITED_TEXT = 'Manyfold is limiting requests. Wait a minute and try again.';
 

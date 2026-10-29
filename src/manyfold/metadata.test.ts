@@ -427,6 +427,7 @@ describe('applyMetadata', () => {
     const s = stub(() => json(401, { error: 'unauthorized' }));
     const result = await applyMetadata(client(s.fetch), { id: 'abc123' }, { name: 'Title', caption: 'Cap', sensitive: false });
     expect(result.saved).toEqual([]);
+    expect(result.failed.map((f) => f.error)).toEqual(Array(3).fill(expect.stringMatching(/revoked, expired or mistyped/)));
     expect(result.failed.map((f) => f.field).sort()).toEqual(['caption', 'name', 'sensitive']);
     expect(s.calls.filter((c) => c.method === 'PATCH')).toHaveLength(1);
     expect(JSON.stringify(result)).not.toContain(TOKEN);
@@ -456,7 +457,7 @@ describe('listCollections', () => {
   it('throws a token-free error on 401', async () => {
     const s = stub(() => json(401, { error: 'unauthorized' }));
     const err = await listCollections(client(s.fetch)).then(() => new Error('resolved'), (e: unknown) => e as Error);
-    expect(err.message).toMatch(/token/i);
+    expect(err.message).toMatch(/revoked, expired or mistyped.*new token/);
     expect(err.message).not.toContain(TOKEN);
   });
 });
