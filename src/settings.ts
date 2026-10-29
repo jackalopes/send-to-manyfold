@@ -113,7 +113,7 @@ export async function saveWithPermission(s: Settings, deps: SaveDeps = realDeps)
     return { ok: false, reason: 'error', message: 'Could not request permission for your Manyfold server.' };
   }
   try {
-    await deps.save({ ...s, manyfoldUrl: url, defaultCollectionId: s.defaultCollectionId?.trim() || undefined });
+    await deps.save({ ...s, manyfoldUrl: url, token: s.token.trim(), defaultCollectionId: s.defaultCollectionId?.trim() || undefined });
   } catch {
     return { ok: false, reason: 'error', message: 'Could not save settings.' };
   }

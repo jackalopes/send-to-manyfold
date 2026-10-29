@@ -6,6 +6,9 @@ export type ConnectionResult =
 
 export const VENDOR_ACCEPT = 'application/vnd.manyfold.v0+json';
 
+/** The scopes the extension needs (README and store listing): read lookups, write metadata, upload files. */
+export const REQUIRED_SCOPES = ['read', 'write', 'upload'] as const;
+
 export const DEFAULT_TIMEOUT_MS = 10_000;
 
 export type HasPermission = (origin: string) => Promise<boolean>;
@@ -37,9 +40,12 @@ export class ManyfoldClient {
   }
 
   /**
-   * Probes auth/scope (GET /models), the upload API (OPTIONS /upload), then the version from NodeInfo.
-   * Manyfold exposes its version only via NodeInfo, which exists only when federation is enabled, so the
-   * minimum-version check is best-effort: without NodeInfo the result is { ok: true, version: 'unknown' }.
+   * Verifies the token itself via Doorkeeper's token info endpoint (GET /oauth/token/info), which answers 401 for a
+   * missing, invalid, revoked or expired token even when the server allows public browsing, and lists the token's
+   * scopes. Only if that response carries no usable scope list does it fall back to probing GET /models and
+   * OPTIONS /upload. Then it reads the version from NodeInfo. Manyfold exposes its version only via NodeInfo, which
+   * exists only when federation is enabled, so the minimum-version check is best-effort: without NodeInfo the result
+   * is { ok: true, version: 'unknown' }.
    */
   async testConnection(): Promise<ConnectionResult> {
     try {
@@ -51,15 +57,29 @@ export class ManyfoldClient {
     }
 
     try {
-      const models = await this.request('/models');
-      const bad = statusToFailure(models.status, 'read access (GET /models)');
-      if (bad) return bad;
+      const info = await this.request('/oauth/token/info');
+      if (info.status === 401) {
+        return { ok: false, reason: 'unauthorized', detail: 'The token was rejected or expired. If the token is new, a reverse proxy may be dropping the Authorization header.' };
+      }
+      if (!info.ok) return { ok: false, reason: 'unknown', detail: `Unexpected response ${info.status} for the token check (GET /oauth/token/info).` };
 
-      // Only 401/403/2xx are conclusive: Rails may have no OPTIONS route, so 404/405/etc. says nothing.
-      const upload = await this.request('/upload', { method: 'OPTIONS' });
-      const badUpload = upload.status === 401 || upload.status === 403 ? statusToFailure(upload.status, 'the upload scope (OPTIONS /upload)') : undefined;
-      if (badUpload) return badUpload;
-      const uploadNote = upload.ok ? undefined : 'The upload endpoint could not be probed, so upload access is unverified.';
+      const scopes = parseScopes(await info.json().catch(() => undefined));
+      let uploadNote: string | undefined;
+      if (scopes) {
+        const missing = REQUIRED_SCOPES.filter((s) => !scopes.includes(s));
+        if (missing.length) return { ok: false, reason: 'forbidden-scope', detail: `The token lacks the ${missing.join(', ')} scope${missing.length > 1 ? 's' : ''}.` };
+      } else {
+        // The scope list is unavailable, so verify access the older way.
+        const models = await this.request('/models');
+        const bad = statusToFailure(models.status, 'read access (GET /models)');
+        if (bad) return bad;
+
+        // Only 401/403/2xx are conclusive: Rails may have no OPTIONS route, so 404/405/etc. says nothing.
+        const upload = await this.request('/upload', { method: 'OPTIONS' });
+        const badUpload = upload.status === 401 || upload.status === 403 ? statusToFailure(upload.status, 'the upload scope (OPTIONS /upload)') : undefined;
+        if (badUpload) return badUpload;
+        uploadNote = upload.ok ? undefined : 'The upload endpoint could not be probed, so upload access is unverified.';
+      }
 
       const version = await this.detectVersion();
       if (version && compareVersions(version, MIN_VERSION) < 0) {
@@ -86,6 +106,14 @@ export class ManyfoldClient {
       return undefined;
     }
   }
+}
+
+/** Token info's `scope` as a list: an array, a space-separated string, or Doorkeeper's `{ scopes: [...] }`. */
+function parseScopes(body: unknown): string[] | undefined {
+  const scope = (body as { scope?: unknown } | null | undefined)?.scope;
+  const list = typeof scope === 'string' ? scope.split(/\s+/).filter(Boolean) : Array.isArray(scope) ? scope : (scope as { scopes?: unknown } | null | undefined)?.scopes;
+  if (typeof list === 'string') return parseScopes({ scope: list });
+  return Array.isArray(list) && list.every((x) => typeof x === 'string') ? (list as string[]) : undefined;
 }
 
 function statusToFailure(status: number, what: string): ConnectionResult | undefined {

@@ -31,6 +31,20 @@ describe('runConnectionTest', () => {
   });
 });
 
+describe('runConnectionCheck without a token', () => {
+  it.each(['', '   '])('asks for the token (%j) without a permission prompt or a request', async (token) => {
+    const deps = { requestPermission: vi.fn(), test: vi.fn() };
+    expect(await runConnectionCheck('m.local', token, deps)).toEqual({ message: 'Enter your API token first.', level: 'error', connected: false });
+    expect(deps.requestPermission).not.toHaveBeenCalled();
+    expect(deps.test).not.toHaveBeenCalled();
+  });
+  it('trims the token it tests with', async () => {
+    const deps = { requestPermission: vi.fn(async () => true), test: vi.fn(async () => ({ ok: true as const, version: 'unknown' })) };
+    await runConnectionCheck('m.local', ' tok\n', deps);
+    expect(deps.test).toHaveBeenCalledWith('http://m.local', 'tok');
+  });
+});
+
 describe('connectionLevel', () => {
   it('is a warning for a connection that worked but came with a detail, ok without, error for a failure', () => {
     expect(connectionLevel({ ok: true, version: '0.153.0' })).toBe('ok');

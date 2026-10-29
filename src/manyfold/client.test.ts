@@ -2,9 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { ManyfoldClient } from './client';
 import { compareVersions, MIN_VERSION } from './version';
 
+const ALL_SCOPES = ['read', 'write', 'upload'];
 const ACCEPT = 'application/vnd.manyfold.v0+json';
 
 interface Routes {
+  /** GET /oauth/token/info: a status, a full response, or an Error. Omitted = 200 without a scope field (falls through to the legacy probes). */
+  tokenInfo?: number | { scope?: unknown; noScopeField?: boolean } | Error;
   models?: number | Error;
   upload?: number;
   nodeinfo?: { status: number; version?: string };
@@ -14,6 +17,13 @@ function stubFetch(r: Routes = {}) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? 'GET';
+    if (url.endsWith('/oauth/token/info') && method === 'GET') {
+      const t = r.tokenInfo ?? { noScopeField: true };
+      if (t instanceof Error) throw t;
+      if (typeof t === 'number') return new Response('{}', { status: t });
+      const body = t.noScopeField ? { resource_owner_id: 1 } : { resource_owner_id: 1, scope: t.scope ?? ALL_SCOPES, expires_in: 100 };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }
     if (url.endsWith('/models') && method === 'GET') {
       if (r.models instanceof Error) throw r.models;
       return new Response('[]', { status: r.models ?? 200 });
@@ -37,6 +47,54 @@ describe('compareVersions', () => {
     expect(compareVersions('0.147.0', 'v0.147.0')).toBe(0);
   });
   it('exports MIN_VERSION', () => expect(MIN_VERSION).toBe('0.147.0'));
+});
+
+describe('ManyfoldClient.testConnection token check', () => {
+  const run = (r: Routes) => client(stubFetch(r) as unknown as typeof fetch).testConnection();
+  it('valid token with all scopes -> ok, without probing /models or /upload', async () => {
+    const f = stubFetch({ tokenInfo: {} });
+    expect(await client(f as unknown as typeof fetch).testConnection()).toEqual({ ok: true, version: 'unknown' });
+    const urls = f.mock.calls.map(([u]) => String(u));
+    expect(urls[0]).toBe('http://m.local:3214/oauth/token/info');
+    expect(urls.some((u) => u.endsWith('/models') || u.endsWith('/upload'))).toBe(false);
+  });
+  it('token info 401 -> unauthorized, even if a public /models would answer 200', async () => {
+    const r = await run({ tokenInfo: 401, models: 200 });
+    expect(r).toMatchObject({ ok: false, reason: 'unauthorized' });
+    expect((r as { detail?: string }).detail).toMatch(/rejected or expired/i);
+    expect((r as { detail?: string }).detail).toMatch(/Authorization header/);
+  });
+  it('missing upload scope -> forbidden-scope naming it', async () => {
+    const r = await run({ tokenInfo: { scope: ['read', 'write'] } });
+    expect(r).toMatchObject({ ok: false, reason: 'forbidden-scope' });
+    expect((r as { detail?: string }).detail).toMatch(/upload/);
+    expect((r as { detail?: string }).detail).not.toMatch(/read|write/);
+  });
+  it('names every missing scope', async () => {
+    const r = await run({ tokenInfo: { scope: ['read'] } });
+    expect((r as { detail?: string }).detail).toMatch(/write.*upload/);
+  });
+  it.each([
+    ['a space separated string', 'read write upload'],
+    ['Doorkeeper Scopes object', { scopes: ['read', 'write', 'upload'] }],
+  ])('scope as %s -> ok', async (_n, scope) => {
+    expect(await run({ tokenInfo: { scope } })).toMatchObject({ ok: true });
+  });
+  it.each([404, 500, 403])('token info %i -> unknown with the status', async (status) => {
+    const r = await run({ tokenInfo: status });
+    expect(r).toMatchObject({ ok: false, reason: 'unknown' });
+    expect((r as { detail?: string }).detail).toContain(String(status));
+  });
+  it.each([['absent', { noScopeField: true }], ['unparseable', { scope: 42 }]])('scope field %s -> falls through to the /models probe', async (_n, tokenInfo) => {
+    expect(await run({ tokenInfo })).toMatchObject({ ok: true });
+    expect(await run({ tokenInfo, models: 401 })).toMatchObject({ ok: false, reason: 'unauthorized' });
+    expect(await run({ tokenInfo, upload: 403 })).toMatchObject({ ok: false, reason: 'forbidden-scope' });
+  });
+  it('sub-path install: token info is relative to baseUrl', async () => {
+    const f = stubFetch({ tokenInfo: {} });
+    await new ManyfoldClient('http://m.local/manyfold', 'secret-token', f as unknown as typeof fetch, async () => true).testConnection();
+    expect(String(f.mock.calls[0]![0])).toBe('http://m.local/manyfold/oauth/token/info');
+  });
 });
 
 describe('ManyfoldClient.testConnection', () => {
