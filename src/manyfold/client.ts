@@ -59,7 +59,7 @@ export class ManyfoldClient {
     try {
       const info = await this.request('/oauth/token/info');
       if (info.status === 401) {
-        return { ok: false, reason: 'unauthorized', detail: 'The token was rejected or expired. If the token is new, a reverse proxy may be dropping the Authorization header.' };
+        return { ok: false, reason: 'unauthorized', detail: 'It may have been revoked, expired or mistyped, so paste a new one. If the token is new, a reverse proxy may be dropping the Authorization header.' };
       }
       if (!info.ok) return { ok: false, reason: 'unknown', detail: `Unexpected response ${info.status} for the token check (GET /oauth/token/info).` };
 
@@ -117,7 +117,7 @@ function parseScopes(body: unknown): string[] | undefined {
 }
 
 function statusToFailure(status: number, what: string): ConnectionResult | undefined {
-  if (status === 401) return { ok: false, reason: 'unauthorized', detail: 'The token was rejected.' };
+  if (status === 401) return { ok: false, reason: 'unauthorized', detail: 'It may have been revoked, expired or mistyped, so paste a new one.' };
   if (status === 403) return { ok: false, reason: 'forbidden-scope', detail: `The token lacks ${what}.` };
   if (status >= 400) return { ok: false, reason: 'unknown', detail: `Unexpected response ${status} for ${what}.` };
   return undefined;

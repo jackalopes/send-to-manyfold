@@ -160,6 +160,7 @@ describe('uploadFile', () => {
     const err = await uploadFile(client(s.fetch), new Blob(['x']), 'a.stl', () => {}).catch((e) => e);
     expect(err.code).toBe(code);
     expect(err.message).not.toContain(TOKEN);
+    if (status === 401) expect(err.message).toMatch(/revoked, expired or mistyped.*new token/);
   });
 });
 

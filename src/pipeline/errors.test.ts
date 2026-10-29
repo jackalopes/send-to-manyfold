@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DownloadAccessDenied, DownloadBlocked, DownloadFailed, DownloadLoginRequired } from '../adapters/errors';
-import { ManyfoldError, type ManyfoldErrorCode } from '../manyfold/errors';
+import { ManyfoldError, UNAUTHORIZED_TEXT, type ManyfoldErrorCode } from '../manyfold/errors';
 import { MESSAGES, PipelineError, toSendError } from './errors';
+
+it('tells the user to replace a revoked or invalid token in Settings', () => {
+  expect(MESSAGES['manyfold-unauthorized']).toBe(UNAUTHORIZED_TEXT);
+  expect(UNAUTHORIZED_TEXT).toMatch(/revoked, expired or mistyped.*new token.*Settings/);
+});
 
 describe('toSendError', () => {
   it.each([

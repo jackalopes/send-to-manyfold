@@ -61,7 +61,7 @@ describe('ManyfoldClient.testConnection token check', () => {
   it('token info 401 -> unauthorized, even if a public /models would answer 200', async () => {
     const r = await run({ tokenInfo: 401, models: 200 });
     expect(r).toMatchObject({ ok: false, reason: 'unauthorized' });
-    expect((r as { detail?: string }).detail).toMatch(/rejected or expired/i);
+    expect((r as { detail?: string }).detail).toMatch(/revoked, expired or mistyped/i);
     expect((r as { detail?: string }).detail).toMatch(/Authorization header/);
   });
   it('missing upload scope -> forbidden-scope naming it', async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DownloadLoginRequired } from '../adapters/errors';
-import { ManyfoldError } from '../manyfold/errors';
+import { ManyfoldError, UNAUTHORIZED_TEXT } from '../manyfold/errors';
 import { BASE, file, harness, rateLimited, request, source, TOKEN } from './fakes';
 import { CreateLimiter } from './rate';
 import { retrySend, sendModel } from './send';
@@ -327,7 +327,7 @@ describe('sendModel: failures, retry and ambiguous creates', () => {
     const h = harness();
     h.createModelFake
       .mockImplementationOnce(async () => ({ status: 'created', id: 'm1', url: `${BASE}/models/m1` }))
-      .mockRejectedValueOnce(new ManyfoldError('unauthorized', 'Manyfold rejected the API token. Check it in the extension settings.'));
+      .mockRejectedValueOnce(new ManyfoldError('unauthorized', UNAUTHORIZED_TEXT));
     const r = await sendModel(request([file('a.zip', { kind: 'archive' }), file('b.zip', { kind: 'archive' })]), h.deps, noop);
     expect(r).toMatchObject({ status: 'failed', stage: 'creating', error: { code: 'manyfold-unauthorized' }, models: [{ url: `${BASE}/models/m1` }] });
     h.log.length = 0;

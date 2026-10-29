@@ -1,5 +1,5 @@
 import { downloadErrorCode, type DownloadErrorCode } from '../adapters/errors';
-import { ManyfoldError, type ManyfoldErrorCode } from '../manyfold/errors';
+import { ManyfoldError, UNAUTHORIZED_TEXT, type ManyfoldErrorCode } from '../manyfold/errors';
 import type { SendStage } from './types';
 
 export type SendErrorCode =
@@ -62,7 +62,7 @@ export const MESSAGES: Record<SendErrorCode, string> = {
   'download-not-https': 'The site gave a download link that is not https, so it was not used.',
   'too-large': 'The file is larger than Manyfold accepts (1 GiB).',
   'manyfold-unreachable': 'Could not reach the Manyfold server. Check that it is running and try again.',
-  'manyfold-unauthorized': 'Manyfold rejected the API token. Check it in the extension settings.',
+  'manyfold-unauthorized': UNAUTHORIZED_TEXT,
   'manyfold-forbidden': 'The API token lacks permission for this (it needs the read, write and upload scopes).',
   'manyfold-too-old': 'This Manyfold version is too old. Upgrade Manyfold to 0.147.0 or newer.',
   'no-library': 'Manyfold has no library yet. Create a library in Manyfold first, then try again.',
