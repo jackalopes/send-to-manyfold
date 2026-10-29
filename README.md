@@ -18,8 +18,7 @@ Open a model page, click the toolbar icon (or the green "Send to Manyfold" butto
 
 On any other page the popup says the page is not supported and sends nothing.
 
-GitHub support is planned. Tell us what you'd expect it to do.
-<!-- TODO: link to GitHub issues once public -->
+GitHub support is planned. [Tell us what you'd expect it to do](https://github.com/jackalopes/send-to-manyfold/issues/3).
 
 ## Requirements
 
