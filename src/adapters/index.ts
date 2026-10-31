@@ -34,7 +34,11 @@ export interface SiteAdapter {
   /** How this site's models reach Manyfold, also for a fallback model built when `extract` fails. Default `download`. */
   delivery?: Delivery;
   matches(url: URL): boolean;
-  /** The site's own download control on the current page, which the injected button is placed beside; null if absent. */
+  /**
+   * The site's own download control on the current page, which the injected button is placed beside; null if absent.
+   * Return the visible button itself (for a split button, the element holding both halves), not a row or wrapper
+   * around it: the injected button takes this element's height.
+   */
   downloadAnchor?(doc: Document): Element | null;
   extract(doc: Document, url: URL, options?: ExtractOptions): Promise<SourceModel>;
   /**

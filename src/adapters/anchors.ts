@@ -15,9 +15,9 @@ export const githubAnchor = (doc: Document): Element | null => doc.querySelector
 
 /**
  * MakerWorld model page: the main action ("Open in Bambu Studio" with its dropdown arrow) is a split button whose
- * label is a `span.primaryButton` (the other class names are generated hashes). The anchor is the row that holds the
- * split button, so our button follows it as a sibling of that row, in the wrapping flex container, and is not
- * squeezed into the split button. The page has two copies: one in `.mobile-box` (first in the DOM, hidden from 800px
+ * label is a `span.primaryButton` (the other class names are generated hashes). The anchor is the split button's own outer
+ * element (the parent of the label's parent), which our button copies the height of. Our button follows it as a
+ * sibling, in the wrapping flex container, and is not squeezed into the split button. The page has two copies: one in `.mobile-box` (first in the DOM, hidden from 800px
  * wide) and one for desktop. Take the desktop copy, or the mobile one when only that is on screen.
  */
 export const makerworldAnchor = (doc: Document): Element | null => {
