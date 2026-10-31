@@ -16,11 +16,18 @@ export interface PageSyncDeps {
    * script is on, so the background can look it up again if it forgot; the URL it opens comes from its own lookup.
    */
   openModel(url: string): void;
+  /**
+   * Calls `onHeight` with the element's rendered height in px now and whenever it changes, until the returned
+   * function is called. The injected button takes the height of the site's download control. Absent: the button
+   * keeps its own size.
+   */
+  watchHeight?(el: Element, onHeight: (px: number) => void): () => void;
 }
 
 const CSS = `
 button { all: initial; font: 600 13px/1 system-ui, sans-serif; cursor: pointer; padding: 8px 12px; margin-left: 8px;
-  border-radius: 6px; background: #08566A; color: #fff; display: inline-block; }
+  border-radius: 6px; background: #08566A; color: #fff; display: inline-flex; align-items: center; box-sizing: border-box;
+  vertical-align: middle; }
 button:hover { background: #054152; }
 button:focus-visible { outline: 2px solid #fff; outline-offset: 0; box-shadow: 0 0 0 4px #08566A; }
 `;
@@ -30,7 +37,14 @@ const PLAIN_LABEL = 'Send to Manyfold';
 /** "✓ In Manyfold", with the number of matching models when there are several. */
 const labelFor = (count: number): string => (count === 0 ? PLAIN_LABEL : count === 1 ? '✓ In Manyfold' : `✓ In Manyfold (${count})`);
 
-function createButton(doc: Document, onClick: () => void): { host: HTMLElement; setLabel(text: string): void } {
+interface InjectedButton {
+  host: HTMLElement;
+  setLabel(text: string): void;
+  /** Matches the site's control: 0 (not rendered, e.g. hidden) puts the button's own size back. */
+  setHeight(px: number): void;
+}
+
+function createButton(doc: Document, onClick: () => void): InjectedButton {
   const host = doc.createElement('span');
   host.setAttribute(BUTTON_ATTR, '');
   const root = host.attachShadow({ mode: 'closed' }); // page styles must not reach the button, nor page scripts
@@ -44,7 +58,15 @@ function createButton(doc: Document, onClick: () => void): { host: HTMLElement; 
     if (e.isTrusted) onClick();
   });
   root.append(style, button);
-  return { host, setLabel: (text) => void (button.textContent = text) };
+  return {
+    host,
+    setLabel: (text) => void (button.textContent = text),
+    setHeight: (px) => {
+      // The padding would push the label off-centre in a fixed height; the flex box centres it instead.
+      button.style.height = px > 0 ? `${px}px` : '';
+      button.style.paddingBlock = px > 0 ? '0' : '';
+    },
+  };
 }
 
 /**
@@ -55,11 +77,14 @@ function createButton(doc: Document, onClick: () => void): { host: HTMLElement; 
 export function createPageSync(deps: PageSyncDeps) {
   /** What the background was last told: nothing yet (`undefined`), an unsupported page (`null`), or this model's key. */
   let reported: string | null | undefined;
-  let button: ReturnType<typeof createButton> | undefined;
+  let button: InjectedButton | undefined;
+  let stopWatching: (() => void) | undefined;
   /** What the background found for the model the page shows (count 0: none or unknown). */
   let status: { key: string; count: number } | undefined;
 
   const removeButton = () => {
+    stopWatching?.();
+    stopWatching = undefined;
     button?.host.remove();
     button = undefined;
   };
@@ -73,6 +98,8 @@ export function createPageSync(deps: PageSyncDeps) {
     button = createButton(doc, () => (count() > 0 ? deps.openModel(deps.href()) : deps.openPopup()));
     button.setLabel(labelFor(count()));
     anchor.after(button.host);
+    const placed = button;
+    stopWatching = deps.watchHeight?.(anchor, (px) => placed.setHeight(px));
   }
 
   return {

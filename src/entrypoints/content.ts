@@ -40,6 +40,12 @@ export default defineContentScript({
       report: (supported, url) => void chrome.runtime.sendMessage({ to: 'background', type: 'pageState', supported, url }).catch(() => undefined),
       openPopup: () => void chrome.runtime.sendMessage({ to: 'background', type: 'openPopup' }).catch(() => undefined),
       openModel: (url) => void chrome.runtime.sendMessage({ to: 'background', type: 'openModel', url }).catch(() => undefined),
+      // Border box, so the button matches the control's outer height; the first callback fires on observe.
+      watchHeight: (el, onHeight) => {
+        const observer = new ResizeObserver(([entry]) => onHeight(entry?.borderBoxSize[0]?.blockSize ?? 0));
+        observer.observe(el);
+        return () => observer.disconnect();
+      },
     });
 
     const stop = watchPage({

@@ -12,8 +12,15 @@ function setup(initial = MODEL, body = html) {
   const report = vi.fn();
   const openPopup = vi.fn();
   const openModel = vi.fn();
-  const sync = createPageSync({ href: () => href, document: () => document, adapterFor, report, openPopup, openModel });
-  return { sync, report, openPopup, openModel, go: (h: string) => (href = h) };
+  /** Stands in for a ResizeObserver: each watch gets a `resize(px)` the test calls, and a flag set when it is stopped. */
+  const watches: { el: Element; resize(px: number): void; stopped: boolean }[] = [];
+  const watchHeight = (el: Element, onHeight: (px: number) => void) => {
+    const watch = { el, resize: onHeight, stopped: false };
+    watches.push(watch);
+    return () => void (watch.stopped = true);
+  };
+  const sync = createPageSync({ href: () => href, document: () => document, adapterFor, report, openPopup, openModel, watchHeight });
+  return { sync, report, openPopup, openModel, watches, go: (h: string) => (href = h) };
 }
 /** The button lives in a closed shadow root: tests reach it through the root `attachShadow` returns. */
 let roots: ShadowRoot[] = [];
@@ -152,6 +159,46 @@ describe('page sync', () => {
     sync.sync();
     expect(report).toHaveBeenCalledTimes(2);
     expect(report).toHaveBeenLastCalledWith(true, 'https://www.printables.com/model/99-y');
+  });
+});
+
+describe('page sync: button height', () => {
+  const anchor = () => document.querySelector('[data-testid=show-download-files]');
+
+  it("takes the height of the site's download control", () => {
+    const { sync, watches } = setup();
+    sync.sync();
+    expect(watches.map((w) => w.el)).toEqual([anchor()]);
+    watches[0]!.resize(40);
+    expect(innerButton().style.height).toBe('40px');
+  });
+
+  it('follows the control when its height changes, and keeps its own size while the control is not rendered (0)', () => {
+    const { sync, watches } = setup();
+    sync.sync();
+    watches[0]!.resize(40);
+    watches[0]!.resize(32);
+    expect(innerButton().style.height).toBe('32px');
+    watches[0]!.resize(0);
+    expect(innerButton().style.height).toBe('');
+  });
+
+  it('stops watching when the button is removed, and watches the new control when the site replaces it', () => {
+    const { sync, watches, go } = setup();
+    sync.sync();
+    document.body.innerHTML = '<section><button data-testid="show-download-files">Download</button></section>';
+    sync.sync();
+    expect(watches.map((w) => [w.el, w.stopped])).toEqual([[expect.anything(), true], [anchor(), false]]);
+    go('https://www.printables.com/');
+    sync.sync();
+    expect(watches[1]!.stopped).toBe(true);
+  });
+
+  it('DOM churn that leaves the button in place does not start another watch', () => {
+    const { sync, watches } = setup();
+    sync.sync();
+    sync.sync();
+    expect(watches).toHaveLength(1);
   });
 });
 
