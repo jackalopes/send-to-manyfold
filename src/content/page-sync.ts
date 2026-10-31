@@ -62,9 +62,10 @@ function createButton(doc: Document, onClick: () => void): InjectedButton {
     host,
     setLabel: (text) => void (button.textContent = text),
     setHeight: (px) => {
+      const fixed = px > 0;
       // The padding would push the label off-centre in a fixed height; the flex box centres it instead.
-      button.style.height = px > 0 ? `${px}px` : '';
-      button.style.paddingBlock = px > 0 ? '0' : '';
+      button.style.height = fixed ? `${px}px` : '';
+      button.style.paddingBlock = fixed ? '0' : '';
     },
   };
 }
