@@ -2,7 +2,7 @@
 
 A Chrome extension that sends 3D models from Printables, Thingiverse and MakerWorld to your own [Manyfold](https://manyfold.app) library. It uploads the files and fills in the details (title, description, creator, license, tags, source link, cover image) for you.
 
-Not affiliated with Manyfold, Printables, Thingiverse or MakerWorld.
+Not affiliated with or endorsed by Manyfold, Printables, Thingiverse or MakerWorld. Those names are trademarks of their respective owners and are used here only to say which services this works with.
 
 > Status: version 0.1.0, not yet published to the Chrome Web Store. It has been tested with automated tests and against a throwaway Manyfold 0.153.0, but see [Known limitations](#known-limitations): several parts have not yet been tried in a real browser.
 
@@ -75,6 +75,14 @@ The full policy is at <https://jackalopes.github.io/send-to-manyfold/privacy/>.
 - Your Manyfold address and token are stored in Chrome's local extension storage (`chrome.storage.local`) on your computer.
 - The extension never reads or copies the login tokens of the source sites.
 - The only automatic request is a read-only check, sent to your own Manyfold, of whether the model page you're on is already saved (a search by the page's link, so it can show a check). Nothing else is sent until you press Send. On the three supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
+
+## Site terms and model licenses
+
+The extension downloads models only when you tell it to. It sends one model at a time, when you press Send, using your own session on the site. It does not crawl sites or download in bulk.
+
+You are responsible for how you use it. Each site has its own terms of use, and some restrict automated access or copying, so read the terms of any site you use it with. Each model also has its own license, which still applies to the copy in your library. The extension is provided as is, without warranty (see [LICENSE](LICENSE)).
+
+If you represent Manyfold or one of these sites and have a concern, please [open an issue](https://github.com/jackalopes/send-to-manyfold/issues).
 
 ## Known limitations
 
