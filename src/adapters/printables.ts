@@ -2,6 +2,7 @@ import { printablesAnchor } from './anchors';
 import { classifyFile, type SourceFile, type SourceModel } from '../types';
 import { DownloadAccessDenied, DownloadBlocked, DownloadFailed, DownloadLoginRequired } from './errors';
 import type { ExtractOptions, SiteAdapter } from './index';
+import { htmlText } from './html-text';
 
 /**
  * Printables (SvelteKit). What a page exposes, checked against live pages on 2026-10-26:
@@ -71,6 +72,8 @@ interface PrintablesModel {
   id?: unknown;
   name?: unknown;
   summary?: unknown;
+  /** The full description, as HTML. */
+  description?: unknown;
   user?: { publicUsername?: unknown; handle?: unknown } | null;
   tags?: { name?: unknown }[] | null;
   license?: { id?: unknown } | null;
@@ -159,7 +162,7 @@ export function createPrintables(deps: PrintablesDeps = {}): SiteAdapter {
       if (!title) throw new Error('No Printables model data on this page.');
 
       const result: SourceModel = { site: 'printables', sourceUrl, title, tags: tags(doc, model), files: files(model, id) };
-      const description = str(model.summary) ?? str(ld?.description);
+      const description = htmlText(str(model.description)) ?? str(model.summary) ?? str(ld?.description);
       if (description) result.description = description;
       const creator = creatorOf(doc, model);
       if (creator) result.creator = creator;

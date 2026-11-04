@@ -142,6 +142,70 @@ describe('printables.extract', () => {
     expect(m.loginRequired).toBeUndefined();
   });
 
+  describe('description', () => {
+    const FILES_URL = (slug: string) => new URL(`https://www.printables.com/model/${slug}/files`);
+
+    /** The GraphQL `model` objects the fixture's server state carries, for expected values. */
+    function fixtureModel(name: string): { description: string; summary: string } {
+      const doc = fixture(name);
+      for (const script of doc.querySelectorAll('script[type="application/json"][data-sveltekit-fetched]')) {
+        const body = JSON.parse((JSON.parse(script.textContent ?? '') as { body: string }).body) as { data?: { model?: { description?: string; summary?: string } } };
+        const mo = body.data?.model;
+        if (mo && typeof mo.description === 'string') return { description: mo.description, summary: mo.summary ?? '' };
+      }
+      throw new Error(`no model description in ${name}`);
+    }
+
+    it('is the full description as plain text, not the one-line summary (3161)', async () => {
+      const m = await printables.extract(fixture('printables-3161-benchy-files.html'), FILES_URL('3161-3d-benchy'), noFetch);
+      const { summary } = fixtureModel('printables-3161-benchy-files.html');
+      expect(m.description).not.toBe(summary);
+      expect(m.description).toBe(
+        [
+          'Update: The Iconic 3DBenchy Enters the Public Domain',
+          'Author: CreativeTools',
+          '3DBenchy is a 3D model specifically designed for testing and benchmarking 3D printers. It is a small recognizable object that you can download for free, make and share.',
+          'http://www.3dbenchy.com/',
+          'Print instructions',
+          'Maybe you have seen on some prints the infamous Benchy hull line. We eliminated that in our presliced gcode. Check the article, how we did that.',
+          'The Benchy hull line',
+        ].join('\n\n'),
+      );
+      expect(m.description).toContain('Print instructions');
+      expect(m.description).not.toMatch(/<[a-z]/i);
+    });
+
+    it('is the full description for the XL parts model (449554)', async () => {
+      const m = await printables.extract(fixture('printables-449554-xl-parts-files.html'), FILES_URL('449554-original-prusa-xl-printable-parts'), noFetch);
+      const { summary } = fixtureModel('printables-449554-xl-parts-files.html');
+      expect(summary).toHaveLength(33);
+      expect(m.description).toContain('Print instructions');
+      expect(m.description?.startsWith('All printable parts for your Original Prusa XL.')).toBe(true);
+      expect(m.description?.length).toBeGreaterThan(1200);
+      expect(m.description?.length).toBeLessThan(1400);
+      expect(m.description).not.toMatch(/<[a-z]/i);
+    });
+
+    it('falls back to the summary when the description is empty (1809534)', async () => {
+      const m = await printables.extract(fixture('printables-1809534-user-benchy-files.html'), FILES_URL('1809534-benchy'), noFetch);
+      expect(fixtureModel('printables-1809534-user-benchy-files.html').description).toBe('');
+      expect(m.description).toBe('3D BENCHY');
+    });
+
+    it('takes the full description from the fetched files tab when the live page dropped the server state', async () => {
+      const fetchText = () => Promise.resolve(html('printables-3161-benchy-files.html'));
+      const m = await printables.extract(fixture('printables-3161-benchy-live-dom.html'), new URL('https://www.printables.com/model/3161-3d-benchy'), { fetchText });
+      expect(m.description).toContain('Print instructions');
+      expect(m.description).toContain('3DBenchy is a 3D model specifically designed');
+    });
+
+    it('keeps the short fallback when that fetch fails', async () => {
+      const m = await printables.extract(fixture('printables-3161-benchy-live-dom.html'), new URL('https://www.printables.com/model/3161-3d-benchy'), noFetch);
+      expect(m.description).toBeTruthy();
+      expect(m.description).not.toContain('Print instructions');
+    });
+  });
+
   it('does not fetch when the document already has the file lists', async () => {
     const fetchText = vi.fn(() => Promise.resolve(''));
     await printables.extract(fixture('printables-3161-benchy-files.html'), new URL('https://www.printables.com/model/3161-3d-benchy/files'), { fetchText });

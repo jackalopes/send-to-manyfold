@@ -12,7 +12,7 @@ export function DetailsFields({ form, onPatch, readOnly = false }: { form: Revie
       </label>
       <label>
         Description
-        <textarea rows={3} value={form.description} readOnly={readOnly} onInput={(e) => onPatch({ description: e.currentTarget.value })} />
+        <textarea rows={6} value={form.description} readOnly={readOnly} onInput={(e) => onPatch({ description: e.currentTarget.value })} />
       </label>
       <label>
         Creator
