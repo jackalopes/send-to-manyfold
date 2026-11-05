@@ -4,7 +4,7 @@ A Chrome extension that sends 3D models from Printables, Thingiverse and MakerWo
 
 Not affiliated with or endorsed by Manyfold, Printables, Thingiverse or MakerWorld. Those names are trademarks of their respective owners and are used here only to say which services this works with.
 
-> Status: version 0.1.0, not yet published to the Chrome Web Store. It has been tested with automated tests and against a throwaway Manyfold 0.153.0, but see [Known limitations](#known-limitations): several parts have not yet been tried in a real browser.
+> Status: version 0.1.1, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). It has been tested with automated tests and against a throwaway Manyfold 0.153.0, but see [Known limitations](#known-limitations): several parts have not yet been tried in a real browser.
 
 ## What it does
 
@@ -26,6 +26,10 @@ GitHub support is planned. [Tell us what you'd expect it to do](https://github.c
 - A Manyfold server, version 0.147.0 or newer (0.153.0 is the version it was tested against), with a library set up.
 - The Manyfold user that owns your token must be allowed to upload: the "contributor" role or higher. A plain member gets "not found" (404) on uploads.
 - The library folder must be writable by the user the Manyfold container runs as (uid 1000). If it is not, uploaded ZIP files are never extracted and the send appears to hang until it times out.
+
+## Install from the Chrome Web Store
+
+Install [Send To Manyfold from the Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb).
 
 ## Install from source
 
