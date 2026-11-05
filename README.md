@@ -4,7 +4,7 @@ A Chrome extension that sends 3D models from Printables, Thingiverse and MakerWo
 
 Not affiliated with or endorsed by Manyfold, Printables, Thingiverse or MakerWorld. Those names are trademarks of their respective owners and are used here only to say which services this works with.
 
-> Status: version 0.1.1, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
+> Status: version 0.1.2, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
 
 ## What it does
 
@@ -33,7 +33,7 @@ Install [Send To Manyfold from the Chrome Web Store](https://chromewebstore.goog
 
 ## Install from source
 
-There is no store listing yet. You need Node 22.18 or newer (`.nvmrc` says 22; `engines` makes npm warn on older versions; it is enforced only with `engine-strict`).
+You need Node 22.18 or newer (`.nvmrc` says 22; `engines` makes npm warn on older versions; it is enforced only with `engine-strict`).
 
 ```
 npm ci

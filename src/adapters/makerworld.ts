@@ -28,6 +28,13 @@ const MODEL_PATH = /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?models\/(\d+)(?:-[^/]*)?\/?$
 const ORIGIN = 'https://makerworld.com';
 const API = '/api/v1/design-service';
 
+/** Reloading does not clear MakerWorld's bot check; downloading a file by hand on the site does. */
+const blocked = (fileName: string): DownloadBlocked =>
+  new DownloadBlocked(
+    fileName,
+    `MakerWorld answered with a bot check instead of a download link for ${fileName}. Download a file by hand on MakerWorld, then send again.`,
+  );
+
 export interface MakerWorldDeps {
   /** Used by `resolveDownloadUrl`; defaults to the page's `fetch` at call time. */
   fetch?: typeof fetch;
@@ -90,7 +97,7 @@ export function createMakerWorld(deps: MakerWorldDeps = {}): SiteAdapter {
       if (!endpoint) throw new DownloadFailed(`No MakerWorld download reference for ${file.name}.`);
       const res = await doFetch(endpoint, { method: 'GET', credentials: 'same-origin', headers: { ...CLIENT_HEADERS } });
       const text = await res.text().catch(() => '');
-      if (isChallenge(res, text)) throw new DownloadBlocked(file.name);
+      if (isChallenge(res, text)) throw blocked(file.name);
       let body: { url?: unknown; name?: unknown; error?: unknown; captchaId?: unknown } | undefined;
       try {
         body = JSON.parse(text) as typeof body;
@@ -98,7 +105,7 @@ export function createMakerWorld(deps: MakerWorldDeps = {}): SiteAdapter {
         body = undefined;
       }
       // The site's onRetry: 418 + captchaId means "solve a captcha first" (a human check on the site).
-      if (res.status === 418 && body?.captchaId) throw new DownloadBlocked(file.name);
+      if (res.status === 418 && body?.captchaId) throw blocked(file.name);
       // The site's onApiRespond: 401 signs the user out and shows the login dialog.
       if (res.status === 401) throw new DownloadLoginRequired(file.name, 'MakerWorld');
       // 403 with a permission code (100016 = downloads restricted) opens the site's permission dialog.

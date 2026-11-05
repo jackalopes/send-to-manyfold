@@ -349,6 +349,17 @@ describe('makerworld.resolveDownloadUrl', () => {
     await expect(createMakerWorld({ fetch: html }).resolveDownloadUrl!(profile)).rejects.toBeInstanceOf(DownloadBlocked);
   });
 
+  it('words every DownloadBlocked for MakerWorld: download a file by hand, then send again', async () => {
+    const expected = `MakerWorld answered with a bot check instead of a download link for ${profile.name}. Download a file by hand on MakerWorld, then send again.`;
+    const cf = stub(403, '<html><title>Just a moment...</title></html>', { 'content-type': 'text/html', 'cf-mitigated': 'challenge' });
+    const paths = [stub(418, { captchaId: 'x' }), cf];
+    for (const fetch of paths) {
+      const err = await createMakerWorld({ fetch }).resolveDownloadUrl!(profile).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(DownloadBlocked);
+      expect((err as Error).message).toBe(expected);
+    }
+  });
+
   it('maps 403 (e.g. the download-permission code 100016) to DownloadAccessDenied with the site\'s text', async () => {
     const fetch = stub(403, { code: 100016, error: 'Your download permission is restricted' });
     const err = await createMakerWorld({ fetch }).resolveDownloadUrl!(profile).catch((e: unknown) => e);

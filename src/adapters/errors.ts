@@ -41,8 +41,9 @@ export class DownloadAccessDenied extends DownloadError {
 export class DownloadBlocked extends DownloadError {
   override readonly name = 'DownloadBlocked';
   override readonly code = 'DOWNLOAD_BLOCKED';
-  constructor(fileName: string) {
-    super(`The site answered with a bot check instead of a download link for ${fileName}. Reload the page and try again.`);
+  /** `message` is for a site where reloading is not what clears the check (MakerWorld); the default suits the others. */
+  constructor(fileName: string, message?: string) {
+    super(message ?? `The site answered with a bot check instead of a download link for ${fileName}. Reload the page and try again.`);
   }
 }
 

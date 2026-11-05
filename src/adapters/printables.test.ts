@@ -309,6 +309,12 @@ describe('printables.resolveDownloadUrl', () => {
     await expect(resolve(fetch)).rejects.toBeInstanceOf(DownloadBlocked);
   });
 
+  it('keeps the default DownloadBlocked wording on Printables (reloading is what clears it there)', async () => {
+    const fetch = respond(403, '<!DOCTYPE html><title>Just a moment...</title>', { 'content-type': 'text/html', 'cf-mitigated': 'challenge' });
+    const err = await resolve(fetch).catch((e: unknown) => e);
+    expect((err as Error).message).toMatch(/^The site answered with a bot check instead of a download link for .+\. Reload the page and try again\.$/);
+  });
+
   it('throws DownloadLoginRequired on a non-challenge 403 without an access message', async () => {
     await expect(resolve(json(403, { errors: [{ message: 'Forbidden for anonymous users, please log in' }] }))).rejects.toBeInstanceOf(DownloadLoginRequired);
   });
