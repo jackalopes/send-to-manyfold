@@ -4,7 +4,7 @@ A Chrome extension that sends 3D models from Printables, Thingiverse and MakerWo
 
 Not affiliated with or endorsed by Manyfold, Printables, Thingiverse or MakerWorld. Those names are trademarks of their respective owners and are used here only to say which services this works with.
 
-> Status: version 0.1.1, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). It has been tested with automated tests and against a throwaway Manyfold 0.153.0, but see [Known limitations](#known-limitations): several parts have not yet been tried in a real browser.
+> Status: version 0.1.1, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
 
 ## What it does
 
@@ -56,7 +56,7 @@ The extension talks to Manyfold with a long-lived access token that you create o
 
 Scopes: `read` is used to test the connection and list collections, `write` to create and update the model, `upload` to upload files.
 
-Checked against Manyfold's source code on GitHub (the routes, views and English texts), not by clicking through a running instance. Where the link to the "API keys" page sits in the menu is unverified, so the address above is the safe way to get there. The token expires, so you will need to create a new one when it does.
+The token expires, so you will need to create a new one when it does.
 
 ## Settings
 
@@ -90,10 +90,8 @@ If you represent Manyfold or one of these sites and have a concern, please [open
 
 ## Known limitations
 
-- Downloads from Printables and MakerWorld have not been tried in a real browser at the time of writing. Treat them as unverified.
+- MakerWorld may answer with a bot check partway through a send. Downloading a file by hand on the site, then sending again, has cleared it. See [#2](https://github.com/jackalopes/send-to-manyfold/issues/2).
 - The Thingiverse import itself (with an API key set in Manyfold) is untested.
-- The extension has not been loaded in a real Chrome yet. In particular, whether the injected button can open the toolbar popup is unverified (if it cannot, use the toolbar icon).
-- There is no injected button on MakerWorld pages. Use the toolbar icon there.
 - The injected buttons depend on each site's page layout and may stop appearing when a site changes. The toolbar icon keeps working.
 - Thingiverse files are not uploaded (see above).
 - Files over 1 GiB are not accepted by Manyfold and are disabled in the popup.
