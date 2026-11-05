@@ -200,7 +200,7 @@ export function createPrintables(deps: PrintablesDeps = {}): SiteAdapter {
       });
       const text = await res.text().catch(() => '');
       if (isChallenge(res, text)) throw new DownloadBlocked(file.name);
-      if (res.status === 401) throw new DownloadLoginRequired(file.name);
+      if (res.status === 401) throw new DownloadLoginRequired(file.name, 'Printables');
 
       let body: DownloadLinkResponse | undefined;
       try {
@@ -217,7 +217,7 @@ export function createPrintables(deps: PrintablesDeps = {}): SiteAdapter {
         ...(result?.errors ?? []).flatMap((e) => (e.messages ?? []).map(messageText)),
       ].filter((m): m is string => !!m);
       if (messages.some((m) => ACCESS_DENIED.test(m))) throw new DownloadAccessDenied(file.name, messages.join('; '));
-      if (res.status === 403 || messages.some((m) => LOGIN_REQUIRED.test(m))) throw new DownloadLoginRequired(file.name);
+      if (res.status === 403 || messages.some((m) => LOGIN_REQUIRED.test(m))) throw new DownloadLoginRequired(file.name, 'Printables');
       const why = messages.length ? messages.join('; ') : `HTTP ${res.status}`;
       throw new DownloadFailed(`Printables gave no download link for ${file.name}: ${why}.`);
     },

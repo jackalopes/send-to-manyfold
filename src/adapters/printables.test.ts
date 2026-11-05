@@ -290,6 +290,11 @@ describe('printables.resolveDownloadUrl', () => {
     expect(headers.has('accept-language')).toBe(false);
   });
 
+  it('names Printables in the sign-in message', async () => {
+    const err = await resolve(json(401, { errors: [{ message: 'Unauthorized' }] })).catch((e) => e);
+    expect(err.message).toMatch(/^Sign in to Printables to download /);
+  });
+
   it('throws DownloadLoginRequired on HTTP 401', async () => {
     await expect(resolve(json(401, { errors: [{ message: 'Unauthorized' }] }))).rejects.toBeInstanceOf(DownloadLoginRequired);
   });

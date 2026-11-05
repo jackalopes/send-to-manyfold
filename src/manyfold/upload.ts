@@ -1,7 +1,8 @@
 import type { ManyfoldClient } from './client';
 import { isArchiveExtension } from '../types';
-import { FORBIDDEN_TEXT, ManyfoldError, RATE_LIMITED_TEXT, UNAUTHORIZED_TEXT } from './errors';
+import { FORBIDDEN_TEXT, ManyfoldError, RATE_LIMITED_TEXT, UNAUTHORIZED_TEXT, UNREACHABLE_TEXT } from './errors';
 import { collectionUrl } from './paths';
+import { isGatewayStatus } from './preflight';
 import type { CreatedModel, ModelFile, UploadedFile } from './types';
 
 export type { CreatedModel, ModelFile, UploadedFile } from './types';
@@ -79,7 +80,12 @@ export async function uploadFile(
     } catch (e) {
       if (e instanceof ManyfoldError) throw e;
       signal?.throwIfAborted();
+      // A lost connection: no response at all, or a gateway answer from a proxy in front of a stopped Manyfold.
+      const lostConnection = !(e instanceof RetryableError) || isGatewayStatus(e.status);
       if (++failures > maxRetries) {
+        if (lostConnection) {
+          throw new ManyfoldError('unreachable', `Lost the connection to Manyfold while uploading "${name}". Check that it is running, then try again to resume.`, url);
+        }
         throw new ManyfoldError('upload-failed', `Uploading "${name}" failed after ${maxRetries} retries. Try again to resume.`, url);
       }
       if (retryDelayMs > 0) await sleep(retryDelayMs * failures, signal);
@@ -142,7 +148,7 @@ export async function createModel(client: ManyfoldClient, files: UploadedFile[],
     if (files.length > 1 && files.every((f) => isArchiveName(f.name))) return { status: 'accepted-no-location' };
     throw new ManyfoldError('too-old', 'Manyfold accepted the model but did not return its address. Upgrade Manyfold to 0.147.0 or newer.');
   }
-  throw new ManyfoldError('create-failed', `Manyfold could not create the model (HTTP ${res.status}).`);
+  throw new ManyfoldError('create-failed', `Manyfold could not create the model (HTTP ${res.status}). Check Manyfold's logs for the cause.`);
 }
 
 export interface WaitOptions {
@@ -257,9 +263,10 @@ async function createUpload(client: ManyfoldClient, name: string, size: number, 
     });
   } catch {
     signal?.throwIfAborted();
-    throw new ManyfoldError('upload-failed', `Could not start uploading "${name}" to Manyfold.`);
+    throw new ManyfoldError('unreachable', UNREACHABLE_TEXT);
   }
   throwIfFatal(res, name);
+  if (isGatewayStatus(res.status)) throw new ManyfoldError('unreachable', UNREACHABLE_TEXT);
   const location = res.headers.get('Location');
   if (res.status !== 201 || !location) throw new ManyfoldError('upload-failed', `Manyfold refused the upload of "${name}" (HTTP ${res.status}).`);
   return new URL(location, `${client.baseUrl}/`).href;

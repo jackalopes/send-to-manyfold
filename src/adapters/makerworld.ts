@@ -100,7 +100,7 @@ export function createMakerWorld(deps: MakerWorldDeps = {}): SiteAdapter {
       // The site's onRetry: 418 + captchaId means "solve a captcha first" (a human check on the site).
       if (res.status === 418 && body?.captchaId) throw new DownloadBlocked(file.name);
       // The site's onApiRespond: 401 signs the user out and shows the login dialog.
-      if (res.status === 401) throw new DownloadLoginRequired(file.name);
+      if (res.status === 401) throw new DownloadLoginRequired(file.name, 'MakerWorld');
       // 403 with a permission code (100016 = downloads restricted) opens the site's permission dialog.
       if (res.status === 403) throw new DownloadAccessDenied(file.name, str(body?.error));
       const link = res.ok ? str(body?.url) : undefined;

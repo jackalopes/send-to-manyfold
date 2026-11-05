@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 import { ManyfoldClient } from '../manyfold/client';
 import { ManyfoldError } from '../manyfold/errors';
 import type { applyMetadata, MetadataInput } from '../manyfold/metadata';
+import type { checkManyfold } from '../manyfold/preflight';
 import type { createModel, uploadFile, waitForExtraction } from '../manyfold/upload';
 import type { SourceFile, SourceModel } from '../types';
 import { CreateLimiter } from './rate';
@@ -56,7 +57,7 @@ export const request = (files: SourceFile[], extra: Partial<SendRequest> = {}): 
 type Hook = (name: string) => void | Promise<void>;
 
 /** Fake pipeline dependencies; every call is logged in `log` in order. */
-export function harness(opts: { hooks?: Partial<Record<'fetch' | 'resolve' | 'upload' | 'create' | 'wait' | 'metadata' | 'record', Hook>> } = {}) {
+export function harness(opts: { hooks?: Partial<Record<'fetch' | 'resolve' | 'upload' | 'create' | 'wait' | 'metadata' | 'record' | 'check', Hook>> } = {}) {
   const log: string[] = [];
   const hooks = opts.hooks ?? {};
   const clock = fakeClock();
@@ -92,6 +93,11 @@ export function harness(opts: { hooks?: Partial<Record<'fetch' | 'resolve' | 'up
     await hooks.metadata?.(model.id);
     return { saved: ['name'], failed: [] };
   });
+  /** Not logged in `log`, so sequences in tests stay as they are; assert on its calls. */
+  const checkManyfoldFake = vi.fn<typeof checkManyfold>(async (_c, signal) => {
+    signal?.throwIfAborted();
+    await hooks.check?.('');
+  });
   const fetchFile = vi.fn(async (url: string, signal?: AbortSignal) => {
     signal?.throwIfAborted();
     log.push(`fetch:${url}`);
@@ -118,9 +124,9 @@ export function harness(opts: { hooks?: Partial<Record<'fetch' | 'resolve' | 'up
     clock,
     createLimiter: new CreateLimiter(1000, 1),
     newToken: () => `t${++tokenN}`,
-    api: { uploadFile: uploadFileFake, createModel: createModelFake, waitForExtraction: waitFake, applyMetadata: metadataFake },
+    api: { uploadFile: uploadFileFake, createModel: createModelFake, waitForExtraction: waitFake, applyMetadata: metadataFake, checkManyfold: checkManyfoldFake },
   };
-  return { deps, log, clock, store, metadataInputs, uploadFileFake, createModelFake, waitFake, metadataFake, fetchFile, resolveDownloadUrl, recordSend };
+  return { deps, log, clock, store, metadataInputs, checkManyfoldFake, uploadFileFake, createModelFake, waitFake, metadataFake, fetchFile, resolveDownloadUrl, recordSend };
 }
 
 export const rateLimited = () => new ManyfoldError('rate-limited', 'Manyfold is limiting requests. Wait a minute and try again.');

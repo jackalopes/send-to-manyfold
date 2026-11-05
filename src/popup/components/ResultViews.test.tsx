@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { render } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
+import { MESSAGES } from '../../pipeline/errors';
 import { FailedView, type FailedViewProps } from './ResultViews';
 
 const root = document.createElement('div');
@@ -33,6 +34,6 @@ describe('FailedView', () => {
     render(<FailedView {...props({ code: 'retry-unavailable', message: '', stage: 'uploading' })} />, root);
     expect(root.querySelector('.error')?.textContent).toContain('can no longer be retried');
     render(<FailedView {...props({ code: 'nope' as never, message: '', stage: 'uploading' })} />, root);
-    expect(root.querySelector('.error')?.textContent).toBe('Something went wrong while sending.');
+    expect(root.querySelector('.error')?.textContent).toBe(MESSAGES.unknown);
   });
 });

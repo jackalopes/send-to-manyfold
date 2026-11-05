@@ -2,6 +2,7 @@ import type { ResolvedDownload } from '../adapters/index';
 import type { HistoryEntry } from '../history';
 import type { ManyfoldClient } from '../manyfold/client';
 import type { applyMetadata, MetadataResult } from '../manyfold/metadata';
+import type { checkManyfold } from '../manyfold/preflight';
 import type { createModel, uploadFile, waitForExtraction } from '../manyfold/upload';
 import type { SourceFile, SourceModel } from '../types';
 import type { SendError } from './errors';
@@ -102,6 +103,7 @@ export interface ManyfoldApi {
   createModel: typeof createModel;
   waitForExtraction: typeof waitForExtraction;
   applyMetadata: typeof applyMetadata;
+  checkManyfold: typeof checkManyfold;
 }
 
 /** Everything `sendModel` touches; 11b wires the real ones (content-script resolve, offscreen fetch, chrome storage). */

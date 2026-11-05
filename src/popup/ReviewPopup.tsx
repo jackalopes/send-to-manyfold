@@ -6,6 +6,7 @@ import { DiscardedView, ErrorView, HandoffView, UnsupportedView } from './compon
 import { ReviewView } from './components/ReviewView';
 import { SendingView } from './components/SendingView';
 import { initialState, reduce } from './machine';
+import { collectionsFailureText } from '../ui/collections-failure';
 
 export interface PopupDeps extends Omit<ControllerDeps, 'dispatch' | 'getState'> {
   listCollections(): Promise<NamedRef[]>;
@@ -17,6 +18,7 @@ export interface PopupDeps extends Omit<ControllerDeps, 'dispatch' | 'getState'>
 export function ReviewPopup({ deps }: { deps: PopupDeps }) {
   const [state, dispatch] = useReducer(reduce, initialState);
   const [collections, setCollections] = useState<NamedRef[] | undefined>();
+  const [collectionsFailure, setCollectionsFailure] = useState<string | undefined>();
   // `getState` reads the latest state through a ref-like closure over the reducer's current value.
   const latest = useMemo(() => ({ state }), []);
   latest.state = state;
@@ -28,7 +30,18 @@ export function ReviewPopup({ deps }: { deps: PopupDeps }) {
 
   const inReview = state.phase === 'review';
   useEffect(() => {
-    if (inReview) void deps.listCollections().then(setCollections, () => setCollections(undefined));
+    if (inReview) {
+      void deps.listCollections().then(
+        (list) => {
+          setCollections(list);
+          setCollectionsFailure(undefined);
+        },
+        (e: unknown) => {
+          setCollections(undefined);
+          setCollectionsFailure(collectionsFailureText(e));
+        },
+      );
+    }
   }, [inReview]);
 
   switch (state.phase) {
@@ -48,6 +61,9 @@ export function ReviewPopup({ deps }: { deps: PopupDeps }) {
           duplicateDismissed={state.duplicateDismissed}
           {...(state.sendError ? { sendError: state.sendError } : {})}
           collections={collections}
+          collectionsFailure={collectionsFailure}
+          {...(state.connectionProblem ? { connectionProblem: state.connectionProblem } : {})}
+          openSettings={deps.openSettings}
           onChange={controller.changeForm}
           onSend={() => void controller.send()}
           onDismissDuplicate={controller.dismissDuplicate}

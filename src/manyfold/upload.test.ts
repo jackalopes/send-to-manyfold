@@ -123,10 +123,74 @@ describe('uploadFile', () => {
     const s = stub(srv.handler);
     const err = await uploadFile(client(s.fetch), new Blob([new Uint8Array(3 * MB)]), 'p.stl', () => {}, { chunkSize: MB, retryDelayMs: 0, maxRetries: 2 }).catch((e) => e);
     expect(err).toBeInstanceOf(ManyfoldError);
-    expect(err.code).toBe('upload-failed');
+    expect(err.code).toBe('unreachable'); // the fake failure is a dropped connection
     expect(err.uploadUrl).toBe(`${BASE}/upload/u1`);
     expect(String(err.message)).not.toContain(TOKEN);
     expect(srv.patchOffsets).toEqual([0, MB, MB, MB]);
+  });
+
+  describe('Manyfold unreachable', () => {
+    const MSG = /Could not reach the Manyfold server/;
+    it('a network failure when starting the upload is reported as unreachable', async () => {
+      const srv = tusServer();
+      const s = stub(async (r) => {
+        if (r.method === 'POST') throw new TypeError('Failed to fetch');
+        return srv.handler(r);
+      });
+      const err = await uploadFile(client(s.fetch), new Blob(['abc']), 'p.stl', () => {}).catch((e) => e);
+      expect(err).toBeInstanceOf(ManyfoldError);
+      expect(err.code).toBe('unreachable');
+      expect(err.message).toMatch(MSG);
+      expect(err.message).not.toContain(TOKEN);
+    });
+
+    it.each([502, 503, 504])('HTTP %i when starting the upload is reported as unreachable', async (status) => {
+      const srv = tusServer();
+      const s = stub(async (r) => (r.method === 'POST' ? new Response('bad gateway', { status }) : srv.handler(r)));
+      const err = await uploadFile(client(s.fetch), new Blob(['abc']), 'p.stl', () => {}).catch((e) => e);
+      expect(err.code).toBe('unreachable');
+    });
+
+    it.each([400, 500, 507])('HTTP %i when starting the upload is still a refusal with its status', async (status) => {
+      const srv = tusServer();
+      const s = stub(async (r) => (r.method === 'POST' ? new Response('no', { status }) : srv.handler(r)));
+      const err = await uploadFile(client(s.fetch), new Blob(['abc']), 'p.stl', () => {}).catch((e) => e);
+      expect(err.code).toBe('upload-failed');
+      expect(err.message).toContain(`HTTP ${status}`);
+    });
+
+    it('losing the connection until retries run out is unreachable, keeps the upload URL, and a retry resumes from it', async () => {
+      const srv = tusServer({ failPatchAt: [2, 3, 4, 5, 6] });
+      const s = stub(srv.handler);
+      const err = await uploadFile(client(s.fetch), new Blob([new Uint8Array(3 * MB)]), 'p.stl', () => {}, { chunkSize: MB, retryDelayMs: 0, maxRetries: 2 }).catch((e) => e);
+      expect(err.code).toBe('unreachable');
+      expect(err.message).toContain('p.stl');
+      expect(err.message).toMatch(/resume/i);
+      expect(err.uploadUrl).toBe(`${BASE}/upload/u1`);
+      expect(err.message).not.toContain(TOKEN);
+
+      const again = await uploadFile(client(s.fetch), new Blob([new Uint8Array(3 * MB)]), 'p.stl', () => {}, { chunkSize: MB, retryDelayMs: 0, resumeUrl: err.uploadUrl });
+      expect(again.id).toBe(`${BASE}/upload/u1`);
+      expect(srv.uploads.get('u1')!.offset).toBe(3 * MB);
+    });
+
+    it('gateway answers until retries run out are unreachable too', async () => {
+      const srv = tusServer();
+      let patches = 0;
+      const s = stub(async (r) => (r.method === 'PATCH' && ++patches >= 2 ? new Response('x', { status: 503 }) : srv.handler(r)));
+      const err = await uploadFile(client(s.fetch), new Blob([new Uint8Array(3 * MB)]), 'p.stl', () => {}, { chunkSize: MB, retryDelayMs: 0, maxRetries: 2 }).catch((e) => e);
+      expect(err.code).toBe('unreachable');
+      expect(err.uploadUrl).toBe(`${BASE}/upload/u1`);
+    });
+
+    it('a genuine server error (500) until retries run out keeps the upload-failed message', async () => {
+      const srv = tusServer({ failPatchAt: [2, 3, 4, 5, 6], failMode: 500 });
+      const s = stub(srv.handler);
+      const err = await uploadFile(client(s.fetch), new Blob([new Uint8Array(3 * MB)]), 'p.stl', () => {}, { chunkSize: MB, retryDelayMs: 0, maxRetries: 2 }).catch((e) => e);
+      expect(err.code).toBe('upload-failed');
+      expect(err.message).toBe('Uploading "p.stl" failed after 2 retries. Try again to resume.');
+      expect(err.uploadUrl).toBe(`${BASE}/upload/u1`);
+    });
   });
 
   it('resumes an earlier upload via resumeUrl from the server offset', async () => {
@@ -231,6 +295,13 @@ describe('createModel', () => {
     const srv = modelsServer(() => new Response(null, { status: 201 }));
     await expect(createModel(client(srv.fetch), [], { name: 'A', sensitive: false })).rejects.toMatchObject({ code: 'create-failed' });
     expect(srv.calls).toHaveLength(0);
+  });
+
+  it('a failed creation says what to do next (check Manyfold\'s logs)', async () => {
+    const s = stub(() => new Response('boom', { status: 500 }));
+    const err = await createModel(client(s.fetch), [{ id: 'u', name: 'a.stl', size: 1 }], { name: 'n', sensitive: false }).catch((e) => e);
+    expect(err.code).toBe('create-failed');
+    expect(err.message).toBe("Manyfold could not create the model (HTTP 500). Check Manyfold's logs for the cause.");
   });
 
   it('201 without Location -> create-failed', async () => {

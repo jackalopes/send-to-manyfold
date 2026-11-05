@@ -2,7 +2,7 @@ import { compareVersions, MIN_VERSION, parseVersion } from './version';
 
 export type ConnectionResult =
   | { ok: true; version: string; detail?: string }
-  | { ok: false; reason: 'unreachable' | 'unauthorized' | 'forbidden-scope' | 'too-old' | 'unknown'; detail?: string };
+  | { ok: false; reason: 'unreachable' | 'no-permission' | 'unauthorized' | 'forbidden-scope' | 'too-old' | 'unknown'; detail?: string };
 
 export const VENDOR_ACCEPT = 'application/vnd.manyfold.v0+json';
 
@@ -50,10 +50,10 @@ export class ManyfoldClient {
   async testConnection(): Promise<ConnectionResult> {
     try {
       if (!(await this.hasPermission(new URL(this.baseUrl).origin))) {
-        return { ok: false, reason: 'unreachable', detail: 'Permission to access this Manyfold server was revoked. Save settings again to re-grant it.' };
+        return { ok: false, reason: 'no-permission', detail: 'Permission to access this Manyfold server was revoked. Save settings again to re-grant it.' };
       }
     } catch {
-      return { ok: false, reason: 'unreachable', detail: 'Could not check permission for this Manyfold server.' };
+      return { ok: false, reason: 'no-permission', detail: 'Could not check permission for this Manyfold server.' };
     }
 
     try {

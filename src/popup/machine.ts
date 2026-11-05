@@ -12,6 +12,9 @@ export type PriorSend =
   | { source: 'manyfold'; models: FoundModel[]; /** Manyfold's model list filtered to this page. */ listUrl: string }
   | { source: 'history'; entry: HistoryEntry };
 
+/** What the popup open learned about the connection: the warning shown above the form. */
+export type ConnectionProblem = 'unreachable' | 'unauthorized' | 'forbidden';
+
 /** What the popup shows. Pure data: the component renders it, `reduce` moves it. */
 export type PopupState =
   | { phase: 'idle' }
@@ -20,7 +23,7 @@ export type PopupState =
   | { phase: 'unsupported' }
   /** Extraction or setup failed before a send; `code` maps to a `MESSAGES` text. */
   | { phase: 'error'; code: string }
-  | { phase: 'review'; model: SourceModel; form: ReviewForm; prior?: PriorSend; duplicateDismissed: boolean; sendError?: SendError }
+  | { phase: 'review'; model: SourceModel; form: ReviewForm; prior?: PriorSend; connectionProblem?: ConnectionProblem; duplicateDismissed: boolean; sendError?: SendError }
   | { phase: 'sending'; model?: SourceModel; form?: ReviewForm; sendId?: string; progress?: SendProgress; cancelling?: boolean }
   | { phase: 'done'; result: Extract<SendResult, { status: 'done' }> }
   | FailedLike<'failed'>
@@ -45,6 +48,7 @@ export type PopupAction =
   | { type: 'extracted'; model: SourceModel; form: ReviewForm; baseUrl: string }
   | { type: 'extractFailed'; code: string }
   | { type: 'priorFound'; prior: PriorSend }
+  | { type: 'connectionProblem'; problem: ConnectionProblem }
   | { type: 'duplicateDismissed' }
   | { type: 'formChanged'; form: ReviewForm }
   | { type: 'sendClicked' }
@@ -97,6 +101,8 @@ export function reduce(s: PopupState, a: PopupAction): PopupState {
       return a.code === 'source-tab-changed' || a.code === 'source-tab-closed' ? { phase: 'unsupported' } : { phase: 'error', code: a.code };
     case 'priorFound':
       return s.phase === 'review' ? { ...s, prior: a.prior, duplicateDismissed: false } : s;
+    case 'connectionProblem':
+      return s.phase === 'review' ? { ...s, connectionProblem: a.problem } : s;
     case 'duplicateDismissed':
       return s.phase === 'review' ? { ...s, duplicateDismissed: true } : s;
     case 'formChanged':

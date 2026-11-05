@@ -4,7 +4,7 @@ import type { SendError } from '../pipeline/errors';
 import type { SendEvent } from '../pipeline/messages';
 import type { Settings } from '../settings';
 import type { PopupApi } from './api';
-import type { PopupAction, PopupState, PriorSend } from './machine';
+import type { ConnectionProblem, PopupAction, PopupState, PriorSend } from './machine';
 import { buildInitialForm, toSendRequest, type ReviewForm } from './state';
 
 export interface ControllerDeps {
@@ -59,13 +59,19 @@ export function createController(deps: ControllerDeps) {
     return !!status;
   }
 
-  /** Manyfold's answer wins (none means no warning); only when it is unknown does this browser's history speak. */
-  async function priorSend(sourceUrl: string): Promise<PriorSend | undefined> {
+  /**
+   * Manyfold's answer wins (none means no warning); only when it is unknown does this browser's history speak.
+   * An unknown answer also says whether the connection itself is the problem: only a lookup that reached nothing
+   * (`unreachable`) or was refused (`unauthorized`, `forbidden`) does. `unsupported` made no request, and `error`,
+   * `too-many` and `aborted` prove nothing about the connection.
+   */
+  async function priorSend(sourceUrl: string): Promise<{ prior?: PriorSend; problem?: ConnectionProblem }> {
     const found = await deps.lookupModel(sourceUrl);
-    if (found.status === 'found') return { source: 'manyfold', models: found.models, listUrl: found.listUrl };
-    if (found.status === 'none') return undefined;
+    if (found.status === 'found') return { prior: { source: 'manyfold', models: found.models, listUrl: found.listUrl } };
+    if (found.status === 'none') return {};
+    const problem = found.reason === 'unreachable' || found.reason === 'unauthorized' || found.reason === 'forbidden' ? found.reason : undefined;
     const entry = await deps.findPriorSend(sourceUrl);
-    return entry ? { source: 'history', entry } : undefined;
+    return { ...(entry ? { prior: { source: 'history' as const, entry } } : {}), ...(problem ? { problem } : {}) };
   }
 
   return {
@@ -90,9 +96,11 @@ export function createController(deps: ControllerDeps) {
       dispatch({ type: 'extracted', model: out.model, form: buildInitialForm(out.model, settings), baseUrl: settings.manyfoldUrl });
       // The form is already showing; the warning joins it when the answer arrives, unless the popup has moved on.
       const sourceUrl = out.model.sourceUrl;
-      const prior = await priorSend(sourceUrl);
+      const { prior, problem } = await priorSend(sourceUrl);
       const s = getState();
-      if (prior && s.phase === 'review' && s.model.sourceUrl === sourceUrl) dispatch({ type: 'priorFound', prior });
+      if (s.phase !== 'review' || s.model.sourceUrl !== sourceUrl) return;
+      if (problem) dispatch({ type: 'connectionProblem', problem });
+      if (prior) dispatch({ type: 'priorFound', prior });
     },
 
     changeForm(form: ReviewForm): void {

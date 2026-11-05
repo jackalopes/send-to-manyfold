@@ -62,6 +62,11 @@ describe('runConnectionCheck', () => {
 });
 
 describe('describeResult', () => {
+  it('a revoked site permission keeps its text', () => {
+    expect(describeResult({ ok: false, reason: 'no-permission', detail: 'Permission to access this Manyfold server was revoked. Save settings again to re-grant it.' })).toBe(
+      'Could not connect: Permission to access this Manyfold server was revoked. Save settings again to re-grant it.',
+    );
+  });
   it('says just "Connected." when the version is unknown', () => {
     expect(describeResult({ ok: true, version: 'unknown' })).toBe('Connected.');
   });

@@ -1,6 +1,7 @@
 import { linkSearch, modelKey } from '../adapters/model-keys';
 import type { ManyfoldClient } from './client';
 import { toPath } from './paths';
+import { isGatewayStatus } from './preflight';
 
 /** Most candidates followed. `GET /models?link=` on a server that predates the filter returns every model. */
 export const MAX_CANDIDATES = 10;
@@ -21,9 +22,10 @@ export type LookupResult =
       /**
        * `unsupported`: not a supported model page (no request made); `unauthorized` / `forbidden`: 401 / 403;
        * `too-many`: more than MAX_CANDIDATES matched, so the server probably ignores `link`; `aborted`: the signal
-       * fired; `error`: network error, timeout, other non-2xx or an unreadable response.
+       * fired; `unreachable`: no response (network error, timeout) or a gateway answer (502, 503, 504);
+       * `error`: any other non-2xx or an unreadable response (nothing certain about the connection).
        */
-      reason: 'unsupported' | 'unauthorized' | 'forbidden' | 'too-many' | 'aborted' | 'error';
+      reason: 'unsupported' | 'unauthorized' | 'forbidden' | 'too-many' | 'aborted' | 'unreachable' | 'error';
     };
 
 class LookupFailed extends Error {
@@ -33,7 +35,13 @@ class LookupFailed extends Error {
 }
 
 async function getJson(client: ManyfoldClient, path: string, signal?: AbortSignal): Promise<Record<string, unknown>> {
-  const res = await client.request(path, { signal });
+  let res: Response;
+  try {
+    res = await client.request(path, { signal });
+  } catch {
+    throw new LookupFailed(signal?.aborted ? 'aborted' : 'unreachable');
+  }
+  if (isGatewayStatus(res.status)) throw new LookupFailed('unreachable');
   if (res.status === 401) throw new LookupFailed('unauthorized');
   if (res.status === 403) throw new LookupFailed('forbidden');
   if (!res.ok) throw new LookupFailed('error');

@@ -10,7 +10,7 @@ export function describeResult(r: ConnectionResult): string {
     return r.detail ? `${base} ${r.detail}` : base;
   }
   const label = {
-    unreachable: 'Could not connect', unauthorized: 'Token rejected', 'forbidden-scope': 'Token lacks a required scope',
+    unreachable: 'Could not connect', 'no-permission': 'Could not connect', unauthorized: 'Token rejected', 'forbidden-scope': 'Token lacks a required scope',
     'too-old': 'Manyfold is too old', unknown: 'Unexpected response',
   }[r.reason];
   return r.detail ? `${label}: ${r.detail}` : label;

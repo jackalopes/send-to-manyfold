@@ -1,6 +1,6 @@
 import type { NamedRef } from '../../manyfold/metadata';
 import { SITE_NAMES } from '../site-names';
-import type { PriorSend } from '../machine';
+import type { ConnectionProblem, PriorSend } from '../machine';
 import { canSend, type ReviewForm } from '../state';
 import { errorText } from '../labels';
 import type { SendError } from '../../pipeline/errors';
@@ -17,6 +17,10 @@ export interface ReviewViewProps {
   duplicateDismissed: boolean;
   sendError?: SendError;
   collections: NamedRef[] | undefined;
+  /** Why the collections could not be loaded, once known. */
+  collectionsFailure?: string | undefined;
+  connectionProblem?: ConnectionProblem;
+  openSettings(): void;
   onChange(form: ReviewForm): void;
   onSend(): void;
   onDismissDuplicate(): void;
@@ -45,6 +49,18 @@ function PriorSendNotice({ prior, openUrl }: { prior: PriorSend; openUrl(url: st
   );
 }
 
+const CONNECTION_CODES = { unreachable: 'manyfold-unreachable', unauthorized: 'manyfold-unauthorized', forbidden: 'manyfold-forbidden' } as const;
+
+/** Found when the popup opened; it never blocks the form, since the problem may be temporary. */
+function ConnectionNotice({ problem, openSettings }: { problem: ConnectionProblem; openSettings(): void }) {
+  return (
+    <div role="alert" class="warning" data-testid="connection-warning">
+      <p>{errorText(CONNECTION_CODES[problem])}</p>
+      {problem === 'unreachable' ? null : <button type="button" onClick={openSettings}>Open settings</button>}
+    </div>
+  );
+}
+
 export function ReviewView(p: ReviewViewProps) {
   const patch = (x: Partial<ReviewForm>) => p.onChange({ ...p.form, ...x });
   const warn = p.prior && !p.duplicateDismissed;
@@ -56,6 +72,7 @@ export function ReviewView(p: ReviewViewProps) {
       }}
     >
       {p.sendError ? <p role="alert" class="error">{errorText(p.sendError.code, p.sendError.message)}</p> : null}
+      {p.connectionProblem ? <ConnectionNotice problem={p.connectionProblem} openSettings={p.openSettings} /> : null}
       {warn ? (
         <div role="alert" class="warning">
           <PriorSendNotice prior={p.prior!} openUrl={p.openUrl} />
@@ -66,7 +83,7 @@ export function ReviewView(p: ReviewViewProps) {
         <p class="warning">Sign in to {SITE_NAMES[p.model.site]} to download these files, or the send will fail.</p>
       ) : null}
       <DetailsFields form={p.form} onPatch={patch} />
-      <CollectionPicker value={p.form.collectionId} options={p.collections} onChange={(collectionId) => patch({ collectionId })} />
+      <CollectionPicker value={p.form.collectionId} options={p.collections} failure={p.collectionsFailure} onChange={(collectionId) => patch({ collectionId })} />
       <label class="inline">
         <input type="checkbox" checked={p.form.sensitive} onChange={(e) => patch({ sensitive: e.currentTarget.checked })} /> Mark as sensitive
       </label>

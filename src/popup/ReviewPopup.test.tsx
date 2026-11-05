@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { render } from 'preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ManyfoldError, UNAUTHORIZED_TEXT } from '../manyfold/errors';
 import { defaultSettings } from '../settings';
 import type { SourceModel } from '../types';
 import type { PopupApi } from './api';
@@ -93,6 +94,66 @@ describe('ReviewPopup', () => {
     const { d } = deps();
     mount({ ...d, loadSettings: async () => defaultSettings() });
     await vi.waitFor(() => expect(root.textContent).toContain('Open settings'));
+  });
+
+  describe('Manyfold connection warning', () => {
+    const warn = () => root.querySelector('[data-testid=connection-warning]');
+    it('unreachable: warns when the popup opens, keeps the form usable, and offers no Settings button', async () => {
+      const { d } = deps();
+      mount({ ...d, lookupModel: async () => ({ status: 'unknown', reason: 'unreachable' }) });
+      await vi.waitFor(() => expect(warn()).toBeTruthy());
+      expect(warn()!.textContent).toContain('Could not reach the Manyfold server');
+      expect(root.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false);
+      expect([...warn()!.querySelectorAll('button')]).toHaveLength(0);
+    });
+    it.each([['unauthorized', /revoked, expired or mistyped/], ['forbidden', /lacks permission/]] as const)('%s: warns and links to Settings', async (reason, text) => {
+      const opened: string[] = [];
+      const { d } = deps();
+      mount({ ...d, lookupModel: async () => ({ status: 'unknown', reason }), openSettings: () => void opened.push('settings') });
+      await vi.waitFor(() => expect(warn()).toBeTruthy());
+      expect(warn()!.textContent).toMatch(text);
+      const btn = [...warn()!.querySelectorAll('button')].find((b) => b.textContent === 'Open settings')!;
+      btn.click();
+      expect(opened).toEqual(['settings']);
+      expect(root.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false);
+    });
+    it.each(['unsupported', 'error', 'too-many'] as const)('%s: no connection warning', async (reason) => {
+      const { d } = deps();
+      mount({ ...d, lookupModel: async () => ({ status: 'unknown', reason }) });
+      await vi.waitFor(() => expect(root.querySelector('button[type=submit]')).toBeTruthy());
+      await new Promise((r) => setTimeout(r, 20));
+      expect(warn()).toBeNull();
+    });
+    it('shows next to the history duplicate warning without replacing it', async () => {
+      const { d } = deps();
+      mount({ ...d, lookupModel: async () => ({ status: 'unknown', reason: 'unreachable' }), findPriorSend: async () => ({ sourceUrl: 'https://p/1', manyfoldUrl: 'http://m/models/z', at: 1 }) });
+      await vi.waitFor(() => expect(root.textContent).toContain('This page was sent from this browser on'));
+      expect(warn()).toBeTruthy();
+    });
+  });
+
+  describe('collections that cannot be loaded', () => {
+    it('says they could not be loaded, why, and what an id is', async () => {
+      const { d } = deps();
+      mount({ ...d, listCollections: async () => { throw new ManyfoldError('unauthorized', UNAUTHORIZED_TEXT); } });
+      await vi.waitFor(() => expect(root.textContent).toContain('collections could not be loaded'));
+      expect(root.textContent).toContain('revoked, expired or mistyped');
+      expect(root.textContent).toMatch(/collection id/i);
+      expect(root.textContent).toMatch(/last part of the collection's address/);
+      expect(root.querySelector('input[type=text][value=""]') ?? root.querySelectorAll('input[type=text]')).toBeTruthy();
+    });
+    it('says nothing while the list is still loading', async () => {
+      const { d } = deps();
+      mount({ ...d, listCollections: () => new Promise(() => undefined) });
+      await vi.waitFor(() => expect(root.querySelector('button[type=submit]')).toBeTruthy());
+      expect(root.textContent).not.toContain('could not be loaded');
+    });
+    it('does not leak raw error text', async () => {
+      const { d } = deps();
+      mount({ ...d, listCollections: async () => { throw new Error('Bearer tok leaked'); } });
+      await vi.waitFor(() => expect(root.textContent).toContain('could not be loaded'));
+      expect(root.textContent).not.toContain('leaked');
+    });
   });
 
   describe('already in Manyfold warning', () => {

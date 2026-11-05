@@ -46,7 +46,7 @@ export function Options() {
   const [justSaved, setJustSaved] = useState(false);
   const savedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [savedUrl, setSavedUrl] = useState('');
-  const [collections, setCollections] = useState<NamedRef[] | undefined>();
+  const [collections, setCollections] = useState<{ options?: NamedRef[]; failure?: string }>({});
 
   useEffect(() => {
     void loadSettings().then((loaded) => {
@@ -182,7 +182,7 @@ export function Options() {
               <span class="sub">Preselected in the popup; you can change it per send.</span>
             </div>
             <div class="picker">
-              <CollectionPicker value={s.defaultCollectionId ?? ''} options={collections}
+              <CollectionPicker value={s.defaultCollectionId ?? ''} options={collections.options} failure={collections.failure}
                 onChange={(id) => setS({ ...s, defaultCollectionId: lastSegment(id) })} />
             </div>
           </div>

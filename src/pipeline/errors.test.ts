@@ -40,6 +40,7 @@ describe('toSendError', () => {
     ['create-failed', 'create-failed'],
     ['extraction-timeout', 'extraction-timeout'],
     ['metadata-failed', 'metadata-failed'],
+    ['unreachable', 'manyfold-unreachable'],
   ])('ManyfoldError %s -> %s, keeping its message', (mc, code) => {
     const s = toSendError(new ManyfoldError(mc, `msg for ${mc}`), 'uploading');
     expect(s).toEqual({ code, message: `msg for ${mc}`, stage: 'uploading' });
@@ -82,5 +83,32 @@ describe('toSendError', () => {
   it('is plain JSON', () => {
     const s = toSendError(new DownloadBlocked('a.stl'), 'downloading');
     expect(JSON.parse(JSON.stringify(s))).toEqual(s);
+  });
+});
+
+describe('clearer messages', () => {
+  it('a sign-in message without a site name says it is the website, not Manyfold', () => {
+    expect(MESSAGES['login-required']).toMatch(/website/i);
+    expect(MESSAGES['login-required']).toMatch(/not Manyfold/i);
+  });
+  it('an upload that never started says "Try again", not "Retry to resume"', () => {
+    expect(MESSAGES['upload-failed']).toMatch(/Try again/);
+    expect(MESSAGES['upload-failed']).not.toMatch(/resume/i);
+  });
+  it('a failed model creation points at Manyfold\'s logs', () => {
+    expect(MESSAGES['create-failed']).toMatch(/Manyfold's logs/);
+  });
+  it('an unrecognised error says what to do and carries a fixed code with the stage, never the error text', () => {
+    const s = toSendError(new Error('Bearer secret-token leaked'), 'uploading');
+    expect(s.code).toBe('unknown');
+    expect(s.message).toMatch(/Try again/);
+    expect(s.message).toContain('unknown-uploading');
+    expect(s.message).not.toContain('secret-token');
+    expect(MESSAGES.unknown).toMatch(/Try again/);
+    expect(MESSAGES.unknown).toContain('unknown');
+  });
+  it('the unknown code is the same fixed text for a thrown string or object', () => {
+    expect(toSendError('secret', 'creating').message).toContain('unknown-creating');
+    expect(toSendError({ weird: 'secret' }, 'metadata').message).not.toContain('secret');
   });
 });
