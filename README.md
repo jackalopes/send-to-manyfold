@@ -33,7 +33,7 @@ Install [Send To Manyfold from the Chrome Web Store](https://chromewebstore.goog
 
 ## Install from source
 
-There is no store listing yet. You need Node 22.18 or newer (`.nvmrc` says 22; `engines` makes npm warn on older versions; it is enforced only with `engine-strict`).
+You need Node 22.18 or newer (`.nvmrc` says 22; `engines` makes npm warn on older versions; it is enforced only with `engine-strict`).
 
 ```
 npm ci
