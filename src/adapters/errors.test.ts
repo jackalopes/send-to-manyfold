@@ -31,6 +31,12 @@ describe('download errors', () => {
     expect(new DownloadLoginRequired('a')).not.toBeInstanceOf(DownloadFailed);
   });
 
+  it('DownloadBlocked keeps its default text and accepts site-specific text', () => {
+    expect(new DownloadBlocked('a.stl').message).toBe('The site answered with a bot check instead of a download link for a.stl. Reload the page and try again.');
+    expect(new DownloadBlocked('a.stl', 'custom').message).toBe('custom');
+    expect(new DownloadBlocked('a.stl', 'custom').code).toBe('DOWNLOAD_BLOCKED');
+  });
+
   it('survives serialisation as plain data (what crosses chrome.runtime messaging)', () => {
     const err = new DownloadBlocked('a.stl');
     const sent = JSON.parse(JSON.stringify({ name: err.name, code: err.code, message: err.message })) as unknown;
