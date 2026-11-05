@@ -140,10 +140,10 @@ describe('ManyfoldClient.testConnection', () => {
   it.each([{ status: 404 }, { status: 200, version: 'unknown' }])('no usable nodeinfo %j -> ok/unknown', async (nodeinfo) => {
     expect(await client(stubFetch({ nodeinfo }) as unknown as typeof fetch).testConnection()).toEqual({ ok: true, version: 'unknown' });
   });
-  it('revoked host permission -> unreachable, no requests', async () => {
+  it('revoked host permission -> its own reason (not a server problem), no requests', async () => {
     const f = stubFetch();
     const r = await client(f as unknown as typeof fetch, false).testConnection();
-    expect(r).toMatchObject({ ok: false, reason: 'unreachable' });
+    expect(r).toMatchObject({ ok: false, reason: 'no-permission' });
     expect((r as { detail?: string }).detail).toMatch(/permission/i);
     expect(f).not.toHaveBeenCalled();
   });

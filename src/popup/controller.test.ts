@@ -42,6 +42,41 @@ function setup(over: { api?: Partial<PopupApi>; settings?: Settings; prior?: His
   return { c: createController(deps), api, actions, state: () => state, emit: (e: SendEvent) => listener(e) };
 }
 
+describe('popup controller: connection problems', () => {
+  const entry: HistoryEntry = { sourceUrl: 'https://p/1', manyfoldUrl: 'http://m/models/1', at: 1 };
+  const state = (t: ReturnType<typeof setup>) => t.state() as { phase: string; connectionProblem?: string; prior?: { source: string } };
+  it.each([
+    ['unreachable', 'unreachable'],
+    ['unauthorized', 'unauthorized'],
+    ['forbidden', 'forbidden'],
+  ] as const)('a lookup that fails with %s warns, and the form stays usable', async (reason, problem) => {
+    const t = setup({ lookup: async () => ({ status: 'unknown', reason }) });
+    await t.c.init();
+    expect(state(t)).toMatchObject({ phase: 'review', connectionProblem: problem });
+  });
+  it.each(['unsupported', 'error', 'too-many', 'aborted'] as const)('a lookup that fails with %s shows no connection warning', async (reason) => {
+    const t = setup({ lookup: async () => ({ status: 'unknown', reason }) });
+    await t.c.init();
+    expect(state(t).connectionProblem).toBeUndefined();
+  });
+  it('found and none show no connection warning', async () => {
+    const t = setup({ lookup: async () => ({ status: 'none' }) });
+    await t.c.init();
+    expect(state(t).connectionProblem).toBeUndefined();
+  });
+  it('an unreachable Manyfold still lets this browser\'s history warn about a duplicate', async () => {
+    const t = setup({ prior: entry, lookup: async () => ({ status: 'unknown', reason: 'unreachable' }) });
+    await t.c.init();
+    expect(state(t)).toMatchObject({ connectionProblem: 'unreachable', prior: { source: 'history' } });
+  });
+  it('the warning does not survive into the send', async () => {
+    const t = setup({ lookup: async () => ({ status: 'unknown', reason: 'unreachable' }) });
+    await t.c.init();
+    await t.c.send();
+    expect(state(t).phase).toBe('sending');
+  });
+});
+
 describe('popup controller', () => {
   it('starts: extracts the active tab and shows the review form', async () => {
     const t = setup();

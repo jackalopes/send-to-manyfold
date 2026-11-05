@@ -1,5 +1,5 @@
 import { downloadErrorCode, type DownloadErrorCode } from '../adapters/errors';
-import { ManyfoldError, UNAUTHORIZED_TEXT, type ManyfoldErrorCode } from '../manyfold/errors';
+import { ManyfoldError, UNAUTHORIZED_TEXT, UNREACHABLE_TEXT, type ManyfoldErrorCode } from '../manyfold/errors';
 import type { SendStage } from './types';
 
 export type SendErrorCode =
@@ -53,22 +53,26 @@ export class PipelineError extends Error {
   }
 }
 
+/** For an error nothing recognises. The code is fixed text (`unknown`, plus the stage once known), never the error's own text. */
+const unknownText = (code: string) => `Something went wrong while sending (code: ${code}). Try again, and if it keeps happening, include this code when you report the problem.`;
+const UNKNOWN_TEXT = unknownText('unknown');
+
 export const MESSAGES: Record<SendErrorCode, string> = {
   cancelled: 'Cancelled.',
-  'login-required': 'Sign in to the site to download this model, then try again.',
+  'login-required': 'Sign in to the website you are downloading from (not Manyfold), then try again.',
   'access-denied': 'The site does not allow downloading this file (it may be paid or members-only).',
   blocked: 'The site answered with a bot check instead of the file. Reload the page and try again.',
   'download-failed': 'Downloading the file from the site failed. Try again.',
   'download-not-https': 'The site gave a download link that is not https, so it was not used.',
   'too-large': 'The file is larger than Manyfold accepts (1 GiB).',
-  'manyfold-unreachable': 'Could not reach the Manyfold server. Check that it is running and try again.',
+  'manyfold-unreachable': UNREACHABLE_TEXT,
   'manyfold-unauthorized': UNAUTHORIZED_TEXT,
   'manyfold-forbidden': 'The API token lacks permission for this (it needs the read, write and upload scopes).',
   'manyfold-too-old': 'This Manyfold version is too old. Upgrade Manyfold to 0.147.0 or newer.',
   'no-library': 'Manyfold has no library yet. Create a library in Manyfold first, then try again.',
   'rate-limited': 'Manyfold is limiting how fast models can be created. Wait two minutes, then retry.',
-  'upload-failed': 'Uploading to Manyfold failed. Retry to resume.',
-  'create-failed': 'Manyfold could not create the model.',
+  'upload-failed': 'Uploading to Manyfold failed. Try again.',
+  'create-failed': "Manyfold could not create the model. Check Manyfold's logs for the cause.",
   'create-ambiguous':
     'Manyfold did not confirm the new model, so it may already exist. Check your Manyfold library before sending again.',
   'extraction-timeout': 'Manyfold has not finished unpacking the archive yet. Check the model in Manyfold, or retry to keep waiting.',
@@ -82,7 +86,7 @@ export const MESSAGES: Record<SendErrorCode, string> = {
   'not-configured': 'Set your Manyfold URL and API token in the extension settings first.',
   'offscreen-blocked': 'The extension could not start its transfer page correctly. Reload the extension (chrome://extensions) and try again.',
   'no-permission': 'The extension has no permission to reach your Manyfold server. Save the settings again to grant it.',
-  unknown: 'Something went wrong while sending.',
+  unknown: UNKNOWN_TEXT,
 };
 
 const FROM_DOWNLOAD: Record<DownloadErrorCode, SendErrorCode> = {
@@ -105,6 +109,7 @@ const FROM_MANYFOLD: Record<ManyfoldErrorCode, SendErrorCode> = {
   'create-failed': 'create-failed',
   'extraction-timeout': 'extraction-timeout',
   'metadata-failed': 'metadata-failed',
+  unreachable: 'manyfold-unreachable',
 };
 
 export function isAbort(e: unknown): boolean {
@@ -142,7 +147,7 @@ export function toSendError(e: unknown, stage: SendStage): SendError {
     const code = stage === 'downloading' ? 'download-failed' : 'manyfold-unreachable';
     return { code, message: MESSAGES[code], stage };
   }
-  return { code: 'unknown', message: MESSAGES.unknown, stage };
+  return { code: 'unknown', message: unknownText(`unknown-${stage}`), stage };
 }
 
 function errorName(e: unknown): string | undefined {

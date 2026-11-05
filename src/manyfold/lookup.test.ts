@@ -35,6 +35,41 @@ function server(models: Model[], opts: { totalItems?: number; listStatus?: numbe
 
 const client = (f: typeof fetch) => new ManyfoldClient(BASE, 't', f, async () => true);
 
+describe('lookupModel: unreachable', () => {
+  const failing = (f: () => Response | Promise<Response>) => client(vi.fn(async () => f()) as unknown as typeof fetch);
+  it('a network error is "unreachable", not the general "error"', async () => {
+    const r = await lookupModel(failing(() => { throw new TypeError('Failed to fetch'); }), GORAL);
+    expect(r).toEqual({ status: 'unknown', reason: 'unreachable' });
+  });
+  it('a timeout is "unreachable"', async () => {
+    const r = await lookupModel(failing(() => { throw new DOMException('t', 'TimeoutError'); }), GORAL);
+    expect(r).toEqual({ status: 'unknown', reason: 'unreachable' });
+  });
+  it.each([502, 503, 504])('a gateway answer (%i) is "unreachable"', async (status) => {
+    expect(await lookupModel(failing(() => new Response('x', { status })), GORAL)).toEqual({ status: 'unknown', reason: 'unreachable' });
+  });
+  it('a detail request that fails on the network is "unreachable" too', async () => {
+    const s = server([{ id: 'abc', name: 'G', links: ['http://www.makerworld.com/models/3147006'] }]);
+    const inner = s.fetchImpl;
+    let n = 0;
+    const f = vi.fn(async (...a: Parameters<typeof fetch>) => { if (++n === 2) throw new TypeError('Failed to fetch'); return inner(...a); });
+    expect(await lookupModel(client(f as unknown as typeof fetch), GORAL)).toEqual({ status: 'unknown', reason: 'unreachable' });
+  });
+  it('a plain server error (500) stays "error"', async () => {
+    expect(await lookupModel(failing(() => new Response('x', { status: 500 })), GORAL)).toEqual({ status: 'unknown', reason: 'error' });
+  });
+  it('a cancel stays "aborted"', async () => {
+    const ctl = new AbortController();
+    const f = failing(() => { ctl.abort(); throw ctl.signal.reason; });
+    expect(await lookupModel(f, GORAL, ctl.signal)).toEqual({ status: 'unknown', reason: 'aborted' });
+  });
+  it('an unsupported page makes no request and is not "unreachable"', async () => {
+    const f = vi.fn();
+    expect(await lookupModel(client(f as unknown as typeof fetch), 'https://example.com/x')).toEqual({ status: 'unknown', reason: 'unsupported' });
+    expect(f).not.toHaveBeenCalled();
+  });
+});
+
 describe('lookupModel', () => {
   it('finds a model saved under another spelling of the link', async () => {
     const s = server([{ id: 'abc', name: 'Goral', links: ['http://www.makerworld.com/models/3147006'] }]);
@@ -95,11 +130,11 @@ describe('lookupModel', () => {
     expect(await lookupModel(client(s.fetchImpl), GORAL)).toEqual({ status: 'unknown', reason: 'too-many' });
   });
 
-  it('is unknown, never a throw, on network errors', async () => {
+  it('is unknown, never a throw, on network errors (reported as unreachable)', async () => {
     const f = (async () => {
       throw new TypeError('Failed to fetch');
     }) as unknown as typeof fetch;
-    expect(await lookupModel(client(f), GORAL)).toEqual({ status: 'unknown', reason: 'error' });
+    expect(await lookupModel(client(f), GORAL)).toEqual({ status: 'unknown', reason: 'unreachable' });
   });
 
   it('is unknown on a failing detail request', async () => {

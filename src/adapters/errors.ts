@@ -22,8 +22,9 @@ export class DownloadError extends Error {
 export class DownloadLoginRequired extends DownloadError {
   override readonly name = 'DownloadLoginRequired';
   override readonly code = 'DOWNLOAD_LOGIN_REQUIRED';
-  constructor(fileName: string) {
-    super(`Sign in to the site to download ${fileName}.`);
+  /** `site` is the site's display name ("Printables"), so the message cannot be read as asking for a Manyfold login. */
+  constructor(fileName: string, site = 'the site') {
+    super(`Sign in to ${site} to download ${fileName}.`);
   }
 }
 

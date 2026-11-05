@@ -55,3 +55,12 @@ describe('downloadErrorCode', () => {
     },
   );
 });
+
+describe('DownloadLoginRequired names the site', () => {
+  it('says which site to sign in to, so it is not read as Manyfold', () => {
+    expect(new DownloadLoginRequired('a.stl', 'Printables').message).toBe('Sign in to Printables to download a.stl.');
+  });
+  it('falls back to "the site" when no name is given', () => {
+    expect(new DownloadLoginRequired('a.stl').message).toBe('Sign in to the site to download a.stl.');
+  });
+});

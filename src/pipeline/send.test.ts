@@ -527,3 +527,83 @@ describe('sendModel: upload progress follows the real upload order', () => {
     expect(files.every((p) => p.sent === p.total && p.fileCount === 3)).toBe(true);
   });
 });
+
+describe('sendModel: check Manyfold before downloading', () => {
+  const unreachable = () => new ManyfoldError('unreachable', 'Could not reach the Manyfold server. Check that it is running and try again.');
+
+  it('stops before any download when Manyfold cannot be reached, with the unreachable message', async () => {
+    const h = harness();
+    h.checkManyfoldFake.mockRejectedValueOnce(unreachable());
+    const r = await sendModel(request([file('a.stl')]), h.deps, noop);
+    expect(r).toMatchObject({ status: 'failed', stage: 'downloading', error: { code: 'manyfold-unreachable' }, retryToken: 't1' });
+    expect(r.status === 'failed' && r.error.message).toMatch(/Could not reach the Manyfold server/);
+    expect(h.fetchFile).not.toHaveBeenCalled();
+    expect(h.resolveDownloadUrl).not.toHaveBeenCalled();
+    expect(h.uploadFileFake).not.toHaveBeenCalled();
+  });
+
+  it('the check does not rely on the download-stage TypeError mapping (that would say "download failed")', async () => {
+    const h = harness();
+    h.checkManyfoldFake.mockRejectedValueOnce(unreachable());
+    const r = await sendModel(request([file('a.stl')]), h.deps, noop);
+    expect(r.status === 'failed' && r.error.code).not.toBe('download-failed');
+  });
+
+  it('a rejected token stops the send before any download', async () => {
+    const h = harness();
+    h.checkManyfoldFake.mockRejectedValueOnce(new ManyfoldError('unauthorized', UNAUTHORIZED_TEXT));
+    const r = await sendModel(request([file('a.stl')]), h.deps, noop);
+    expect(r).toMatchObject({ status: 'failed', error: { code: 'manyfold-unauthorized', message: UNAUTHORIZED_TEXT } });
+    expect(h.fetchFile).not.toHaveBeenCalled();
+  });
+
+  it('runs once per send, passing the client and the cancel signal, and the retry resumes once Manyfold is back', async () => {
+    const h = harness();
+    h.checkManyfoldFake.mockRejectedValueOnce(unreachable());
+    const ctl = new AbortController();
+    const r = await sendModel(request([file('a.stl')]), h.deps, noop, { signal: ctl.signal });
+    expect(h.checkManyfoldFake.mock.calls[0]![0]).toBe(h.deps.client);
+    expect(h.checkManyfoldFake.mock.calls[0]![1]).toBe(ctl.signal);
+    const again = await retrySend(r.status === 'failed' ? r.retryToken! : '', h.deps, noop);
+    expect(again.status).toBe('done');
+    expect(h.fetchFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('a retry whose downloads are finished checks again but reports the uploading stage', async () => {
+    const h = harness();
+    h.uploadFileFake.mockRejectedValueOnce(new ManyfoldError('unreachable', 'lost', `${BASE}/upload/half`));
+    const r = await sendModel(request([file('a.stl')]), h.deps, noop);
+    expect(r).toMatchObject({ status: 'failed', stage: 'uploading', error: { code: 'manyfold-unreachable' } });
+    h.checkManyfoldFake.mockRejectedValueOnce(unreachable());
+    const second = await retrySend('t1', h.deps, noop);
+    expect(second).toMatchObject({ status: 'failed', stage: 'uploading', error: { code: 'manyfold-unreachable' } });
+    expect(h.fetchFile).toHaveBeenCalledTimes(1);
+    const third = await retrySend('t1', h.deps, noop);
+    expect(third.status).toBe('done');
+    expect(h.uploadFileFake.mock.calls.at(-1)![4]).toMatchObject({ resumeUrl: `${BASE}/upload/half` });
+  });
+
+  it('a cancel during the check ends the send as cancelled', async () => {
+    const h = harness();
+    const ctl = new AbortController();
+    h.checkManyfoldFake.mockImplementationOnce(async () => {
+      ctl.abort();
+      ctl.signal.throwIfAborted();
+    });
+    const r = await sendModel(request([file('a.stl')]), h.deps, noop, { signal: ctl.signal });
+    expect(r).toMatchObject({ status: 'failed', error: { code: 'cancelled' } });
+    expect(r.status === 'failed' && r.retryToken).toBeUndefined();
+    expect(h.fetchFile).not.toHaveBeenCalled();
+  });
+
+  it('an ambiguous create keeps its handling: the retry does not ask the network first', async () => {
+    const h = harness();
+    h.createModelFake.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await sendModel(request([file('a.stl')]), h.deps, noop);
+    h.checkManyfoldFake.mockClear();
+    h.checkManyfoldFake.mockRejectedValue(unreachable());
+    const blind = await retrySend('t1', h.deps, noop);
+    expect(blind).toMatchObject({ status: 'failed', stage: 'creating', ambiguous: true, error: { code: 'create-ambiguous' } });
+    expect(h.checkManyfoldFake).not.toHaveBeenCalled();
+  });
+});

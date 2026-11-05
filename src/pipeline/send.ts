@@ -1,5 +1,6 @@
 import { ManyfoldError, type ManyfoldErrorCode } from '../manyfold/errors';
 import { applyMetadata, metadataInputFromSource, type MetadataResult } from '../manyfold/metadata';
+import { checkManyfold } from '../manyfold/preflight';
 import { createModel, uploadFile, waitForExtraction } from '../manyfold/upload';
 import { isAbort, MESSAGES, PipelineError, toSendError, type SendError } from './errors';
 import { addCover, downloadAll, planGroups } from './download';
@@ -56,12 +57,20 @@ export async function retrySend(token: string, deps: SendDeps, onProgress: (p: S
 async function run(state: SendState, deps: SendDeps, onProgress: (p: SendProgress) => void, opts: SendOptions): Promise<SendResult> {
   const signal = opts.signal;
   const emit = monotonic(onProgress);
-  const api: ManyfoldApi = { uploadFile, createModel, waitForExtraction, applyMetadata, ...deps.api };
+  const api: ManyfoldApi = { uploadFile, createModel, waitForExtraction, applyMetadata, checkManyfold, ...deps.api };
   const clock = deps.clock ?? realClock;
   const ctx = { stage: 'downloading' as SendStage, group: undefined as ModelGroup | undefined, createInFlight: false };
   state.running = true;
   try {
     signal?.throwIfAborted();
+    // One quick request before downloading anything. A retry runs this too, but skips it while a create is
+    // unconfirmed: that path decides without the network (and must keep answering create-ambiguous).
+    if (!state.groups?.some((g) => g.ambiguous)) {
+      // On a retry with every file already downloaded this is not a download problem; report where the send stands.
+      if (state.groups && state.entries.every((e) => e.blob || e.upload)) ctx.stage = 'uploading';
+      await api.checkManyfold(deps.client, signal);
+      ctx.stage = 'downloading';
+    }
     await downloadAll(state, deps, emit, signal);
     const groups = (state.groups ??= planGroups(state));
     await addCover(state, deps, emit, signal);

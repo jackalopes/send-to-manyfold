@@ -330,6 +330,12 @@ describe('makerworld.resolveDownloadUrl', () => {
     expect(fetch.mock.calls[0]![0]).toMatch(/&type=download&modelName=[^&]+&dirName=parts$/);
   });
 
+  it('names MakerWorld in the sign-in message', async () => {
+    const fetch = stub(401, { code: 1, error: 'unauthorized' });
+    const err = await createMakerWorld({ fetch }).resolveDownloadUrl!(profile).catch((e: unknown) => e);
+    expect((err as Error).message).toMatch(/^Sign in to MakerWorld to download /);
+  });
+
   it('maps 401 to DownloadLoginRequired', async () => {
     const fetch = stub(401, { code: 1, error: 'unauthorized' });
     await expect(createMakerWorld({ fetch }).resolveDownloadUrl!(profile)).rejects.toBeInstanceOf(DownloadLoginRequired);
