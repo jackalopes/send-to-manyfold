@@ -6,6 +6,8 @@ Not affiliated with or endorsed by Manyfold, Printables, Thingiverse or MakerWor
 
 > Status: version 0.1.2, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
 
+![Sending a Printables model to Manyfold with the extension](assets/demo.gif)
+
 ## What it does
 
 Open a model page, click the toolbar icon (or the green "Send to Manyfold" button where the page has one), check the prefilled details, pick the files and a collection, and press Send. Apart from a read-only check of whether the page is already in your Manyfold, nothing is sent until you press Send.
