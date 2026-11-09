@@ -1,10 +1,10 @@
 # Send To Manyfold
 
-A Chrome extension that sends 3D models from Printables, Thingiverse and MakerWorld to your own [Manyfold](https://manyfold.app) library. It uploads the files and fills in the details (title, description, creator, license, tags, source link, cover image) for you.
+A Chrome and Firefox extension that sends 3D models from Printables, Thingiverse and MakerWorld to your own [Manyfold](https://manyfold.app) library. It uploads the files and fills in the details (title, description, creator, license, tags, source link, cover image) for you.
 
 Not affiliated with or endorsed by Manyfold, Printables, Thingiverse or MakerWorld. Those names are trademarks of their respective owners and are used here only to say which services this works with.
 
-> Status: version 0.1.2, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
+> Status: version 0.1.2, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Firefox: coming to addons.mozilla.org; until then, install from source. The Firefox build is newer and has had less real-world use than the Chrome one. Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
 
 ![Sending a Printables model to Manyfold with the extension](assets/demo.gif)
 
@@ -24,7 +24,7 @@ GitHub support is planned. [Tell us what you'd expect it to do](https://github.c
 
 ## Requirements
 
-- Chrome 127 or newer.
+- Chrome 127 or newer, or Firefox 147.0 or newer.
 - A Manyfold server, version 0.147.0 or newer (0.153.0 is the version it was tested against), with a library set up.
 - The Manyfold user that owns your token must be allowed to upload: the "contributor" role or higher. A plain member gets "not found" (404) on uploads.
 - The library folder must be writable by the user the Manyfold container runs as (uid 1000). If it is not, uploaded ZIP files are never extracted and the send appears to hang until it times out.
@@ -46,6 +46,17 @@ Then open `chrome://extensions`, turn on Developer mode, choose "Load unpacked" 
 
 `npm run zip` also writes a ZIP of the build to `.output/`.
 
+### Firefox
+
+```
+npm ci
+npm run build:firefox
+```
+
+Then open `about:debugging#/runtime/this-firefox`, choose "Load Temporary Add-on" and select `.output/firefox-mv3/manifest.json`. A temporary add-on is removed when Firefox closes.
+
+`npm run zip:firefox` writes the extension ZIP and a sources ZIP (for addons.mozilla.org review) to `.output/`. `npm run lint:firefox` runs `web-ext lint` on the build; it leaves one warning, about Preact's `innerHTML` assignment in the bundled library.
+
 ## Create a Manyfold token
 
 The extension talks to Manyfold with a long-lived access token that you create once.
@@ -64,7 +75,7 @@ The token expires, so you will need to create a new one when it does.
 
 Open the extension's options page (right-click the toolbar icon, then Options).
 
-- Manyfold address and token. Saving asks Chrome for permission to talk to that one address.
+- Manyfold address and token. Saving asks the browser for permission to talk to that address. In Chrome that is the one address you typed; in Firefox it is that host on any port, because Firefox does not apply a port-specific grant to cross-origin requests.
   An address typed without `http://` or `https://` is treated as `https://`, except IP addresses, `localhost` and `.local`, `.lan`, `.home.arpa` and `.internal` names, which get `http://`. For a plain LAN name served over http, such as `nas:3214`, type the scheme: `http://nas:3214`.
   Plain `http://` is allowed because self-hosted servers on home networks often have no TLS certificate. The token is sent only to the address you typed. The options page warns when an `http://` address points at a public host. Use `https://` whenever your server has it.
 - "Test connection". When Manyfold does not tell tokens its version, this says just "Connected." That is expected. Version 0.147.0 or newer is still required.
@@ -78,7 +89,7 @@ The full policy is at <https://jackalopes.github.io/send-to-manyfold/privacy/>.
 
 - The extension talks only to the source site you are on and its download and image hosts, and to your own Manyfold server. It reads the model page and resolves download links using your logged-in session in the page; the files are then downloaded without your cookies.
 - No analytics, no tracking, no other servers.
-- Your Manyfold address and token are stored in Chrome's local extension storage (`chrome.storage.local`) on your computer.
+- Your Manyfold address and token are stored in the browser's local extension storage (`chrome.storage.local`, also used by Firefox) on your computer.
 - The extension never reads or copies the login tokens of the source sites.
 - The only automatic request is a read-only check, sent to your own Manyfold, of whether the model page you're on is already saved (a search by the page's link, so it can show a check). Nothing else is sent until you press Send. On the three supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
 
@@ -96,6 +107,8 @@ If you represent Manyfold or one of these sites and have a concern, please [open
 - The Thingiverse import itself (with an API key set in Manyfold) is untested.
 - The injected buttons depend on each site's page layout and may stop appearing when a site changes. The toolbar icon keeps working.
 - Thingiverse files are not uploaded (see above).
+- Firefox lets you revoke the extension's host permissions, including the download hosts (`files.printables.com`, `media.printables.com`, `makerworld.bblmw.com`), in `about:addons`. If you do, sends from that site fail until you grant them again.
+- On Firefox, sends run in a hidden page inside the extension's background page, kept alive while a send runs. If Firefox restarts the extension in the middle of a send, that send is lost and you need to send again.
 - Files over 1 GiB are not accepted by Manyfold and are disabled in the popup.
 - Collections can only be chosen when the model is created.
 - Manyfold limits how fast models can be created. Large batches are paced and may wait.
@@ -115,6 +128,10 @@ npm run test:built   # builds, then checks the built manifest
 npm run icons        # regenerate src/public/icon/*.png after editing assets/brand/icon.svg
 npm run test:e2e     # end-to-end test against a throwaway Manyfold
 npm run zip
+npm run build:firefox   # Firefox MV3 build (.output/firefox-mv3)
+npm run zip:firefox
+npm run lint:firefox    # web-ext lint of the Firefox build
+npm run test:built:firefox
 ```
 
 `npm run test:e2e` needs Docker. It starts Manyfold 0.153.0, Postgres and Redis in containers (about 2 GB to pull the first time) and removes them afterwards.

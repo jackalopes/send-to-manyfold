@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy policy - Send To Manyfold</title>
-<meta name="description" content="Privacy policy for the Send To Manyfold Chrome extension.">
+<meta name="description" content="Privacy policy for the Send To Manyfold browser extension (Chrome and Firefox).">
 <meta name="color-scheme" content="light dark">
 <style>
 :root { --bg: #ffffff; --fg: #1d2330; --muted: #566074; --link: #0b5cad; --rule: #d6dbe4; --code: #eef1f6; }
@@ -27,8 +27,8 @@ li { margin: .3rem 0; }
 <main id="content">
   <p><a href="../">Send To Manyfold</a></p>
   <h1>Privacy policy</h1>
-  <p class="meta">Send To Manyfold, version 0.1.0. Last updated 2026-10-28.</p>
-  <p>Send To Manyfold is an unofficial Chrome extension that sends 3D models from Printables, Thingiverse and MakerWorld to your own Manyfold server. It is not affiliated with, made by or endorsed by Manyfold, Printables, Thingiverse or MakerWorld. It is open source (MIT) at <a href="https://github.com/jackalopes/send-to-manyfold">github.com/jackalopes/send-to-manyfold</a>.</p>
+  <p class="meta">Send To Manyfold, version 0.1.0. Last updated 2026-11-09.</p>
+  <p>Send To Manyfold is an unofficial browser extension, for Chrome and Firefox, that sends 3D models from Printables, Thingiverse and MakerWorld to your own Manyfold server. It is not affiliated with, made by or endorsed by Manyfold, Printables, Thingiverse or MakerWorld. It is open source (MIT) at <a href="https://github.com/jackalopes/send-to-manyfold">github.com/jackalopes/send-to-manyfold</a>.</p>
   <p>In short: the extension has no server of its own. The developer receives no data from it. Everything it sends goes to the model site you are using or to your own Manyfold server.</p>
 
   <h2>What the extension accesses</h2>
@@ -55,9 +55,9 @@ li { margin: .3rem 0; }
 
   <h2>What is stored on your computer</h2>
   <ul>
-    <li>Your Manyfold address, your token and your settings, in Chrome's local extension storage (<code>chrome.storage.local</code>).</li>
+    <li>Your Manyfold address, your token and your settings, in the browser's local extension storage (<code>chrome.storage.local</code>; Firefox uses the same name).</li>
     <li>A local history of what you sent (to warn about duplicates), also in <code>chrome.storage.local</code>.</li>
-    <li>Temporary per-tab send progress, in <code>chrome.storage.session</code>, which Chrome clears when the browser closes.</li>
+    <li>Temporary per-tab send progress, in <code>chrome.storage.session</code>, which the browser clears when it closes.</li>
   </ul>
   <p>None of this is synced or sent to the developer.</p>
 
@@ -73,10 +73,10 @@ li { margin: .3rem 0; }
   <p>Send To Manyfold's use of user data complies with the Chrome Web Store User Data Policy, including the Limited Use requirements. User data is used only to provide the extension's single purpose, sending a model you choose to your own Manyfold server. It is not transferred to others, not used for advertising, not used to determine creditworthiness, and no human reads it.</p>
 
   <h2>Permissions</h2>
-  <p>The extension asks Chrome for access to your Manyfold address at the moment you save it, and to that one address only. You can remove this access at any time at <code>chrome://extensions</code>.</p>
+  <p>The extension asks the browser for access to your Manyfold address at the moment you save it, and to no other address. In Chrome that is the exact address you typed; in Firefox it is that host on any port. You can remove this access at any time at <code>chrome://extensions</code> in Chrome or <code>about:addons</code> in Firefox. In Firefox you can also revoke the access to the model sites' download hosts there.</p>
 
   <h2>Removing your data</h2>
-  <p>Uninstalling the extension deletes everything it stored. To keep the extension but remove the data, clear the token and address in the options page, or clear the extension's storage in Chrome. Models already sent are in your Manyfold server, which you control. Delete them there. You should also delete or revoke the access token in Manyfold if you no longer want the extension to use it.</p>
+  <p>Uninstalling the extension deletes everything it stored. To keep the extension but remove the data, clear the token and address in the options page, or clear the extension's storage in your browser. Models already sent are in your Manyfold server, which you control. Delete them there. You should also delete or revoke the access token in Manyfold if you no longer want the extension to use it.</p>
 
   <h2>Changes</h2>
   <p>If this policy changes, the new version will be posted here with a new date. The history is in the project's repository.</p>
