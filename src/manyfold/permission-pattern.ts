@@ -4,10 +4,7 @@
  * unreachable even though `permissions.contains` answers true), so there the port is dropped.
  * Throws on a URL that cannot be parsed.
  */
-export function manyfoldOriginPattern(
-  baseUrl: string,
-  firefox: boolean,
-): string {
+export function manyfoldOriginPattern(baseUrl: string, firefox: boolean): string {
   const url = new URL(baseUrl);
   return firefox ? `${url.protocol}//${url.hostname}/*` : `${url.origin}/*`;
 }
