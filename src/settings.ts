@@ -1,3 +1,5 @@
+import { manyfoldOriginPattern } from './manyfold/permission-pattern';
+
 export type PrefillField = 'title' | 'description' | 'creator' | 'license' | 'tags' | 'sourceUrl' | 'images';
 
 export interface Settings {
@@ -84,8 +86,7 @@ export async function saveSettings(s: Settings): Promise<void> {
 }
 
 export function requestManyfoldPermission(baseUrl: string): Promise<boolean> {
-  const { origin } = new URL(baseUrl);
-  return chrome.permissions.request({ origins: [`${origin}/*`] });
+  return chrome.permissions.request({ origins: [manyfoldOriginPattern(baseUrl, import.meta.env.FIREFOX)] });
 }
 
 export type SaveResult = { ok: true } | { ok: false; reason: 'denied' | 'error'; message: string };

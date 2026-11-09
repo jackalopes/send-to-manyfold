@@ -1,3 +1,4 @@
+import { manyfoldOriginPattern } from './permission-pattern';
 import { compareVersions, MIN_VERSION, parseVersion } from './version';
 
 export type ConnectionResult =
@@ -13,7 +14,8 @@ export const DEFAULT_TIMEOUT_MS = 10_000;
 
 export type HasPermission = (origin: string) => Promise<boolean>;
 
-const chromeHasPermission: HasPermission = (origin) => chrome.permissions.contains({ origins: [`${origin}/*`] });
+const chromeHasPermission: HasPermission = (origin) =>
+  chrome.permissions.contains({ origins: [manyfoldOriginPattern(origin, import.meta.env.FIREFOX)] });
 
 export class ManyfoldClient {
   constructor(
