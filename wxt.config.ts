@@ -16,6 +16,12 @@ export default defineConfig({
   vite: () => ({
     plugins: [preact()],
   }),
+  // The AMO sources zip (zip:firefox): WXT skips dotfiles, but reviewers need .nvmrc to pick the Node version, and the
+  // private design notes (docs/, a separate git repo), local logs and unreleased brand drafts must not ship.
+  zip: {
+    includeSources: ['**/*', '.nvmrc'],
+    excludeSources: ['docs/**', '**/logs/**', 'assets/brand/icon-in-work.svg', 'assets/brand/icon-original.svg'],
+  },
   manifest: ({ browser }) => {
     const firefox = browser === 'firefox';
     return {

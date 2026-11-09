@@ -11,6 +11,7 @@
     "zip": "wxt zip",
     "build:firefox": "wxt build -b firefox --mv3",
     "zip:firefox": "wxt zip -b firefox --mv3",
+    "lint:firefox": "web-ext lint -s .output/firefox-mv3",
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -36,6 +37,7 @@
     "typescript-eslint": "8.72.1",
     "vite": "8.3.5",
     "vitest": "5.0.5",
+    "web-ext": "10.8.0",
     "wxt": "0.21.5"
   },
   "engines": {

@@ -23,6 +23,9 @@ jobs:
       - run: npm run build
       # The manifest pin needs the build output; with the variable set, a missing build fails instead of skipping.
       - run: REQUIRE_BUILT_MANIFEST=1 npx vitest run src/offscreen/worker-gate.test.ts
+      - run: npm run build:firefox
+      - run: REQUIRE_BUILT_MANIFEST=1 npx vitest run src/manifest-firefox.test.ts
+      - run: npm run lint:firefox
 
   # Slow (pulls and boots Manyfold, Postgres and Redis in Docker): main and manual runs only, not pull requests.
   e2e:
