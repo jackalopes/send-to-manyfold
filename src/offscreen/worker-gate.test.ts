@@ -59,7 +59,7 @@ describe('the built manifest names the worker the offscreen gate derives from', 
 });
 
 describe('classifySender', () => {
-  it('accepts only the service worker', () => {
+  it('accepts only the background', () => {
     expect(classifySender({ id: 'abc', url: SW }, SW, EXT)).toBe('worker');
   });
 

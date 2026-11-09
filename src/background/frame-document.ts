@@ -58,6 +58,7 @@ export function createFrameOffscreenApi(deps: FrameDocumentDeps): OffscreenApi {
         if (frame === created) frame = undefined;
         throw e;
       }
+      // Unreachable through OffscreenDocument's queue (create and close are serialized); kept as a guard.
       if (frame !== created) return;
       stopKeepAlive();
       timer = deps.setInterval(() => {

@@ -21,7 +21,7 @@ const JUSTIFICATION = 'Holds downloaded model files in memory while they are upl
 export interface OffscreenApi {
   createDocument(parameters: chrome.offscreen.CreateParameters): Promise<void>;
   closeDocument(): Promise<void>;
-  /** Whether the document exists (survives a service worker restart, so it is always asked, never cached). */
+  /** Whether the document exists (survives a background restart, so it is always asked, never cached). */
   hasDocument(): Promise<boolean>;
 }
 

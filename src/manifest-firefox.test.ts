@@ -20,7 +20,7 @@ interface FirefoxManifest {
 describe.skipIf(!existsSync(BUILT) && !process.env.REQUIRE_BUILT_MANIFEST)('built Firefox manifest', () => {
   const manifest = JSON.parse(readFileSync(BUILT, 'utf8')) as FirefoxManifest;
 
-  it('uses the permanent add-on id', () => {
+  it('uses keeps the add-on id stable', () => {
     expect(GECKO_ADDON_ID).toBe('send-to-manyfold@jackalopes.github.io');
   });
 

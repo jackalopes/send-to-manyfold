@@ -4,7 +4,7 @@ import { routeOffscreenMessage } from './router';
 import type { SendSessions } from './sessions';
 
 /**
- * Who may drive the offscreen document: only the extension's service worker. Content scripts carry the extension
+ * Who may drive the offscreen document: only the extension's background (the service worker on Chrome, the background page on Firefox). Content scripts carry the extension
  * id too, but have `sender.tab` and their page's URL.
  */
 
@@ -73,7 +73,7 @@ export function createOffscreenListener(deps: OffscreenListenerDeps) {
     if (verdict === 'ignore' || !parseOffscreenRequest(message)) return undefined;
     if (!warned) {
       warned = true;
-      deps.warn(`Send To Manyfold: the transfer page refused a request from ${sender.url}; it accepts only the service worker ${deps.workerUrl ?? '(none)'}.`);
+      deps.warn(`Send To Manyfold: the transfer page refused a request from ${sender.url}; it accepts only the background ${deps.workerUrl ?? '(none)'}.`);
     }
     return BLOCKED;
   };

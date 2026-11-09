@@ -108,6 +108,7 @@ If you represent Manyfold or one of these sites and have a concern, please [open
 - The injected buttons depend on each site's page layout and may stop appearing when a site changes. The toolbar icon keeps working.
 - Thingiverse files are not uploaded (see above).
 - Firefox lets you revoke the extension's host permissions, including the download hosts (`files.printables.com`, `media.printables.com`, `makerworld.bblmw.com`), in `about:addons`. If you do, sends from that site fail until you grant them again.
+- On Firefox the site access for `printables.com`, `thingiverse.com` and `makerworld.com` can also be revoked in `about:addons`. If you do, there is no injected button and the toolbar icon stays greyed until you grant it again.
 - On Firefox, sends run in a hidden page inside the extension's background page, kept alive while a send runs. If Firefox restarts the extension in the middle of a send, that send is lost and you need to send again.
 - Files over 1 GiB are not accepted by Manyfold and are disabled in the popup.
 - Collections can only be chosen when the model is created.
