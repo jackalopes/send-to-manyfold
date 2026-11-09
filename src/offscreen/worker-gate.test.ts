@@ -45,6 +45,17 @@ describe('the built manifest names the worker the offscreen gate derives from', 
     expect([...used].filter((api) => !allowed.includes(api))).toEqual([]);
     expect(used).toContain('runtime.onMessage');
   });
+
+  // The Firefox path is chosen by import.meta.env.FIREFOX at build time; if it stopped folding, Chrome would ship
+  // the iframe host (and lose chrome.offscreen). Markers survive minification: API names and a DOM tag string.
+  it.skipIf(!existsSync(BUILT) && !process.env.REQUIRE_BUILT_MANIFEST)('the Chrome background uses chrome.offscreen and has none of the Firefox frame host', () => {
+    const file = join(dirname(BUILT), 'background.js');
+    if (!existsSync(file)) throw new Error(`missing build output ${file}; run \`npm run build\` first`);
+    const code = readFileSync(file, 'utf8');
+    expect(code).toContain('chrome.offscreen.createDocument');
+    expect(code).not.toContain('getPlatformInfo');
+    expect(code).not.toContain('iframe');
+  });
 });
 
 describe('classifySender', () => {

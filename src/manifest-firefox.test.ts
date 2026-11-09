@@ -52,19 +52,27 @@ describe.skipIf(!existsSync(BUILT) && !process.env.REQUIRE_BUILT_MANIFEST)('buil
     expect(Object.keys(manifest.action?.default_icon ?? {}).sort()).toEqual(['128', '16', '32', '48']);
   });
 
-  const chunk = (dir: string) => {
-    const chunks = join(__dirname, '../.output', dir, 'chunks');
+  const out = (...parts: string[]) => join(__dirname, '../.output/firefox-mv3', ...parts);
+  const read = (path: string) => {
+    if (!existsSync(path)) throw new Error(`missing build output ${path}; run \`npm run build:firefox\` first`);
+    return readFileSync(path, 'utf8');
+  };
+  const chunk = () => {
+    const chunks = out('chunks');
     const file = existsSync(chunks) ? readdirSync(chunks).find((f) => /^offscreen-.*\.js$/.test(f)) : undefined;
-    return file ? readFileSync(join(chunks, file), 'utf8') : undefined;
+    if (!file) throw new Error(`no offscreen-*.js chunk in ${chunks}; run \`npm run build:firefox\` first`);
+    return read(join(chunks, file));
   };
 
-  it('the Firefox background does not use chrome.offscreen', () => {
-    const code = readFileSync(join(__dirname, '../.output/firefox-mv3/background.js'), 'utf8');
+  it('the Firefox background hosts the transfer page in an iframe and does not use chrome.offscreen', () => {
+    const code = read(out('background.js'));
     expect(code).not.toContain('chrome.offscreen');
+    expect(code).toContain('getPlatformInfo');
+    expect(code).toContain('iframe');
   });
 
   it('the Firefox offscreen page accepts the generated background page', () => {
-    expect(chunk('firefox-mv3')).toContain('_generated_background_page.html');
+    expect(chunk()).toContain('_generated_background_page.html');
     // Not asserted for Chrome: the path constant ships in both bundles (backgroundPath is a function, so the
     // bundler does not fold it); worker-gate.test.ts proves Chrome resolves to background.js.
   });
