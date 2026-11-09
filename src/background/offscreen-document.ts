@@ -7,6 +7,9 @@
  * is what `BLOBS` describes. It is not `WORKERS` (no worker is spawned). Only `AUDIO_PLAYBACK` documents are closed
  * by Chrome on their own; a `BLOBS` document lives until `closeDocument`.
  *
+ * Firefox has no `chrome.offscreen`; there `frame-document.ts` implements `OffscreenApi` with a hidden iframe in the
+ * background page.
+ *
  * Every create/close (and the request that needs the document) runs through one queue, so a send that arrives
  * while an idle check is closing the document waits and then gets a fresh document.
  */

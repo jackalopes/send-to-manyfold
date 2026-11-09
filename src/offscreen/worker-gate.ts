@@ -14,6 +14,14 @@ import type { SendSessions } from './sessions';
  */
 export const SERVICE_WORKER_PATH = 'background.js';
 
+/** Firefox runs the background as an event page: the page WXT/Firefox generate around `background.js` hosts the transfer page's iframe. */
+export const FIREFOX_BACKGROUND_PAGE_PATH = '_generated_background_page.html';
+
+/** The path of the context allowed to drive the offscreen document for this browser. */
+export function backgroundPath(firefox: boolean): string {
+  return firefox ? FIREFOX_BACKGROUND_PAGE_PATH : SERVICE_WORKER_PATH;
+}
+
 export interface SenderInfo {
   id?: string;
   url?: string;

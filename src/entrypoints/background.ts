@@ -1,5 +1,6 @@
 import { applyTabState } from '../badge';
 import { createEntryPoints } from '../background/entry-points';
+import { createFrameOffscreenApi } from '../background/frame-document';
 import { OffscreenDocument } from '../background/offscreen-document';
 import { createBackgroundRouter } from '../background/router';
 import { recordSend } from '../history';
@@ -9,15 +10,23 @@ import { loadSettings } from '../settings';
 const OFFSCREEN_PATH = 'offscreen.html';
 const sendTabKey = (sendId: string) => `sendTab:${sendId}`;
 
-/** Service worker: routes messages between extension pages, the offscreen document and source tabs. */
+/** Background (Chrome service worker, Firefox event page): routes messages between extension pages, the offscreen document and source tabs. */
 export default defineBackground(() => {
   const offscreenUrl = chrome.runtime.getURL(OFFSCREEN_PATH);
   const offscreen = new OffscreenDocument(
-    {
-      createDocument: (p) => chrome.offscreen.createDocument(p),
-      closeDocument: () => chrome.offscreen.closeDocument(),
-      hasDocument: async () => (await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'], documentUrls: [offscreenUrl] })).length > 0,
-    },
+    import.meta.env.FIREFOX
+      ? createFrameOffscreenApi({
+          document,
+          getURL: (p) => chrome.runtime.getURL(p),
+          ping: () => chrome.runtime.getPlatformInfo(),
+          setInterval: (fn, ms) => setInterval(fn, ms),
+          clearInterval: (h) => clearInterval(h as ReturnType<typeof setInterval>),
+        })
+      : {
+          createDocument: (p) => chrome.offscreen.createDocument(p),
+          closeDocument: () => chrome.offscreen.closeDocument(),
+          hasDocument: async () => (await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'], documentUrls: [offscreenUrl] })).length > 0,
+        },
     OFFSCREEN_PATH,
   );
 

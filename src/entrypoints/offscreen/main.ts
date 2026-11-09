@@ -1,7 +1,7 @@
 import { buildSendDeps, recordSendVia, requestConnection, type Messenger } from '../../offscreen/deps';
 import { createFetchFile } from '../../offscreen/fetch-file';
 import { SendSessions } from '../../offscreen/sessions';
-import { createOffscreenListener, SERVICE_WORKER_PATH } from '../../offscreen/worker-gate';
+import { backgroundPath, createOffscreenListener } from '../../offscreen/worker-gate';
 import { MemorySendStateStore } from '../../pipeline/state';
 
 /**
@@ -22,10 +22,10 @@ const sessions = new SendSessions({
   recordSend: recordSendVia(messenger),
 });
 
-// Only the service worker (named in the manifest) may drive the sends.
+// Only the background (the service worker on Chrome, the background page on Firefox) may drive the sends.
 const listen = createOffscreenListener({
   sessions,
-  workerUrl: chrome.runtime.getURL(SERVICE_WORKER_PATH),
+  workerUrl: chrome.runtime.getURL(backgroundPath(import.meta.env.FIREFOX)),
   extensionOrigin: chrome.runtime.getURL(''),
   warn: (...args) => console.warn(...args),
 });

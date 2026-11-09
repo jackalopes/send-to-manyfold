@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DOWNLOAD_HOST_PERMISSIONS, GECKO_ADDON_ID, MINIMUM_FIREFOX_VERSION } from './manifest-hosts';
@@ -50,5 +50,22 @@ describe.skipIf(!existsSync(BUILT) && !process.env.REQUIRE_BUILT_MANIFEST)('buil
 
   it('lists the four action icon sizes', () => {
     expect(Object.keys(manifest.action?.default_icon ?? {}).sort()).toEqual(['128', '16', '32', '48']);
+  });
+
+  const chunk = (dir: string) => {
+    const chunks = join(__dirname, '../.output', dir, 'chunks');
+    const file = existsSync(chunks) ? readdirSync(chunks).find((f) => /^offscreen-.*\.js$/.test(f)) : undefined;
+    return file ? readFileSync(join(chunks, file), 'utf8') : undefined;
+  };
+
+  it('the Firefox background does not use chrome.offscreen', () => {
+    const code = readFileSync(join(__dirname, '../.output/firefox-mv3/background.js'), 'utf8');
+    expect(code).not.toContain('chrome.offscreen');
+  });
+
+  it('the Firefox offscreen page accepts the generated background page', () => {
+    expect(chunk('firefox-mv3')).toContain('_generated_background_page.html');
+    // Not asserted for Chrome: the path constant ships in both bundles (backgroundPath is a function, so the
+    // bundler does not fold it); worker-gate.test.ts proves Chrome resolves to background.js.
   });
 });

@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { MESSAGES } from '../pipeline/errors';
 import type { SendSessions } from './sessions';
-import { classifySender, createOffscreenListener, SERVICE_WORKER_PATH } from './worker-gate';
+import { backgroundPath, classifySender, createOffscreenListener, FIREFOX_BACKGROUND_PAGE_PATH, SERVICE_WORKER_PATH } from './worker-gate';
 
 const EXT = 'chrome-extension://abc/';
 const getURL = (path: string) => `${EXT}${path.replace(/^\//, '')}`;
@@ -106,5 +106,20 @@ describe('createOffscreenListener', () => {
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]!.join(' ')).toContain(`${EXT}renamed.js`);
     expect(warn.mock.calls[0]!.join(' ')).toContain(SW);
+  });
+});
+
+describe('backgroundPath', () => {
+  it('is the service worker on Chrome and the generated background page on Firefox', () => {
+    expect(backgroundPath(false)).toBe(SERVICE_WORKER_PATH);
+    expect(backgroundPath(true)).toBe(FIREFOX_BACKGROUND_PAGE_PATH);
+    expect(FIREFOX_BACKGROUND_PAGE_PATH).toBe('_generated_background_page.html');
+  });
+
+  it('the Firefox background page is the worker on Firefox and blocked when Chrome is expected', () => {
+    const moz = 'moz-extension://uuid/';
+    const sender = { id: 'x', url: `${moz}_generated_background_page.html` };
+    expect(classifySender(sender, moz + backgroundPath(true), moz)).toBe('worker');
+    expect(classifySender(sender, moz + backgroundPath(false), moz)).toBe('blocked');
   });
 });
