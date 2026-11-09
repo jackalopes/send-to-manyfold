@@ -45,7 +45,7 @@ export const DOWNLOAD_HOST_PERMISSIONS = [
 export const MINIMUM_CHROME_VERSION = '127';
 
 /**
- * Not yet confirmed by the owner: the Firefox add-on id (`browser_specific_settings.gecko.id`) becomes permanent at the first AMO upload.
+ * Confirmed by the owner 2026-11-09. The Firefox add-on id (`browser_specific_settings.gecko.id`) becomes permanent at the first AMO upload.
  */
 export const GECKO_ADDON_ID = 'send-to-manyfold@jackalopes.github.io';
 
