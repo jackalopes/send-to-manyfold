@@ -43,3 +43,15 @@ export const DOWNLOAD_HOST_PERMISSIONS = [
  * Chrome 127 (118-126: policy-installed only). `chrome.runtime.getContexts` (Chrome 116) is covered by this too.
  */
 export const MINIMUM_CHROME_VERSION = '127';
+
+/**
+ * Not yet confirmed by the owner: the Firefox add-on id becomes permanent at the first AMO upload.
+ */
+export const GECKO_ADDON_ID = 'send-to-manyfold@jackalopes.github.io';
+
+/**
+ * 147: the Navigation API (`navigation`, used unguarded by the content script to follow in-page navigation) shipped in
+ * Firefox 147 (MDN browser-compat-data, api.Navigation). That is above 140, the first release that supports the
+ * manifest's `data_collection_permissions`, so 147 covers both.
+ */
+export const MINIMUM_FIREFOX_VERSION = '147.0';
