@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSettings, type Settings } from '../settings';
+import { defaultSettings, type Settings, type TagMode } from '../settings';
 import type { SourceFile, SourceModel } from '../types';
 import { buildInitialForm, canSend, MAX_FILE_BYTES, parseTags, toSendRequest } from './state';
 
@@ -20,6 +20,19 @@ const model = (over: Partial<SourceModel> = {}): SourceModel => ({
 
 const settings = (over: Partial<Settings> = {}): Settings => ({ ...defaultSettings(), ...over });
 
+describe('buildInitialForm tags', () => {
+  const tagsFor = (mode: TagMode, over: Partial<SourceModel> = {}) =>
+    buildInitialForm(model(over), settings({ siteTags: { ...defaultSettings().siteTags, printables: mode } })).tags;
+  it('prefills tags only when the site mode is on', () => {
+    expect(tagsFor('on')).toEqual(['boat', 'test']);
+    expect(tagsFor('off')).toEqual([]);
+    expect(tagsFor('ask')).toEqual([]);
+  });
+  it('gives no tags for an unknown site', () => {
+    expect(tagsFor('on', { site: 'other' })).toEqual([]);
+  });
+});
+
 describe('buildInitialForm', () => {
   it('prefills every field and preselects all files by default', () => {
     const form = buildInitialForm(model(), settings());
@@ -34,9 +47,9 @@ describe('buildInitialForm', () => {
   });
 
   it('leaves a field empty when its prefill toggle is off', () => {
-    const prefill = { ...defaultSettings().prefill, tags: false, title: false, description: false, creator: false, license: false, sourceUrl: false };
+    const prefill = { ...defaultSettings().prefill, title: false, description: false, creator: false, license: false, sourceUrl: false };
     const form = buildInitialForm(model(), settings({ prefill }));
-    expect(form).toMatchObject({ title: '', description: '', creatorName: '', licenseText: '', tags: [], sourceLink: false });
+    expect(form).toMatchObject({ title: '', description: '', creatorName: '', licenseText: '', sourceLink: false });
   });
 
   it('does not preselect images when prefill.images is off, but still offers them', () => {

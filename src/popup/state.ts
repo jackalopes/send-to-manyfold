@@ -39,7 +39,7 @@ export function buildInitialForm(model: SourceModel, settings: Settings): Review
     description: on.description ? (model.description ?? '') : '',
     creatorName: on.creator ? (model.creator?.name ?? '') : '',
     licenseText: on.license ? (model.licenseText ?? '') : '',
-    tags: on.tags ? [...model.tags] : [],
+    tags: model.site !== 'other' && settings.siteTags[model.site] === 'on' ? [...model.tags] : [],
     sourceLink: on.sourceUrl,
     files: offered.map((file) => {
       if (file.size !== undefined && file.size > MAX_FILE_BYTES) return { file, selected: false, disabledReason: TOO_LARGE };

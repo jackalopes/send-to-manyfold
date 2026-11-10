@@ -5,13 +5,20 @@ import type { NamedRef } from '../manyfold/metadata';
 import { CollectionPicker, lastSegment } from '../ui/CollectionPicker';
 import { loadCollectionOptions } from './collections';
 import {
-  PREFILL_FIELDS, defaultSettings, isInsecurePublicUrl, loadSettings, saveWithPermission, type PrefillField, type Settings,
+  ASK_SITES, PREFILL_FIELDS, defaultSettings, isInsecurePublicUrl, loadSettings, saveWithPermission, type PrefillField, type Settings, type TagMode,
 } from '../settings';
+import { SITE_NAMES } from '../popup/site-names';
+import type { SiteId } from '../types';
 
 const LABELS: Record<PrefillField, string> = {
   title: 'Title', description: 'Description', creator: 'Creator', license: 'License',
-  tags: 'Tags', sourceUrl: 'Source URL', images: 'Images',
+  sourceUrl: 'Source URL', images: 'Images',
 };
+
+/** Sites offered in Options: the ones with an adapter switched on (GitHub is off for v1). */
+const TAG_SITES: SiteId[] = ['printables', 'thingiverse', 'makerworld', 'voron'];
+
+const TAG_MODE_LABELS: Record<TagMode, string> = { on: 'On', off: 'Off', ask: 'Ask' };
 
 /** The project's GitHub repository (confirmed by the owner). */
 export const GITHUB_URL = 'https://github.com/jackalopes/send-to-manyfold';
@@ -200,6 +207,24 @@ export function Options() {
                 onChange={(v) => setS((p) => ({ ...p, prefill: { ...p.prefill, [f]: v } }))} />
             ))}
           </div>
+        </div>
+
+        <h2>Tags</h2>
+        <div class="card">
+          {TAG_SITES.map((id) => (
+            <label key={id} class="row">
+              <span class="label">{SITE_NAMES[id]}</span>
+              <select aria-label={`${SITE_NAMES[id]} tags`} value={s.siteTags[id]}
+                onChange={(e) => {
+                  const mode = e.currentTarget.value as TagMode;
+                  setS((p) => ({ ...p, siteTags: { ...p.siteTags, [id]: mode } }));
+                }}>
+                {(['on', 'off', ...(ASK_SITES.includes(id) ? ['ask'] : [])] as TagMode[]).map((m) => (
+                  <option key={m} value={m}>{TAG_MODE_LABELS[m]}</option>
+                ))}
+              </select>
+            </label>
+          ))}
         </div>
 
         <div class="actions">
