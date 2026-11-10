@@ -1,7 +1,7 @@
 /**
  * Markdown for an already-rendered HTML fragment (a site's README area), for a model's notes. Covers headings,
  * paragraphs, nested lists, links, images, strong/em, inline code, `pre`, `br` and tables (one line per row, cells
- * joined by ` | `). Relative `href`/`src` become absolute against `baseUrl`. Unknown elements keep their text.
+ * as GFM tables with the first row as header). Relative `href`/`src` become absolute against `baseUrl`. Unknown elements keep their text.
  * Undefined when nothing is left.
  */
 const HEADING = /^H([1-6])$/;
@@ -16,9 +16,14 @@ export function htmlMarkdown(root: Element, baseUrl: string): string | undefined
       return value;
     }
   };
+  /** Only http(s) targets survive; anything else (javascript:, data:, …) is dropped. */
+  const safe = (value: string | null): string => {
+    const href = abs(value);
+    return /^https?:\/\//i.test(href) ? href : '';
+  };
 
   const inline = (node: Node): string => {
-    if (node.nodeType === 3) return (node.textContent ?? '').replace(/\s+/g, ' ');
+    if (node.nodeType === 3) return (node.textContent ?? '').replace(/\s+/g, ' ').replace(/[<>]/g, '\\$&');
     if (!(node instanceof Element)) return '';
     const inner = (): string => [...node.childNodes].map(inline).join('');
     switch (node.tagName) {
@@ -26,12 +31,13 @@ export function htmlMarkdown(root: Element, baseUrl: string): string | undefined
         return '  \n';
       case 'A': {
         const label = inner().trim();
-        const href = abs(node.getAttribute('href'));
+        const href = safe(node.getAttribute('href'));
         return href && label ? `[${label}](${href})` : label;
       }
       case 'IMG': {
-        const src = abs(node.getAttribute('src'));
-        return src ? `![${node.getAttribute('alt') ?? ''}](${src})` : '';
+        const src = safe(node.getAttribute('src'));
+        const alt = node.getAttribute('alt') ?? '';
+        return src ? `![${alt}](${src})` : alt;
       }
       case 'STRONG':
       case 'B':
@@ -68,16 +74,18 @@ export function htmlMarkdown(root: Element, baseUrl: string): string | undefined
     return lines;
   };
 
-  const table = (el: Element): string =>
-    [...el.querySelectorAll('tr')]
+  const table = (el: Element): string => {
+    const rows = [...el.querySelectorAll('tr')]
       .map((tr) =>
         [...tr.children]
           .filter((c) => c.tagName === 'TH' || c.tagName === 'TD')
-          .map((c) => inline(c).replace(/\s+/g, ' ').trim())
-          .join(' | '),
+          .map((c) => inline(c).replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|')),
       )
-      .filter((row) => row.replace(/\|/g, '').trim())
-      .join('\n');
+      .filter((cells) => cells.some((c) => c));
+    if (!rows.length) return '';
+    const line = (cells: string[]): string => `| ${cells.join(' | ')} |`;
+    return [line(rows[0]!), line(rows[0]!.map(() => '---')), ...rows.slice(1).map(line)].join('\n');
+  };
 
   const blocks = (parent: Element): string[] => {
     const out: string[] = [];
@@ -104,7 +112,11 @@ export function htmlMarkdown(root: Element, baseUrl: string): string | undefined
       } else if (tag === 'PRE') {
         flush();
         const code = (node.textContent ?? '').replace(/\n+$/, '');
-        if (code.trim()) out.push(`\`\`\`\n${code}\n\`\`\``);
+        if (code.trim()) {
+          const longest = Math.max(0, ...(code.match(/`+/g) ?? []).map((r) => r.length));
+          const fence = '`'.repeat(Math.max(3, longest + 1));
+          out.push(`${fence}\n${code}\n${fence}`);
+        }
       } else if (tag === 'TABLE') {
         flush();
         const t = table(node);

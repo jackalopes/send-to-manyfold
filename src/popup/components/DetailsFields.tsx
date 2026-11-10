@@ -2,7 +2,6 @@ import { parseTags, type ReviewForm } from '../state';
 
 type Patch = (patch: Partial<ReviewForm>) => void;
 
-/** Title, description, creator, license, tags and source link: read-only in the handoff view. */
 export interface TagSuggestion {
   kind: 'add' | 'remove';
   /** The page's tags, shown in the `add` line. */
@@ -10,6 +9,7 @@ export interface TagSuggestion {
   onAccept(): void;
 }
 
+/** Title, description, creator, license, tags and source link: read-only in the handoff view. */
 export function DetailsFields({
   form,
   onPatch,

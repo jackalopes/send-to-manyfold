@@ -45,8 +45,30 @@ describe('htmlMarkdown', () => {
     expect(md('<p>a<br>b</p>')).toBe('a  \nb');
   });
 
-  it('renders tables as one line per row, cells joined by " | "', () => {
-    expect(md('<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>')).toBe('A | B\n1 | 2');
+  it('renders tables as GFM: header row, separator row, then rows', () => {
+    expect(md('<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>')).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |');
+  });
+
+  it('escapes | inside table cells', () => {
+    expect(md('<table><tr><td>a|b</td><td>c</td></tr></table>')).toBe('| a\\|b | c |\n| --- | --- |');
+  });
+
+  it('keeps only http(s) link targets, otherwise the label alone', () => {
+    expect(md('<p><a href="javascript:alert(1)">click</a></p>')).toBe('click');
+    expect(md('<p><a href="/x">ok</a></p>')).toBe('[ok](https://mods.vorondesign.com/x)');
+  });
+
+  it('keeps only http(s) image sources, otherwise the alt text alone', () => {
+    expect(md('<p><img src="data:image/png;base64,AAAA" alt="pic"></p>')).toBe('pic');
+    expect(md('<p><img src="data:image/png;base64,AAAA"></p>')).toBeUndefined();
+  });
+
+  it('escapes literal < and > in plain text', () => {
+    expect(md('<p>a &lt;script&gt;x&lt;/script&gt; b</p>')).toBe('a \\<script\\>x\\</script\\> b');
+  });
+
+  it('uses a longer fence when the code contains backticks', () => {
+    expect(md('<pre>a\n```\nb</pre>')).toBe('````\na\n```\nb\n````');
   });
 
   it('is undefined when blank', () => {

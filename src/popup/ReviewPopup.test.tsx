@@ -257,6 +257,23 @@ describe('ReviewPopup printer tags', () => {
     expect(button('Not this time') ?? button('Add printer tags')).toBeUndefined();
   });
 
+  it('Not this time removes only the page tags, keeping typed ones', async () => {
+    setup('on');
+    await ready();
+    const box = tagsBox();
+    box.value = 'Voron 2.4, Voron Trident, mine';
+    box.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.waitFor(() => expect(button('Not this time')).toBeTruthy());
+    button('Not this time')!.click();
+    await vi.waitFor(() => expect(tagsBox().value).toBe('mine'));
+  });
+
+  it('shows neither control on a Printables model with tags and mode on', async () => {
+    setup('on', { site: 'printables', sourceUrl: 'https://p/1', title: 'Benchy', tags: ['boat'], files: [{ name: 'a.stl', kind: 'model', size: 10 }] });
+    await ready();
+    expect(button('Not this time') ?? button('Add printer tags')).toBeUndefined();
+  });
+
   it('keeps a typed comma after a button press', async () => {
     setup('on');
     await ready();

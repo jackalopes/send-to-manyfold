@@ -109,6 +109,11 @@ describe('extract: README as notes', () => {
     );
   });
 
+  it('renders the BOM table with a separator row', async () => {
+    const m = await voron.extract(fixture(PINS_FIXTURE), PINS);
+    expect(m.description).toMatch(/\| Part NO\. \| Qty \|\n\| --- \| --- \|\n\| SFR5-30 \| 2 \|/);
+  });
+
   it('falls back to the one-line description without a README', async () => {
     const doc = fixture(PINS_FIXTURE);
     doc.querySelector('.prose-base')!.remove();

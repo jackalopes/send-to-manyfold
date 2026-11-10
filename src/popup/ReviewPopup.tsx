@@ -7,7 +7,7 @@ import { ReviewView } from './components/ReviewView';
 import { SendingView } from './components/SendingView';
 import { tagOffer } from './state';
 import type { SiteId } from '../types';
-import type { TagMode } from '../settings';
+import { ASK_SITES, type TagMode } from '../settings';
 import { initialState, reduce } from './machine';
 import { collectionsFailureText } from '../ui/collections-failure';
 
@@ -63,7 +63,7 @@ export function ReviewPopup({ deps }: { deps: PopupDeps }) {
       const { model, form } = state;
       const site = model.site === 'other' ? undefined : model.site;
       const mode = site ? tagModes?.[site] : undefined;
-      const offer = mode ? tagOffer(model, mode, form) : undefined;
+      const offer = mode && site && ASK_SITES.includes(site) ? tagOffer(model, mode, form) : undefined;
       const replaceTags = (tags: string[]) => {
         controller.changeForm({ ...form, tags });
         setTagsKey((k) => k + 1);
@@ -74,11 +74,11 @@ export function ReviewPopup({ deps }: { deps: PopupDeps }) {
               kind: offer,
               tags: model.tags,
               onAccept: () => {
-                if (offer === 'remove') return replaceTags([]);
+                if (offer === 'remove') return replaceTags(form.tags.filter((t) => !model.tags.includes(t)));
                 replaceTags([...new Set([...form.tags, ...model.tags])]);
                 if (mode === 'ask') {
                   setTagModes({ ...tagModes, [site]: 'on' });
-                  void deps.setSiteTagMode(site, 'on');
+                  deps.setSiteTagMode(site, 'on').catch(() => {});
                 }
               },
             }
