@@ -23,4 +23,13 @@ describe('HandoffView', () => {
     expect(root.textContent).not.toContain('reopen this popup');
     expect(root.textContent).toContain('Open in Manyfold importer');
   });
+
+  it('links to the Thingiverse developer page and opens it through openUrl', () => {
+    const opened: string[] = [];
+    render(<HandoffView url="http://m/models?q=x" openUrl={(u) => void opened.push(u)} />, root);
+    const link = [...root.querySelectorAll('a')].find((a) => a.textContent === "Thingiverse's developer page");
+    expect(link?.getAttribute('href')).toBe('https://www.thingiverse.com/developers/my-apps');
+    link?.click();
+    expect(opened).toEqual(['https://www.thingiverse.com/developers/my-apps']);
+  });
 });
