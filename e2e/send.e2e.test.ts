@@ -26,7 +26,7 @@ interface ModelBody {
   name: string;
   description?: string;
   keywords: string[];
-  hasPart: { name: string; encodingFormat?: string }[];
+  hasPart: { '@id': string; name: string; encodingFormat?: string }[];
   links: { url: string; text?: string }[];
   isPartOf?: { '@id': string }[];
   preview_file?: { '@id': string };
@@ -106,17 +106,27 @@ describe('sendModel against a real Manyfold', () => {
     expect(await bogus.testConnection()).toMatchObject({ ok: false, reason: 'unauthorized' });
   });
 
-  it('a Voron-shaped request saves the source link and the GitHub folder as two links', async () => {
-    const files: SourceFile[] = [{ name: 'part.stl', kind: 'model' }];
+  it('a Voron-shaped zip (everything under one top folder) is extracted and saves the source link and the GitHub folder as two links', async () => {
     const folder = `https://github.com/VoronDesign/VoronUsers/tree/main/printer_mods/e2e/${stamp}`;
+    const archive = zip({ 'Mod by author/STLs/a.stl': stl('a'), 'Mod by author/README.md': '# Mod\n' });
+    const files: SourceFile[] = [{ name: 'Mod-author.zip', kind: 'archive' }];
     const base = request('voron', files);
-    const r = await sendModel({ ...base, source: { ...base.source, extraLinks: [{ url: folder, text: 'GitHub folder' }] } }, deps({ 'part.stl': new Blob([stl('part')]), 'cover.png': new Blob([PNG], { type: 'image/png' }) }), () => {});
+    const r = await sendModel({ ...base, source: { ...base.source, extraLinks: [{ url: folder, text: 'GitHub folder' }] } }, deps({ 'Mod-author.zip': archive, 'cover.png': new Blob([PNG], { type: 'image/png' }) }), () => {});
     expect(r).toMatchObject({ status: 'done' });
     if (r.status !== 'done') return;
     const m = await getModel(r.modelUrl);
+    expect(m.hasPart.some((p) => /zip/.test(p.encodingFormat ?? ''))).toBe(false);
+    expect(m.hasPart.length).toBeGreaterThanOrEqual(2);
+    // Logged, not asserted: where Manyfold keeps the files of a zip whose entries all sit under one folder.
+    const paths: string[] = [];
+    for (const part of m.hasPart) {
+      const file = (await (await client.request(new URL(part['@id']).pathname)).json()) as { contentUrl: string };
+      paths.push(decodeURIComponent(new URL(file.contentUrl).pathname).replace(/^.*\/raw\//, ''));
+    }
+    console.log('voron top-folder model file paths:', JSON.stringify(paths));
     expect(m.links.some((l) => l.url.includes(`${stamp}-voron`) && l.text === 'Page Title ')).toBe(true);
     expect(m.links.some((l) => l.url === folder && l.text === 'GitHub folder ')).toBe(true);
-  });
+  }, 150_000);
 
   it('loose STL + cover in a collection: title, source link, license note, tags and preview are set', async () => {
     const collectionId = await createCollection(`E2E collection ${stamp}`);
