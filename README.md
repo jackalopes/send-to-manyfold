@@ -16,7 +16,7 @@ Open a model page, click the toolbar icon (or the green "Send to Manyfold" butto
 |---|---|---|
 | Printables | model pages (`/model/...`) | Downloads the files and uploads them to Manyfold. |
 | MakerWorld | model pages (`/models/...`) | Downloads the files and uploads them to Manyfold. |
-| Thingiverse | thing pages (`/thing:...`) | Does not upload files. The popup shows the details and hands the page over to Manyfold's own Thingiverse importer. This needs a Thingiverse API key set up by your Manyfold admin. |
+| Thingiverse | thing pages (`/thing:...`) | Does not upload files. The popup shows the details and hands the page over to Manyfold's own Thingiverse importer. This needs a Thingiverse App Token set in Manyfold: (1) create an app at https://www.thingiverse.com/developers/my-apps; (2) click the "Create & Get App Key" button at the top right (it is white on white until you hover over it); (3) paste the App Token into Manyfold under Settings → Integrations. |
 
 On any other page the popup says the page is not supported and sends nothing.
 
@@ -93,7 +93,6 @@ If you represent Manyfold or one of these sites and have a concern, please [open
 ## Known limitations
 
 - MakerWorld may answer with a bot check partway through a send. Downloading a file by hand on the site, then sending again, has cleared it. See [#2](https://github.com/jackalopes/send-to-manyfold/issues/2).
-- The Thingiverse import itself (with an API key set in Manyfold) is untested.
 - The injected buttons depend on each site's page layout and may stop appearing when a site changes. The toolbar icon keeps working.
 - Thingiverse files are not uploaded (see above).
 - Files over 1 GiB are not accepted by Manyfold and are disabled in the popup.

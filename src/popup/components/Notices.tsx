@@ -2,6 +2,7 @@ import type { SourceModel } from '../../types';
 import { errorText } from '../labels';
 import { SITE_NAMES } from '../site-names';
 import { DetailsFields } from './DetailsFields';
+import { ExternalLink } from './Link';
 import type { ReviewForm } from '../state';
 
 export function UnsupportedView() {
@@ -38,6 +39,7 @@ export function HandoffView({ model, form, url, openUrl }: { model?: SourceModel
       {form ? <DetailsFields form={form} onPatch={() => undefined} readOnly /> : null}
       <button type="button" onClick={() => openUrl(url)}>Open in Manyfold importer</button>
       <p class="meta">The importer's Import button appears only if your Manyfold administrator has set a Thingiverse API key (Manyfold settings, Integrations).</p>
+      <p class="meta">Get a key: create an app at <ExternalLink href="https://www.thingiverse.com/developers/my-apps" onOpen={openUrl}>Thingiverse's developer page</ExternalLink> and copy its App Token.</p>
     </section>
   );
 }
