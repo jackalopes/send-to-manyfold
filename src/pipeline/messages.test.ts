@@ -25,6 +25,14 @@ describe('send request validation', () => {
     expect(parseBackgroundRequest(ok)).toBeDefined();
     expect(parseBackgroundRequest({ ...ok, request: { ...req, omitSourceLink: 'yes' } })).toBeUndefined();
   });
+
+  it('accepts extraLinks as an array of { url, text } only', () => {
+    const withLinks = (extraLinks: unknown) => ({ to: 'background', type: 'send', tabId: 1, request: { ...req, source: { ...req.source, extraLinks } } });
+    expect(parseBackgroundRequest(withLinks([{ url: 'https://github.com/a/b', text: 'GitHub folder' }]))).toBeDefined();
+    expect(parseBackgroundRequest(withLinks('nope'))).toBeUndefined();
+    expect(parseBackgroundRequest(withLinks([{ text: 'GitHub folder' }]))).toBeUndefined();
+    expect(parseBackgroundRequest(withLinks([{ url: 'https://github.com/a/b' }]))).toBeUndefined();
+  });
 });
 
 describe('parseBackgroundRequest', () => {

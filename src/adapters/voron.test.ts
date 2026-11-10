@@ -117,6 +117,21 @@ describe('extract: README as notes', () => {
   });
 });
 
+describe('extract: GitHub folder link', () => {
+  it('links the mod folder, not the generic VoronUsers repo link', async () => {
+    const m = await voron.extract(fixture(PINS_FIXTURE), PINS);
+    expect(m.extraLinks).toEqual([
+      { url: 'https://github.com/VoronDesign/VoronUsers/tree/main/printer_mods/hartk1213/Voron2.4_Trident_Pins_Mod', text: 'GitHub folder' },
+    ]);
+  });
+
+  it('has no extraLinks when the page has no folder link', async () => {
+    const doc = fixture(PINS_FIXTURE);
+    for (const a of doc.querySelectorAll('a[href*="/tree/"]')) a.remove();
+    expect(await voron.extract(doc, PINS)).not.toHaveProperty('extraLinks');
+  });
+});
+
 describe('extract: odd pages', () => {
   const withHref = (href: string): Document => {
     const doc = fixture(PINS_FIXTURE);

@@ -106,6 +106,18 @@ describe('sendModel against a real Manyfold', () => {
     expect(await bogus.testConnection()).toMatchObject({ ok: false, reason: 'unauthorized' });
   });
 
+  it('a Voron-shaped request saves the source link and the GitHub folder as two links', async () => {
+    const files: SourceFile[] = [{ name: 'part.stl', kind: 'model' }];
+    const folder = `https://github.com/VoronDesign/VoronUsers/tree/main/printer_mods/e2e/${stamp}`;
+    const base = request('voron', files);
+    const r = await sendModel({ ...base, source: { ...base.source, extraLinks: [{ url: folder, text: 'GitHub folder' }] } }, deps({ 'part.stl': new Blob([stl('part')]), 'cover.png': new Blob([PNG], { type: 'image/png' }) }), () => {});
+    expect(r).toMatchObject({ status: 'done' });
+    if (r.status !== 'done') return;
+    const m = await getModel(r.modelUrl);
+    expect(m.links.some((l) => l.url.includes(`${stamp}-voron`) && l.text === 'Page Title ')).toBe(true);
+    expect(m.links.some((l) => l.url === folder && l.text === 'GitHub folder ')).toBe(true);
+  });
+
   it('loose STL + cover in a collection: title, source link, license note, tags and preview are set', async () => {
     const collectionId = await createCollection(`E2E collection ${stamp}`);
     const files: SourceFile[] = [{ name: 'part.stl', kind: 'model' }];

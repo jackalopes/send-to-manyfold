@@ -46,6 +46,8 @@ export const voron: SiteAdapter = {
       files: files(doc, id),
       coverImageUrl: `${ORIGIN}/thumb/${id}/300x300`,
     };
+    const folder = doc.querySelector<HTMLAnchorElement>('a[href^="https://github.com/VoronDesign/VoronUsers/tree/"]')?.href;
+    if (folder) result.extraLinks = [{ url: folder, text: 'GitHub folder' }];
     const creator = text(h1.nextElementSibling?.querySelector('h3'));
     if (creator) result.creator = { name: creator };
     // The README is rendered in the one `prose-base` container (a Tailwind Typography class) on the detail page.

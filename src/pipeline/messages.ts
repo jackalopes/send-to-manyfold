@@ -111,6 +111,8 @@ export function isSourceFile(v: unknown): v is SourceFile {
   return isRecord(v) && hasShape(v, { name: isString, kind: isKind, url: optString, size: optNumber, lfs: optional(isBool), ref: (r) => r === undefined || isStringRecord(r) });
 }
 
+const isLinkList = (l: unknown): l is { url: string; text: string }[] => Array.isArray(l) && l.every((x) => isRecord(x) && hasShape(x, { url: isString, text: isString }));
+
 export function isSourceModel(v: unknown): v is SourceModel {
   if (!isRecord(v)) return false;
   const creator = (c: unknown) => c === undefined || (isRecord(c) && hasShape(c, { name: isString, url: optString }));
@@ -122,6 +124,7 @@ export function isSourceModel(v: unknown): v is SourceModel {
       description: optString,
       licenseText: optString,
       coverImageUrl: optString,
+      extraLinks: optional(isLinkList),
       tags: isStringArray,
       creator,
       loginRequired: optional(isBool),

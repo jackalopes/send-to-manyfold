@@ -39,6 +39,8 @@ export interface SourceModel {
   tags: string[];
   files: SourceFile[];
   coverImageUrl?: string;
+  /** Further links to save on the model beside the source link (e.g. a mod's GitHub folder). */
+  extraLinks?: { url: string; text: string }[];
   loginRequired?: boolean;
   /** Defaults to `download`. */
   delivery?: Delivery;
