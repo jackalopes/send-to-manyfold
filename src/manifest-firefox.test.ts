@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { DOWNLOAD_HOST_PERMISSIONS, GECKO_ADDON_ID, MINIMUM_FIREFOX_VERSION } from './manifest-hosts';
 
 const BUILT = join(__dirname, '../.output/firefox-mv3/manifest.json');
@@ -17,11 +17,15 @@ interface FirefoxManifest {
 }
 
 // With REQUIRE_BUILT_MANIFEST set (`npm run test:built:firefox`), a missing build fails instead of skipping.
-describe.skipIf(!existsSync(BUILT) && !process.env.REQUIRE_BUILT_MANIFEST)('built Firefox manifest', () => {
-  const manifest = JSON.parse(readFileSync(BUILT, 'utf8')) as FirefoxManifest;
+it('keeps the add-on id stable', () => {
+  expect(GECKO_ADDON_ID).toBe('send-to-manyfold@jackalopes.github.io');
+});
 
-  it('keeps the add-on id stable', () => {
-    expect(GECKO_ADDON_ID).toBe('send-to-manyfold@jackalopes.github.io');
+describe.skipIf(!existsSync(BUILT) && !process.env.REQUIRE_BUILT_MANIFEST)('built Firefox manifest', () => {
+  let manifest: FirefoxManifest;
+  // Read lazily: a skipped describe's body still runs at collection, when the build may not exist.
+  beforeAll(() => {
+    manifest = JSON.parse(readFileSync(BUILT, 'utf8')) as FirefoxManifest;
   });
 
   it('is Manifest V3 with gecko settings', () => {
