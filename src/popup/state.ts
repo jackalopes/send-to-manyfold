@@ -1,4 +1,4 @@
-import type { Settings } from '../settings';
+import type { Settings, TagMode } from '../settings';
 import type { SendRequest } from '../pipeline/types';
 import type { SourceFile, SourceModel } from '../types';
 
@@ -53,6 +53,12 @@ export function buildInitialForm(model: SourceModel, settings: Settings): Review
 
 export function parseTags(text: string): string[] {
   return [...new Set(text.split(',').map((t) => t.trim()).filter(Boolean))];
+}
+
+/** What the popup suggests for the page's tags: add them, remove them for this send, or nothing. */
+export function tagOffer(model: SourceModel, mode: TagMode, form: ReviewForm): 'add' | 'remove' | undefined {
+  if (mode === 'off' || model.site === 'other' || model.tags.length === 0) return undefined;
+  return model.tags.every((t) => form.tags.includes(t)) ? 'remove' : 'add';
 }
 
 export function canSend(form: ReviewForm): boolean {

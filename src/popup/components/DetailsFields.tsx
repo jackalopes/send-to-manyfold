@@ -3,7 +3,27 @@ import { parseTags, type ReviewForm } from '../state';
 type Patch = (patch: Partial<ReviewForm>) => void;
 
 /** Title, description, creator, license, tags and source link: read-only in the handoff view. */
-export function DetailsFields({ form, onPatch, readOnly = false }: { form: ReviewForm; onPatch: Patch; readOnly?: boolean }) {
+export interface TagSuggestion {
+  kind: 'add' | 'remove';
+  /** The page's tags, shown in the `add` line. */
+  tags: string[];
+  onAccept(): void;
+}
+
+export function DetailsFields({
+  form,
+  onPatch,
+  readOnly = false,
+  tagsKey = 0,
+  suggestion,
+}: {
+  form: ReviewForm;
+  onPatch: Patch;
+  readOnly?: boolean;
+  /** Changes when a button replaces the tags, so the uncontrolled input remounts with the new value. */
+  tagsKey?: number;
+  suggestion?: TagSuggestion;
+}) {
   return (
     <>
       <label>
@@ -24,8 +44,15 @@ export function DetailsFields({ form, onPatch, readOnly = false }: { form: Revie
       </label>
       <label>
         Tags (comma separated)
-        <input type="text" defaultValue={form.tags.join(', ')} readOnly={readOnly} onInput={(e) => onPatch({ tags: parseTags(e.currentTarget.value) })} />
+        <input key={tagsKey} type="text" defaultValue={form.tags.join(', ')} readOnly={readOnly} onInput={(e) => onPatch({ tags: parseTags(e.currentTarget.value) })} />
       </label>
+      {suggestion && !readOnly ? (
+        <p class="meta">
+          <button type="button" class="link" onClick={suggestion.onAccept}>
+            {suggestion.kind === 'add' ? `Add printer tags: ${suggestion.tags.join(', ')}` : 'Not this time'}
+          </button>
+        </p>
+      ) : null}
       <label class="inline">
         <input type="checkbox" checked={form.sourceLink} disabled={readOnly} onChange={(e) => onPatch({ sourceLink: e.currentTarget.checked })} /> Save the
         source URL as a link

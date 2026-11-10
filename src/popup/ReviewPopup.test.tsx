@@ -2,7 +2,7 @@
 import { render } from 'preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ManyfoldError, UNAUTHORIZED_TEXT } from '../manyfold/errors';
-import { defaultSettings } from '../settings';
+import { defaultSettings, type TagMode } from '../settings';
 import type { SourceModel } from '../types';
 import type { PopupApi } from './api';
 import { ReviewPopup, type PopupDeps } from './ReviewPopup';
@@ -38,6 +38,7 @@ function deps(over: { api?: Partial<PopupApi>; delivery?: SourceModel['delivery'
     listCollections: async () => [{ id: '/collections/c1', name: 'Boats' }],
     openUrl: (u) => void opened.push(u),
     openSettings: () => undefined,
+    setSiteTagMode: async () => undefined,
   };
   return { d, sent, opened };
 }
@@ -201,5 +202,77 @@ describe('ReviewPopup', () => {
       await vi.waitFor(() => expect(root.querySelector('.warning')).toBeNull());
       expect(root.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false);
     });
+  });
+});
+
+describe('ReviewPopup printer tags', () => {
+  const voron: SourceModel = {
+    site: 'voron', sourceUrl: 'https://mods.vorondesign.com/1', title: 'Mod', tags: ['Voron 2.4', 'Voron Trident'],
+    files: [{ name: 'a.stl', kind: 'model', size: 10 }],
+  };
+  function setup(mode: TagMode, m: SourceModel = voron, handoff = false) {
+    const { d } = deps({ api: { extract: async () => ({ ok: true as const, model: handoff ? { ...m, delivery: 'manyfold-import' as const } : m }) } });
+    const calls: unknown[][] = [];
+    d.loadSettings = async () => ({ ...defaultSettings(), manyfoldUrl: 'http://m', token: 'tok', siteTags: { ...defaultSettings().siteTags, [m.site]: mode } });
+    d.setSiteTagMode = async (...a) => void calls.push(a);
+    mount(d);
+    return calls;
+  }
+  const tagsBox = () => root.querySelectorAll<HTMLInputElement>('input[type=text]')[3]!;
+  const button = (text: string) => [...root.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.startsWith(text));
+  const ready = () => vi.waitFor(() => expect(root.querySelector('form')).toBeTruthy());
+
+  it('ask: empty box, suggestion adds the tags and saves On once, then offers Not this time', async () => {
+    const calls = setup('ask');
+    await ready();
+    expect(tagsBox().value).toBe('');
+    expect(button('Add printer tags: Voron 2.4, Voron Trident')).toBeTruthy();
+    button('Add printer tags')!.click();
+    await vi.waitFor(() => expect(tagsBox().value).toBe('Voron 2.4, Voron Trident'));
+    expect(calls).toEqual([['voron', 'on']]);
+    expect(button('Not this time')).toBeTruthy();
+    expect(button('Add printer tags')).toBeUndefined();
+  });
+
+  it('on: prefilled; Not this time clears for this send only and the suggestion re-adds without saving', async () => {
+    const calls = setup('on');
+    await ready();
+    expect(tagsBox().value).toBe('Voron 2.4, Voron Trident');
+    button('Not this time')!.click();
+    await vi.waitFor(() => expect(tagsBox().value).toBe(''));
+    expect(button('Add printer tags')).toBeTruthy();
+    button('Add printer tags')!.click();
+    await vi.waitFor(() => expect(tagsBox().value).toBe('Voron 2.4, Voron Trident'));
+    expect(calls).toEqual([]);
+  });
+
+  it('shows neither control when off or when the page has no tags', async () => {
+    setup('off');
+    await ready();
+    expect(button('Not this time') ?? button('Add printer tags')).toBeUndefined();
+    render(null, root);
+    root.remove();
+    setup('ask', { ...voron, tags: [] });
+    await ready();
+    expect(button('Not this time') ?? button('Add printer tags')).toBeUndefined();
+  });
+
+  it('keeps a typed comma after a button press', async () => {
+    setup('on');
+    await ready();
+    button('Not this time')!.click();
+    await vi.waitFor(() => expect(tagsBox().value).toBe(''));
+    const box = tagsBox();
+    box.value = 'a,';
+    box.dispatchEvent(new Event('input', { bubbles: true }));
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(tagsBox().value).toBe('a,');
+  });
+
+  it('shows neither control in the read-only handoff view', async () => {
+    setup('on', voron, true);
+    await vi.waitFor(() => expect(root.textContent).toContain('Tags'));
+    expect(button('Not this time') ?? button('Add printer tags')).toBeUndefined();
   });
 });

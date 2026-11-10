@@ -37,6 +37,7 @@ function mount(defaultCollectionId?: string) {
     listCollections: async () => [{ id: '/collections/c1', name: 'Boats' }],
     openUrl: () => undefined,
     openSettings: () => undefined,
+    setSiteTagMode: async () => undefined,
   };
   root = document.createElement('div');
   document.body.append(root);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSettings, type Settings, type TagMode } from '../settings';
 import type { SourceFile, SourceModel } from '../types';
-import { buildInitialForm, canSend, MAX_FILE_BYTES, parseTags, toSendRequest } from './state';
+import { buildInitialForm, canSend, MAX_FILE_BYTES, parseTags, tagOffer, toSendRequest } from './state';
 
 const f = (name: string, kind: SourceFile['kind'], size?: number): SourceFile => ({ name, kind, ...(size !== undefined ? { size } : {}) });
 
@@ -134,5 +134,22 @@ describe('toSendRequest', () => {
     const req = toSendRequest(m, { ...buildInitialForm(m, settings()), description: '' });
     expect(req.description).toBeUndefined();
     expect(req.source.description).toBeUndefined();
+  });
+});
+
+describe('tagOffer', () => {
+  const form = (tags: string[]) => ({ ...buildInitialForm(model(), settings()), tags });
+  it('offers to add when the form lacks the page tags', () => {
+    expect(tagOffer(model(), 'ask', form([]))).toBe('add');
+    expect(tagOffer(model(), 'on', form([]))).toBe('add');
+    expect(tagOffer(model(), 'on', form(['boat']))).toBe('add');
+  });
+  it('offers to remove when every page tag is in the form', () => {
+    expect(tagOffer(model(), 'on', form(['boat', 'test', 'mine']))).toBe('remove');
+  });
+  it('offers nothing when off, for an unknown site, or without page tags', () => {
+    expect(tagOffer(model(), 'off', form([]))).toBeUndefined();
+    expect(tagOffer(model({ site: 'other' }), 'ask', form([]))).toBeUndefined();
+    expect(tagOffer(model({ tags: [] }), 'ask', form([]))).toBeUndefined();
   });
 });
