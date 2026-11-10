@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { MESSAGES } from '../pipeline/errors';
 import type { SendSessions } from './sessions';
-import { classifySender, createOffscreenListener, SERVICE_WORKER_PATH } from './worker-gate';
+import { backgroundPath, classifySender, createOffscreenListener, FIREFOX_BACKGROUND_PAGE_PATH, SERVICE_WORKER_PATH } from './worker-gate';
 
 const EXT = 'chrome-extension://abc/';
 const getURL = (path: string) => `${EXT}${path.replace(/^\//, '')}`;
@@ -45,10 +45,21 @@ describe('the built manifest names the worker the offscreen gate derives from', 
     expect([...used].filter((api) => !allowed.includes(api))).toEqual([]);
     expect(used).toContain('runtime.onMessage');
   });
+
+  // The Firefox path is chosen by import.meta.env.FIREFOX at build time; if it stopped folding, Chrome would ship
+  // the iframe host (and lose chrome.offscreen). Markers survive minification: API names and a DOM tag string.
+  it.skipIf(!existsSync(BUILT) && !process.env.REQUIRE_BUILT_MANIFEST)('the Chrome background uses chrome.offscreen and has none of the Firefox frame host', () => {
+    const file = join(dirname(BUILT), 'background.js');
+    if (!existsSync(file)) throw new Error(`missing build output ${file}; run \`npm run build\` first`);
+    const code = readFileSync(file, 'utf8');
+    expect(code).toContain('chrome.offscreen.createDocument');
+    expect(code).not.toContain('getPlatformInfo');
+    expect(code).not.toContain('iframe');
+  });
 });
 
 describe('classifySender', () => {
-  it('accepts only the service worker', () => {
+  it('accepts only the background', () => {
     expect(classifySender({ id: 'abc', url: SW }, SW, EXT)).toBe('worker');
   });
 
@@ -106,5 +117,20 @@ describe('createOffscreenListener', () => {
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]!.join(' ')).toContain(`${EXT}renamed.js`);
     expect(warn.mock.calls[0]!.join(' ')).toContain(SW);
+  });
+});
+
+describe('backgroundPath', () => {
+  it('is the service worker on Chrome and the generated background page on Firefox', () => {
+    expect(backgroundPath(false)).toBe(SERVICE_WORKER_PATH);
+    expect(backgroundPath(true)).toBe(FIREFOX_BACKGROUND_PAGE_PATH);
+    expect(FIREFOX_BACKGROUND_PAGE_PATH).toBe('_generated_background_page.html');
+  });
+
+  it('the Firefox background page is the worker on Firefox and blocked when Chrome is expected', () => {
+    const moz = 'moz-extension://uuid/';
+    const sender = { id: 'x', url: `${moz}_generated_background_page.html` };
+    expect(classifySender(sender, moz + backgroundPath(true), moz)).toBe('worker');
+    expect(classifySender(sender, moz + backgroundPath(false), moz)).toBe('blocked');
   });
 });

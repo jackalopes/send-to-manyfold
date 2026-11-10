@@ -4,7 +4,7 @@ import { routeOffscreenMessage } from './router';
 import type { SendSessions } from './sessions';
 
 /**
- * Who may drive the offscreen document: only the extension's service worker. Content scripts carry the extension
+ * Who may drive the offscreen document: only the extension's background (the service worker on Chrome, the background page on Firefox). Content scripts carry the extension
  * id too, but have `sender.tab` and their page's URL.
  */
 
@@ -13,6 +13,14 @@ import type { SendSessions } from './sessions';
  * no `chrome.runtime.getManifest` (only `getURL`, `id` and messaging); the built-manifest test pins it.
  */
 export const SERVICE_WORKER_PATH = 'background.js';
+
+/** Firefox runs the background as an event page: the page WXT/Firefox generate around `background.js` hosts the transfer page's iframe. */
+export const FIREFOX_BACKGROUND_PAGE_PATH = '_generated_background_page.html';
+
+/** The path of the context allowed to drive the offscreen document for this browser. */
+export function backgroundPath(firefox: boolean): string {
+  return firefox ? FIREFOX_BACKGROUND_PAGE_PATH : SERVICE_WORKER_PATH;
+}
 
 export interface SenderInfo {
   id?: string;
@@ -65,7 +73,7 @@ export function createOffscreenListener(deps: OffscreenListenerDeps) {
     if (verdict === 'ignore' || !parseOffscreenRequest(message)) return undefined;
     if (!warned) {
       warned = true;
-      deps.warn(`Send To Manyfold: the transfer page refused a request from ${sender.url}; it accepts only the service worker ${deps.workerUrl ?? '(none)'}.`);
+      deps.warn(`Send To Manyfold: the transfer page refused a request from ${sender.url}; it accepts only the background ${deps.workerUrl ?? '(none)'}.`);
     }
     return BLOCKED;
   };

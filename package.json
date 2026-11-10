@@ -9,11 +9,16 @@
     "dev": "wxt",
     "build": "wxt build",
     "zip": "wxt zip",
+    "build:firefox": "wxt build -b firefox --mv3",
+    "zip:firefox": "wxt zip -b firefox --mv3 && npm run check:sources-zip",
+    "check:sources-zip": "node scripts/check-sources-zip.mjs",
+    "lint:firefox": "web-ext lint -s .output/firefox-mv3",
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:e2e": "node e2e/run.ts",
     "test:built": "wxt build && REQUIRE_BUILT_MANIFEST=1 vitest run src/offscreen/worker-gate.test.ts",
+    "test:built:firefox": "npm run build:firefox && REQUIRE_BUILT_MANIFEST=1 vitest run src/manifest-firefox.test.ts",
     "postinstall": "wxt prepare",
     "icons": "node scripts/build-icons.mjs"
   },
@@ -33,6 +38,7 @@
     "typescript-eslint": "8.72.1",
     "vite": "8.3.5",
     "vitest": "5.0.5",
+    "web-ext": "10.8.0",
     "wxt": "0.21.5"
   },
   "engines": {

@@ -2,6 +2,7 @@ import { createModelLookup, type ModelLookupDeps } from '../background/model-loo
 import { loadSettings } from '../settings';
 import { ManyfoldClient } from './client';
 import { lookupModel } from './lookup';
+import { manyfoldOriginPattern } from './permission-pattern';
 
 /**
  * Whether the user still grants the extension access to the origin of `baseUrl`. Throws on a URL that cannot be
@@ -10,7 +11,7 @@ import { lookupModel } from './lookup';
 export const hostPermission =
   (contains: (permissions: { origins: string[] }) => Promise<boolean> = (p) => chrome.permissions.contains(p)) =>
   (baseUrl: string): Promise<boolean> =>
-    contains({ origins: [`${new URL(baseUrl).origin}/*`] });
+    contains({ origins: [manyfoldOriginPattern(baseUrl, import.meta.env.FIREFOX)] });
 
 export interface BrowserLookupDeps extends Pick<ModelLookupDeps, 'loadSettings' | 'hasPermission'> {
   fetchImpl?: typeof fetch;

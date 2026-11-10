@@ -1,3 +1,4 @@
+import { hostPermission } from './manyfold/browser-lookup';
 import { ManyfoldClient, type ConnectionResult } from './manyfold/client';
 import { normalizeBaseUrl, requestManyfoldPermission } from './settings';
 
@@ -17,11 +18,14 @@ export function describeResult(r: ConnectionResult): string {
 }
 
 export interface TestDeps {
+  /** Whether the host permission is already held; when it is, no request is made (Firefox rejects a second request outside a user gesture). */
+  hasPermission?: (baseUrl: string) => Promise<boolean>;
   requestPermission: (baseUrl: string) => Promise<boolean>;
   test: (baseUrl: string, token: string) => Promise<ConnectionResult>;
 }
 
 const realDeps: TestDeps = {
+  hasPermission: hostPermission(),
   requestPermission: requestManyfoldPermission,
   test: (url, token) => new ManyfoldClient(url, token).testConnection(),
 };
@@ -34,7 +38,7 @@ export function connectionLevel(r: ConnectionResult): ConnectionLevel {
   return r.detail ? 'warning' : 'ok';
 }
 
-/** Must be called directly from a click handler: permission is requested before any other await (user gesture). */
+/** Must be called directly from a click handler: permission is requested before any other slow await (user gesture). */
 export async function runConnectionCheck(rawUrl: string, token: string, deps: TestDeps = realDeps): Promise<{ message: string; level: ConnectionLevel; connected: boolean }> {
   let url: string;
   try {
@@ -47,7 +51,7 @@ export async function runConnectionCheck(rawUrl: string, token: string, deps: Te
   if (!bearer) return { message: 'Enter your API token first.', level: 'error', connected: false };
   let granted: boolean;
   try {
-    granted = await deps.requestPermission(url);
+    granted = deps.hasPermission ? (await deps.hasPermission(url)) || (await deps.requestPermission(url)) : await deps.requestPermission(url);
   } catch {
     return { message: 'Could not request permission for your Manyfold server.', level: 'error', connected: false };
   }

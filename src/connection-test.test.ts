@@ -78,3 +78,26 @@ describe('describeResult', () => {
     expect(describeResult({ ok: false, reason: 'unauthorized' })).toBe('Token rejected');
   });
 });
+
+describe('runConnectionCheck with a permission already held', () => {
+  it('does not request permission again', async () => {
+    const deps = { hasPermission: vi.fn(async () => true), requestPermission: vi.fn(async () => true), test: vi.fn(async () => ({ ok: true as const, version: '0.153.0' })) };
+    const r = await runConnectionCheck('http://m.local:3214', 'tok', deps);
+    expect(deps.hasPermission).toHaveBeenCalledWith('http://m.local:3214');
+    expect(deps.requestPermission).not.toHaveBeenCalled();
+    expect(r.connected).toBe(true);
+  });
+
+  it('requests permission when it is not held', async () => {
+    const deps = { hasPermission: vi.fn(async () => false), requestPermission: vi.fn(async () => true), test: vi.fn(async () => ({ ok: true as const, version: '0.153.0' })) };
+    await runConnectionCheck('http://m.local:3214', 'tok', deps);
+    expect(deps.requestPermission).toHaveBeenCalledWith('http://m.local:3214');
+  });
+
+  it('still reports a denied request', async () => {
+    const deps = { hasPermission: vi.fn(async () => false), requestPermission: vi.fn(async () => false), test: vi.fn() };
+    const r = await runConnectionCheck('http://m.local:3214', 'tok', deps);
+    expect(r.connected).toBe(false);
+    expect(deps.test).not.toHaveBeenCalled();
+  });
+});
