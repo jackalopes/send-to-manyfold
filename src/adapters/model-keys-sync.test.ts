@@ -29,6 +29,11 @@ const MODEL_PAGES: Record<string, string[]> = {
     'https://thingiverse.com/thing:763622/files',
     'https://www.thingiverse.com/thing:763622#comments',
   ],
+  voron: [
+    'https://mods.vorondesign.com/details/C8XJJ0fBGfBFKQZctjKeA',
+    'https://mods.vorondesign.com/details/C8XJJ0fBGfBFKQZctjKeA/',
+    'https://mods.vorondesign.com/details/C8XJJ0fBGfBFKQZctjKeA?x=1#y',
+  ],
   github: [
     'https://github.com/owner/repo/blob/main/models/part.stl',
     'https://www.github.com/Owner/Repo/blob/main/part.3mf?plain=1#L3',
@@ -57,6 +62,9 @@ const NOT_MODEL_PAGES: string[] = [
   'https://www.thingiverse.com/thing:',
   'https://www.thingiverse.com/thing:abc',
   'https://www.thingiverse.com/search?q=cube',
+  'https://mods.vorondesign.com/',
+  'https://mods.vorondesign.com/details/',
+  'https://mods.vorondesign.com/download/C8XJJ0fBGfBFKQZctjKeA/x',
   'https://github.com/',
   'https://github.com/owner/repo',
   'https://github.com/owner/repo/tree/main/models',

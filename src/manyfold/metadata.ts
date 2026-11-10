@@ -55,7 +55,7 @@ export interface PopupChoices {
   omitSourceLink?: boolean;
 }
 
-const SITE_LABELS: Record<SiteId, string> = { printables: 'Printables', thingiverse: 'Thingiverse', makerworld: 'MakerWorld', github: 'GitHub' };
+const SITE_LABELS: Record<SiteId, string> = { printables: 'Printables', thingiverse: 'Thingiverse', makerworld: 'MakerWorld', github: 'GitHub', voron: 'Voron Mods' };
 
 const MAX_PAGES = 200;
 

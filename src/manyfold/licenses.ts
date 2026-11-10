@@ -86,6 +86,9 @@ Object.assign(OTHER, {
   [key('GPLv3')]: 'GPL-3.0-only',
   [key('GNU General Public License v2.0')]: 'GPL-2.0-only',
   [key('GNU General Public License v3.0')]: 'GPL-3.0-only',
+  // Voron Mods writes the license without the "GNU".
+  [key('General Public License v2.0')]: 'GPL-2.0-only',
+  [key('General Public License v3.0')]: 'GPL-3.0-only',
   [key('LGPL-3.0')]: 'LGPL-3.0-only',
   [key('GNU Lesser General Public License v3.0')]: 'LGPL-3.0-only',
   [key('Mozilla Public License 2.0')]: 'MPL-2.0',

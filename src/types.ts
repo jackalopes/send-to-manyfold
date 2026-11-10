@@ -1,4 +1,4 @@
-export type SiteId = 'printables' | 'thingiverse' | 'makerworld' | 'github';
+export type SiteId = 'printables' | 'thingiverse' | 'makerworld' | 'github' | 'voron';
 
 export interface SourceFile {
   name: string;

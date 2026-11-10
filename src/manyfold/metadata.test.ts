@@ -115,6 +115,8 @@ describe('mapLicense', () => {
     ['apache-2.0', 'Apache-2.0'],
     ['GPL-3.0', 'GPL-3.0-only'],
     ['GNU General Public License v3.0', 'GPL-3.0-only'],
+    ['General Public License v3.0', 'GPL-3.0-only'],
+    ['General Public License v2.0', 'GPL-2.0-only'],
     ['GPL-3.0-or-later', 'GPL-3.0-or-later'],
     ['Creative Commons - Attribution - Non-Commercial - Share Alike 4.0', 'CC-BY-NC-SA-4.0'],
     ['CC BY-NC-SA 4.0', 'CC-BY-NC-SA-4.0'],

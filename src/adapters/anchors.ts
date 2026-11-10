@@ -25,3 +25,6 @@ export const makerworldAnchor = (doc: Document): Element | null => {
   const ordered = [...rows.filter((row) => !row.closest('.mobile-box')), ...rows.filter((row) => row.closest('.mobile-box'))];
   return ordered.find((row) => row.checkVisibility?.() !== false) ?? ordered[0] ?? null;
 };
+
+/** Voron Mods detail page: the full-width "Download" link (a link wrapping the button) to `/download/<id>/<name>`. */
+export const voronAnchor = (doc: Document): Element | null => doc.querySelector('a[href^="/download/"]');

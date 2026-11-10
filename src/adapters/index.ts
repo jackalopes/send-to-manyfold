@@ -2,6 +2,7 @@ import type { Delivery, SiteId, SourceFile, SourceModel } from '../types';
 import { makerworld } from './makerworld';
 import { printables } from './printables';
 import { thingiverse } from './thingiverse';
+import { voron } from './voron';
 
 export {
   DOWNLOAD_ERROR_CODES,
@@ -51,7 +52,7 @@ export interface SiteAdapter {
 }
 
 // GitHub is switched off for v1 (unverified, needs community feedback); its adapter stays in ./github.ts.
-const ADAPTERS: SiteAdapter[] = [printables, thingiverse, makerworld];
+const ADAPTERS: SiteAdapter[] = [printables, thingiverse, makerworld, voron];
 
 export function adapterFor(url: URL): SiteAdapter | undefined {
   return ADAPTERS.find((a) => a.matches(url));

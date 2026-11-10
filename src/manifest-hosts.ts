@@ -21,6 +21,7 @@ export const CONTENT_SCRIPT_MATCHES = [
   'https://*.printables.com/*',
   'https://*.thingiverse.com/*',
   'https://*.makerworld.com/*',
+  'https://mods.vorondesign.com/*',
 ] as const;
 
 export const DOWNLOAD_HOST_PERMISSIONS = [
@@ -31,6 +32,8 @@ export const DOWNLOAD_HOST_PERMISSIONS = [
   'https://media.printables.com/*',
   // MakerWorld: the design-service answer is a signed makerworld.bblmw.com link; covers are there too.
   'https://makerworld.bblmw.com/*',
+  // Voron Mods: the zip (/download/<id>/<name>) and covers (/thumb/<id>/300x300) are both served from the site itself.
+  'https://mods.vorondesign.com/*',
 ] as const;
 
 // GitHub is switched off for v1. To bring it back, add 'https://*.github.com/*' to CONTENT_SCRIPT_MATCHES, and to

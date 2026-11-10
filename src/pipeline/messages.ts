@@ -97,7 +97,7 @@ export type ConnectionReply = { ok: true; baseUrl: string; token: string } | Fai
 export type ResolveReply = { ok: true; download: string | ResolvedDownload } | { ok: false; error: WireError };
 export type ExtractReply = { ok: true; model: SourceModel } | { ok: false; error: WireError };
 
-const SITES = ['printables', 'thingiverse', 'makerworld', 'github'] as const satisfies readonly SiteId[];
+const SITES = ['printables', 'thingiverse', 'makerworld', 'github', 'voron'] as const satisfies readonly SiteId[];
 const STAGES = ['downloading', 'uploading', 'creating', 'extracting', 'metadata', 'done'] as const satisfies readonly SendStage[];
 const isSite = oneOf(SITES);
 const isStage = oneOf(STAGES);
