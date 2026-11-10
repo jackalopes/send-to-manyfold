@@ -1,4 +1,5 @@
 import { voronAnchor } from './anchors';
+import { htmlMarkdown } from './html-markdown';
 import { voronTags } from './voron-tags';
 import type { SourceFile, SourceModel } from '../types';
 import type { SiteAdapter } from './index';
@@ -47,7 +48,9 @@ export const voron: SiteAdapter = {
     };
     const creator = text(h1.nextElementSibling?.querySelector('h3'));
     if (creator) result.creator = { name: creator };
-    const description = oneLiner(h1);
+    // The README is rendered in the one `prose-base` container (a Tailwind Typography class) on the detail page.
+    const readme = doc.querySelector('.prose-base');
+    const description = (readme && htmlMarkdown(readme, result.sourceUrl)) ?? oneLiner(h1);
     if (description) result.description = description;
     const license = licenseOf(doc);
     if (license) result.licenseText = license;

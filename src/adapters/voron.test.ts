@@ -64,7 +64,7 @@ describe('extract: Pins Mod (two badges, license v3.0)', () => {
     expect(m.title).toBe('Voron2.4 and Trident Pins Mod');
     expect(m.creator).toEqual({ name: 'hartk1213' });
     expect(m.tags).toEqual(['Voron 2.4', 'Voron Trident']);
-    expect(m.description).toBe('This mod replaces all the M5 screws for all idlers/pulleys/bearings with 5mm pins');
+    expect(m.description).toMatch(/^## This has been updated for V2\.4r2 and Trident/);
     expect(m.licenseText).toBe('General Public License v3.0');
     expect(mapLicense(m.licenseText!).spdx).toBe('GPL-3.0-only');
     expect(m.coverImageUrl).toBe(`https://mods.vorondesign.com/thumb/${PINS_ID}/300x300`);
@@ -94,10 +94,26 @@ describe('extract: Belt Tension Meter (four badges, a README with its own h1/h3)
     expect(m.title).toBe('Belt Tension Meter');
     expect(m.creator).toEqual({ name: 'Kruppes' });
     expect(m.tags).toEqual(['Voron 0', 'Voron 1.8', 'Voron 2.4', 'Voron Switchwire']);
-    expect(m.description).toBe('Print in place tension meter to easily tighten multiple belts to the same tension');
+    expect(m.description).toMatch(/^# README/);
     expect(m.files).toEqual([
       { name: 'Belt_Tension Meter-Kruppes.zip', kind: 'archive', url: 'https://mods.vorondesign.com/download/fmmg4Yx2BLULkfDDpZnAng/Belt_Tension%20Meter-Kruppes' },
     ]);
+  });
+});
+
+describe('extract: README as notes', () => {
+  it('contains absolute image links', async () => {
+    const m = await voron.extract(fixture(PINS_FIXTURE), PINS);
+    expect(m.description).toContain(
+      '![XY Joint](https://raw.githubusercontent.com/VoronDesign/VoronUsers/main/printer_mods/hartk1213/Voron2.4_Trident_Pins_Mod/Images/1.jpg)',
+    );
+  });
+
+  it('falls back to the one-line description without a README', async () => {
+    const doc = fixture(PINS_FIXTURE);
+    doc.querySelector('.prose-base')!.remove();
+    const m = await voron.extract(doc, PINS);
+    expect(m.description).toBe('This mod replaces all the M5 screws for all idlers/pulleys/bearings with 5mm pins');
   });
 });
 
