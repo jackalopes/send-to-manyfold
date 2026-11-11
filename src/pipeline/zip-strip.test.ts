@@ -19,6 +19,8 @@ interface TestEntry {
   flags?: number;
   /** Extra field bytes for both headers. */
   extra?: Uint8Array;
+  /** Extra field bytes for the local header only, when it differs from the central one. */
+  localExtra?: Uint8Array;
   comment?: string;
 }
 
@@ -51,6 +53,7 @@ function buildZip(entries: TestEntry[], archiveComment = ''): Blob {
     const n = enc.encode(e.name);
     const d = enc.encode(e.data ?? '');
     const x = e.extra ?? new Uint8Array();
+    const lx = e.localExtra ?? x;
     const k = enc.encode(e.comment ?? '');
     const crc = crc32(d);
     const local = new DataView(new ArrayBuffer(30));
@@ -63,8 +66,8 @@ function buildZip(entries: TestEntry[], archiveComment = ''): Blob {
     local.setUint32(18, d.length, true);
     local.setUint32(22, d.length, true);
     local.setUint16(26, n.length, true);
-    local.setUint16(28, x.length, true);
-    parts.push(new Uint8Array(local.buffer), n, x, d);
+    local.setUint16(28, lx.length, true);
+    parts.push(new Uint8Array(local.buffer), n, lx, d);
     const cen = new DataView(new ArrayBuffer(46));
     cen.setUint32(0, 0x02014b50, true);
     cen.setUint16(4, 0x031e, true);
@@ -81,7 +84,7 @@ function buildZip(entries: TestEntry[], archiveComment = ''): Blob {
     cen.setUint32(38, e.name.endsWith('/') ? 0x41ed0010 : 0x81a40000, true);
     cen.setUint32(42, offset, true);
     central.push(new Uint8Array(cen.buffer), n, x, k);
-    offset += 30 + n.length + x.length + d.length;
+    offset += 30 + n.length + lx.length + d.length;
   }
   const size = central.reduce((s, p) => s + p.length, 0);
   const c = enc.encode(archiveComment);
@@ -202,6 +205,9 @@ describe('stripTopFolder', () => {
     ['an empty first segment (absolute path)', [{ name: '/x.stl', data: 'x' }, { name: '/y.stl', data: 'y' }]],
     ['a parent-directory top folder', [{ name: '../x.stl', data: 'x' }, { name: '../y.stl', data: 'y' }]],
     ['names that would become absolute', [{ name: 'Mod//x.stl', data: 'x' }, { name: 'Mod/y.stl', data: 'y' }]],
+    ['names that would start with a backslash', [{ name: 'Mod/\\x.stl', data: 'x' }, { name: 'Mod/y.stl', data: 'y' }]],
+    ['a .. segment deeper in a name (escapes the root once stripped)', [{ name: 'Top/a/../../evil.txt', data: 'x' }, { name: 'Top/y.stl', data: 'y' }]],
+    ['a trailing .. segment', [{ name: 'Top/a/..', data: '' }, { name: 'Top/y.stl', data: 'y' }]],
     ['an encrypted entry (flag bit 0)', [{ name: 'Mod/x.stl', data: 'x', flags: 0x0801 }, { name: 'Mod/y.stl', data: 'y' }]],
   ])('returns the same Blob for %s', async (_what, entries) => {
     const original = buildZip(entries);
@@ -278,6 +284,53 @@ describe('stripTopFolder', () => {
     expect(after.entries[0]!.centralExtra).toEqual(concat(timestamp, unix));
     expect(after.entries[0]!.localExtra).toEqual(concat(timestamp, unix));
     expect(after.entries[1]!.centralExtra).toEqual(unix);
+  });
+
+  it('returns a zip unchanged when a Unicode Path field holds the only real name (UTF-8 flag clear)', async () => {
+    const unicode = extraField(0x7075, concat(new Uint8Array([1, 0, 0, 0, 0]), enc.encode('Modèle/a.stl')));
+    const original = buildZip([
+      { name: 'Mod\x8ale/a.stl', data: 'a', flags: 0, extra: unicode },
+      { name: 'Mod\x8ale/b.stl', data: 'b', flags: 0 },
+    ]);
+    expect(await stripTopFolder(original)).toBe(original);
+  });
+
+  it('returns a zip unchanged when only the local header has a Unicode Path field and the UTF-8 flag is clear', async () => {
+    const unicode = extraField(0x7075, concat(new Uint8Array([1, 0, 0, 0, 0]), enc.encode('Mod/a.stl')));
+    const original = buildZip([
+      { name: 'Mod/a.stl', data: 'a', flags: 0, localExtra: unicode },
+      { name: 'Mod/b.stl', data: 'b', flags: 0 },
+    ]);
+    expect(await stripTopFolder(original)).toBe(original);
+  });
+
+  it('strips a CP437 zip (UTF-8 flag clear) that has no Unicode Path field', async () => {
+    const after = await readZip(await stripTopFolder(buildZip([
+      { name: 'Mod/a.stl', data: 'a', flags: 0 },
+      { name: 'Mod/b.stl', data: 'b', flags: 0 },
+    ])));
+    expect(after.entries.map((e) => [e.name, e.flags])).toEqual([
+      ['a.stl', 0],
+      ['b.stl', 0],
+    ]);
+  });
+
+  it('handles local extra fields that differ from the central ones (descriptor flag set), keeping data and CRC', async () => {
+    const timestamp = extraField(0x5455, new Uint8Array([3, 1, 2, 3, 4, 5, 6, 7, 8]));
+    const short = extraField(0x5455, new Uint8Array([3, 1, 2, 3, 4]));
+    const unix = extraField(0x7875, new Uint8Array([1, 4, 0xe8, 3, 0, 0, 4, 0xe8, 3, 0, 0]));
+    const original = buildZip([
+      { name: 'Mod/a.stl', data: 'solid a\n', flags: 0x0808, localExtra: concat(timestamp, unix), extra: short },
+      { name: 'Mod/b.stl', data: 'solid b\n', localExtra: new Uint8Array(), extra: unix },
+      { name: 'Mod/c.stl', data: 'solid c\n', localExtra: unix },
+    ]);
+    const before = await readZip(original);
+    const after = await readZip(await stripTopFolder(original));
+    expect(after.entries.map((e) => e.name)).toEqual(['a.stl', 'b.stl', 'c.stl']);
+    after.entries.forEach((e, i) => expect({ ...e, name: before.entries[i]!.name }).toEqual(before.entries[i]));
+    expect(after.entries[0]!.localExtra).toEqual(concat(timestamp, unix));
+    expect(after.entries[0]!.centralExtra).toEqual(short);
+    expect(after.entries[1]!.localExtra).toEqual(new Uint8Array());
   });
 
   it('returns a zip with a malformed extra field unchanged', async () => {

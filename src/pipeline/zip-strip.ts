@@ -20,6 +20,10 @@ const MAX_COMMENT = 0xffff;
 /** Info-ZIP Unicode Path: repeats the entry name, so it would bring the old name back. */
 const UNICODE_PATH_ID = 0x7075;
 const SLASH = 0x2f;
+const BACKSLASH = 0x5c;
+const DOT = 0x2e;
+/** General purpose flag bit 11: the name is UTF-8. */
+const UTF8_FLAG = 0x0800;
 
 interface Entry {
   /** The central directory record (fixed part only). */
@@ -94,7 +98,7 @@ async function strip(zip: Blob): Promise<Blob> {
     if (!sameBytes(nameAndExtra.subarray(0, nameLen), e.name)) unchanged('local and central names differ');
     if (sameBytes(e.name, prefix)) continue; // the folder entry itself
     const name = newName(e);
-    const extra = withoutUnicodePath(nameAndExtra.subarray(nameLen));
+    const extra = withoutUnicodePath(nameAndExtra.subarray(nameLen), lv.getUint16(6, true));
     view(fixed).setUint16(26, name.length, true);
     view(fixed).setUint16(28, extra.length, true);
     newOffset.set(e, at);
@@ -105,7 +109,7 @@ async function strip(zip: Blob): Promise<Blob> {
   const newCdOffset = at;
   for (const e of kept) {
     const name = newName(e);
-    const extra = withoutUnicodePath(e.extra);
+    const extra = withoutUnicodePath(e.extra, view(e.fixed).getUint16(8, true));
     const fixed = e.fixed.slice();
     const fv = view(fixed);
     fv.setUint16(28, name.length, true);
@@ -184,17 +188,28 @@ function sharedTopFolder(names: Uint8Array[]): Uint8Array {
   return prefix;
 }
 
-/** Not empty, not absolute, and not starting with a `.` or `..` segment. */
+/** Not empty, not absolute, not starting with a `.` segment, and no `..` segment anywhere (split on `/` and `\`). */
 function safeName(name: Uint8Array): boolean {
-  if (!name.length || name[0] === SLASH || name[0] === 0x5c) return false;
-  const slash = name.indexOf(SLASH);
-  return !isDots(slash < 0 ? name : name.subarray(0, slash));
+  if (!name.length || name[0] === SLASH || name[0] === BACKSLASH) return false;
+  const segments: Uint8Array[] = [];
+  let start = 0;
+  for (let i = 0; i <= name.length; i++) {
+    if (i === name.length || name[i] === SLASH || name[i] === BACKSLASH) {
+      segments.push(name.subarray(start, i));
+      start = i + 1;
+    }
+  }
+  if (isDots(segments[0]!)) return false;
+  return !segments.some((seg) => seg.length === 2 && seg[0] === DOT && seg[1] === DOT);
 }
 
-const isDots = (segment: Uint8Array) => segment.length > 0 && segment.length <= 2 && segment.every((b) => b === 0x2e);
+const isDots = (segment: Uint8Array) => segment.length > 0 && segment.length <= 2 && segment.every((b) => b === DOT);
 
-/** The extra field records minus the Unicode Path one. Malformed records leave the zip unchanged. */
-function withoutUnicodePath(extra: Uint8Array): Uint8Array {
+/**
+ * The extra field records minus the Unicode Path one. Malformed records leave the zip unchanged, and so does a
+ * Unicode Path field on a name without the UTF-8 flag: there the field holds the only readable name.
+ */
+function withoutUnicodePath(extra: Uint8Array, flags: number): Uint8Array {
   const v = view(extra);
   const keep: Uint8Array[] = [];
   let p = 0;
@@ -203,6 +218,7 @@ function withoutUnicodePath(extra: Uint8Array): Uint8Array {
     const end = p + 4 + v.getUint16(p + 2, true);
     if (end > extra.length) unchanged('malformed extra field');
     if (v.getUint16(p, true) !== UNICODE_PATH_ID) keep.push(extra.subarray(p, end));
+    else if (!(flags & UTF8_FLAG)) unchanged('Unicode Path field on a non-UTF-8 name');
     p = end;
   }
   const out = new Uint8Array(keep.reduce((s, k) => s + k.length, 0));
