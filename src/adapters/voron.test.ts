@@ -106,7 +106,7 @@ describe('extract: README as notes', () => {
   it('contains absolute image links', async () => {
     const m = await voron.extract(fixture(PINS_FIXTURE), PINS);
     expect(m.description).toContain(
-      '![XY Joint](https://raw.githubusercontent.com/VoronDesign/VoronUsers/main/printer_mods/hartk1213/Voron2.4_Trident_Pins_Mod/Images/1.jpg)',
+      '![XY Joint](https://raw.githubusercontent.com/VoronDesign/VoronUsers/main/printer_mods/hartk1213/Voron2.4_Trident_Pins_Mod/Images/1.jpg){: width="600"}',
     );
   });
 

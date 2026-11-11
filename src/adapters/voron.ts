@@ -52,7 +52,7 @@ export const voron: SiteAdapter = {
     if (creator) result.creator = { name: creator };
     // The README is rendered in the one `prose-base` container (a Tailwind Typography class) on the detail page.
     const readme = doc.querySelector('.prose-base');
-    const description = (readme && htmlMarkdown(readme, result.sourceUrl)) ?? oneLiner(h1);
+    const description = (readme && htmlMarkdown(readme, result.sourceUrl, { imageWidth: 600 })) ?? oneLiner(h1);
     if (description) result.description = description;
     const license = licenseOf(doc);
     if (license) result.licenseText = license;

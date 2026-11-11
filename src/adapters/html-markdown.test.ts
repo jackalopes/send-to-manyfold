@@ -4,9 +4,9 @@ import { htmlMarkdown } from './html-markdown';
 
 const BASE = 'https://mods.vorondesign.com/details/X';
 
-function md(html: string, base = BASE): string | undefined {
+function md(html: string, base = BASE, options?: { imageWidth?: number }): string | undefined {
   const root = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html').body.firstElementChild!;
-  return htmlMarkdown(root, base);
+  return htmlMarkdown(root, base, options);
 }
 
 describe('htmlMarkdown', () => {
@@ -74,5 +74,25 @@ describe('htmlMarkdown', () => {
   it('is undefined when blank', () => {
     expect(md('')).toBeUndefined();
     expect(md('<p> </p>')).toBeUndefined();
+  });
+
+  describe('imageWidth option', () => {
+    const opt = { imageWidth: 600 };
+    it('adds a Kramdown width attribute to an image', () => {
+      expect(md('<p><img src="/i/1.png" alt="one"></p>', BASE, opt)).toBe(
+        '![one](https://mods.vorondesign.com/i/1.png){: width="600"}',
+      );
+    });
+    it('adds it inside a link wrapper', () => {
+      expect(md('<a href="/big"><img src="/i/1.png" alt="one"></a>', BASE, opt)).toBe(
+        '[![one](https://mods.vorondesign.com/i/1.png){: width="600"}](https://mods.vorondesign.com/big)',
+      );
+    });
+    it('leaves non-http images as alt text without the attribute', () => {
+      expect(md('<p><img src="data:image/png;base64,AAAA" alt="pic"></p>', BASE, opt)).toBe('pic');
+    });
+    it('is unchanged without the option', () => {
+      expect(md('<p><img src="/i/1.png" alt="one"></p>')).toBe('![one](https://mods.vorondesign.com/i/1.png)');
+    });
   });
 });

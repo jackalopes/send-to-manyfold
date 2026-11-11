@@ -2,12 +2,12 @@
  * Markdown for an already-rendered HTML fragment (a site's README area), for a model's notes. Covers headings,
  * paragraphs, nested lists, links, images, strong/em, inline code, `pre`, `br` and tables (one line per row, cells
  * as GFM tables with the first row as header). Relative `href`/`src` become absolute against `baseUrl`. Unknown elements keep their text.
- * Undefined when nothing is left.
+ * `imageWidth` appends a Kramdown attribute list (`{: width="N"}`) to each image. Undefined when nothing is left.
  */
 const HEADING = /^H([1-6])$/;
 const BLOCK = new Set(['P', 'DIV', 'UL', 'OL', 'PRE', 'TABLE', 'BLOCKQUOTE', 'SECTION', 'ARTICLE', 'HR']);
 
-export function htmlMarkdown(root: Element, baseUrl: string): string | undefined {
+export function htmlMarkdown(root: Element, baseUrl: string, options: { imageWidth?: number } = {}): string | undefined {
   const abs = (value: string | null): string => {
     if (!value) return '';
     try {
@@ -37,7 +37,8 @@ export function htmlMarkdown(root: Element, baseUrl: string): string | undefined
       case 'IMG': {
         const src = safe(node.getAttribute('src'));
         const alt = node.getAttribute('alt') ?? '';
-        return src ? `![${alt}](${src})` : alt;
+        const width = options.imageWidth ? `{: width="${options.imageWidth}"}` : '';
+        return src ? `![${alt}](${src})${width}` : alt;
       }
       case 'STRONG':
       case 'B':
