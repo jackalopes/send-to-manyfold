@@ -115,6 +115,7 @@ If you represent Manyfold or one of these sites and have a concern, please [open
 - Collections can only be chosen when the model is created.
 - Manyfold limits how fast models can be created. Large batches are paced and may wait.
 - The Manyfold version check is best-effort (see Settings).
+- Updating to the release that adds Voron Mods asks for access to `mods.vorondesign.com`. Chrome turns the extension off until you accept it on the extensions page (or in the prompt). Your settings are kept.
 
 ## Development
 
