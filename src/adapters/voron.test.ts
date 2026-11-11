@@ -193,3 +193,12 @@ describe('voronTags', () => {
     expect(voronTags(['constructor'])).toEqual(['constructor']);
   });
 });
+
+describe('voron stacked button', () => {
+  it.each([PINS_FIXTURE, TENSION_FIXTURE])('Download is a stack item with a following sibling in %s', (name) => {
+    const a = voronAnchor(fixture(name))!;
+    expect(voron.stackedButton).toBe(true);
+    expect(a.parentElement?.className).toContain('space-y-3');
+    expect(a.nextElementSibling).not.toBeNull();
+  });
+});

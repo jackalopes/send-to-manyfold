@@ -32,6 +32,11 @@ button:hover { background: #054152; }
 button:focus-visible { outline: 2px solid #fff; outline-offset: 0; box-shadow: 0 0 0 4px #08566A; }
 `;
 
+/** Full-width stack item: fills the row like the site's own buttons, with no side margin. */
+const STACKED_CSS = `
+button { width: 100%; margin-left: 0; justify-content: center; font-size: 14px; }
+`;
+
 const PLAIN_LABEL = 'Send to Manyfold';
 
 /** "✓ In Manyfold", with the number of matching models when there are several. */
@@ -44,12 +49,13 @@ interface InjectedButton {
   setHeight(px: number): void;
 }
 
-function createButton(doc: Document, onClick: () => void): InjectedButton {
+function createButton(doc: Document, onClick: () => void, stacked = false): InjectedButton {
   const host = doc.createElement('span');
   host.setAttribute(BUTTON_ATTR, '');
   const root = host.attachShadow({ mode: 'closed' }); // page styles must not reach the button, nor page scripts
   const style = doc.createElement('style');
-  style.textContent = CSS;
+  style.textContent = stacked ? CSS + STACKED_CSS : CSS;
+  if (stacked) host.style.display = 'block';
   const button = doc.createElement('button');
   button.type = 'button';
   button.textContent = PLAIN_LABEL;
@@ -92,11 +98,11 @@ export function createPageSync(deps: PageSyncDeps) {
 
   const count = () => status?.count ?? 0;
 
-  function syncButton(doc: Document, anchor: Element | null): void {
+  function syncButton(doc: Document, anchor: Element | null, stacked = false): void {
     if (!anchor) return removeButton();
     if (button?.host.isConnected && anchor.nextElementSibling === button.host) return;
     removeButton();
-    button = createButton(doc, () => (count() > 0 ? deps.openModel(deps.href()) : deps.openPopup()));
+    button = createButton(doc, () => (count() > 0 ? deps.openModel(deps.href()) : deps.openPopup()), stacked);
     button.setLabel(labelFor(count()));
     anchor.after(button.host);
     const placed = button;
@@ -137,7 +143,7 @@ export function createPageSync(deps: PageSyncDeps) {
           button?.setLabel(PLAIN_LABEL);
         }
         const doc = deps.document();
-        syncButton(doc, adapter?.downloadAnchor?.(doc) ?? null);
+        syncButton(doc, adapter?.downloadAnchor?.(doc) ?? null, adapter?.stackedButton === true);
       } catch {
         // A broken page must not break the site, and the toolbar icon still works.
       }

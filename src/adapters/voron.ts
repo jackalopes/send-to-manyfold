@@ -26,6 +26,7 @@ const DOWNLOAD_PATH = /^\/download\/[^/]+\/([^/]*)$/;
 export const voron: SiteAdapter = {
   id: 'voron',
   downloadAnchor: voronAnchor,
+  stackedButton: true,
 
   matches(url: URL): boolean {
     return url.protocol === 'https:' && url.hostname === HOST && DETAILS_PATH.test(url.pathname);

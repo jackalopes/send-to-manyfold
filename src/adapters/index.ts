@@ -41,6 +41,8 @@ export interface SiteAdapter {
    * around it: the injected button takes this element's height.
    */
   downloadAnchor?(doc: Document): Element | null;
+  /** The site stacks its buttons vertically (full-width blocks): the injected button is then a full-width stack item, not an inline neighbour. */
+  stackedButton?: boolean;
   extract(doc: Document, url: URL, options?: ExtractOptions): Promise<SourceModel>;
   /**
    * Turns a file's `ref` into a short-lived download URL, in the content script on the user's click and with
