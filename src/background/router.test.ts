@@ -213,6 +213,26 @@ describe('background router: a finished send tells the source tab', () => {
   });
 });
 
+describe('background router: a hand-off to Manyfold importer', () => {
+  const THING = 'https://www.thingiverse.com/thing:4242';
+
+  it('importOpened from the popup tells onImportOpened which tab and page to watch', async () => {
+    const onImportOpened = vi.fn();
+    const { router, api } = setup({ onImportOpened });
+    await expect(router.handleMessage({ to: 'background', type: 'importOpened', tabId: 5, url: THING }, fromPage)).resolves.toEqual({ ok: true });
+    expect(onImportOpened).toHaveBeenCalledWith(5, THING);
+    expect(api.createDocument).not.toHaveBeenCalled();
+  });
+
+  it('is not heard from a content script, and a malformed one is ignored', async () => {
+    const onImportOpened = vi.fn();
+    const { router } = setup({ onImportOpened });
+    expect(router.handleMessage({ to: 'background', type: 'importOpened', tabId: 5, url: THING }, fromContent)).toBeUndefined();
+    expect(router.handleMessage({ to: 'background', type: 'importOpened', tabId: '5', url: THING }, fromPage)).toBeUndefined();
+    expect(onImportOpened).not.toHaveBeenCalled();
+  });
+});
+
 describe('background router: closing the idle document', () => {
   it('a result or expiry event closes the document once nothing runs or is retained', async () => {
     const { router, api, sends, isOpen } = setup();

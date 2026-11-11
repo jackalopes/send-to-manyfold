@@ -38,6 +38,8 @@ export interface BackgroundRouterDeps {
   sendTabs: SendTabs;
   /** A send that was started for this tab finished successfully (the tab's "already in Manyfold" state is stale). */
   onSendDone?(tabId: number): void;
+  /** The popup handed the model on this tab to Manyfold's own importer; nothing reports when that import is done. */
+  onImportOpened?(tabId: number, pageUrl: string): void;
 }
 
 export interface SendTabs {
@@ -107,6 +109,9 @@ export function createBackgroundRouter(deps: BackgroundRouterDeps) {
       }
       case 'status':
         return deps.offscreen.ifOpen(() => ask<StatusReply>({ to: 'offscreen', type: 'status' }), { ok: true, sends: [] });
+      case 'importOpened':
+        deps.onImportOpened?.(m.tabId, m.url);
+        return { ok: true };
       case 'getConnection':
         return connection();
       case 'resolveDownload':

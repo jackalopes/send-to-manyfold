@@ -28,6 +28,7 @@ function setup(over: { api?: Partial<PopupApi>; settings?: Settings; prior?: His
     recall: vi.fn(async () => undefined as string | undefined),
     forget: vi.fn(async () => undefined),
     subscribe: vi.fn((l: (e: SendEvent) => void) => { listener = l; return () => undefined; }),
+    importOpened: vi.fn(async () => ({ ok: true as const })),
     ...over.api,
   } as unknown as PopupApi;
   const deps: ControllerDeps = {
@@ -41,6 +42,25 @@ function setup(over: { api?: Partial<PopupApi>; settings?: Settings; prior?: His
   };
   return { c: createController(deps), api, actions, state: () => state, emit: (e: SendEvent) => listener(e) };
 }
+
+describe('popup controller: the Manyfold importer (Thingiverse)', () => {
+  const thing: SourceModel = { site: 'thingiverse', delivery: 'manyfold-import', sourceUrl: 'https://www.thingiverse.com/thing:4242', title: 'T', tags: [], files: [] };
+
+  it('opening the importer tells the background which tab and page to watch for the import', async () => {
+    const t = setup({ api: { extract: vi.fn(async () => ({ ok: true as const, model: thing })) } });
+    await t.c.init();
+    expect(t.state().phase).toBe('handoff');
+    await t.c.importerOpened();
+    expect(t.api.importOpened).toHaveBeenCalledWith(7, thing.sourceUrl);
+  });
+
+  it('outside the hand-off view nothing is watched', async () => {
+    const t = setup();
+    await t.c.init();
+    await t.c.importerOpened();
+    expect(t.api.importOpened).not.toHaveBeenCalled();
+  });
+});
 
 describe('popup controller: connection problems', () => {
   const entry: HistoryEntry = { sourceUrl: 'https://p/1', manyfoldUrl: 'http://m/models/1', at: 1 };

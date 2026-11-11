@@ -51,6 +51,7 @@ export default defineBackground(() => {
     extensionOrigin: chrome.runtime.getURL(''),
     offscreenUrl,
     onSendDone: (tabId) => entryPoints.refresh(tabId),
+    onImportOpened: (tabId, pageUrl) => entryPoints.watchImport(tabId, pageUrl),
   });
 
   const entryPoints = createEntryPoints({

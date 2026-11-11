@@ -106,6 +106,9 @@ export function createEntryPoints(deps: EntryPointDeps) {
     /** A send from this tab finished successfully: ask again, so the badge and button flip without a reload. */
     refresh: status.refresh,
 
+    /** The popup opened Manyfold's importer for this tab's model: look it up again until the import shows up. */
+    watchImport: status.watchImport,
+
     /** A tab began loading a page: its old state no longer applies (the content script sets it again if supported). */
     onTabLoading: status.unsupported,
 

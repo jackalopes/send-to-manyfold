@@ -122,6 +122,24 @@ describe('already in Manyfold (page and button routing; the per-tab cache is in 
     expect(deps.tellTab).toHaveBeenCalledWith(5, { to: 'content', type: 'modelStatus', key: KEY_A, count: 1 });
   });
 
+  it('after the Manyfold importer was opened for a Thingiverse tab, the check appears once the import shows up', async () => {
+    vi.useFakeTimers();
+    try {
+      const thing = 'https://www.thingiverse.com/thing:4242';
+      const lookup = vi.fn<EntryPointDeps['lookup']>().mockResolvedValueOnce({ status: 'none' }).mockResolvedValueOnce({ status: 'none' }).mockResolvedValue(FOUND);
+      const { deps, ep } = setup({ lookup });
+      ep.handle(state(thing), tabSender);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(lastState(deps)).toEqual([5, 'plain']);
+      ep.watchImport(5, thing);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(lastState(deps)).toEqual([5, 'in-manyfold']);
+      expect(deps.tellTab).toHaveBeenLastCalledWith(5, { to: 'content', type: 'modelStatus', key: 'thingiverse:4242', count: 1 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   describe('the button click', () => {
     it('one model: opens its Manyfold page in a new tab (from the background\'s own lookup)', async () => {
       const { deps, ep } = setup({ lookup: vi.fn(async () => FOUND) });
