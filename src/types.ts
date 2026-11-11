@@ -19,6 +19,11 @@ export interface SourceFile {
    * the LFS pointer text, so it downloads like any other file.
    */
   lfs?: boolean;
+  /**
+   * Archive only: the pipeline removes the one top folder that every entry of the zip shares before upload
+   * (Voron Mods zips put everything under `<Title> by <author>/`). Only entry names change; the data is untouched.
+   */
+  stripTopFolder?: boolean;
 }
 
 /**

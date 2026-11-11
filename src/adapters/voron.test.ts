@@ -73,6 +73,7 @@ describe('extract: Pins Mod (two badges, license v3.0)', () => {
         name: 'Voron2_4 and Trident Pins Mod-hartk1213.zip',
         kind: 'archive',
         url: `https://mods.vorondesign.com/download/${PINS_ID}/Voron2_4%20and%20Trident%20Pins%20Mod-hartk1213`,
+        stripTopFolder: true,
       },
     ]);
   });
@@ -96,7 +97,7 @@ describe('extract: Belt Tension Meter (four badges, a README with its own h1/h3)
     expect(m.tags).toEqual(['Voron 0', 'Voron 1.8', 'Voron 2.4', 'Voron Switchwire']);
     expect(m.description).toMatch(/^# README/);
     expect(m.files).toEqual([
-      { name: 'Belt_Tension Meter-Kruppes.zip', kind: 'archive', url: 'https://mods.vorondesign.com/download/fmmg4Yx2BLULkfDDpZnAng/Belt_Tension%20Meter-Kruppes' },
+      { name: 'Belt_Tension Meter-Kruppes.zip', kind: 'archive', url: 'https://mods.vorondesign.com/download/fmmg4Yx2BLULkfDDpZnAng/Belt_Tension%20Meter-Kruppes', stripTopFolder: true },
     ]);
   });
 });

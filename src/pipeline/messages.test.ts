@@ -26,6 +26,14 @@ describe('send request validation', () => {
     expect(parseBackgroundRequest({ ...ok, request: { ...req, omitSourceLink: 'yes' } })).toBeUndefined();
   });
 
+  it('accepts stripTopFolder on a file as a boolean only', () => {
+    const withFlag = (stripTopFolder: unknown) => ({ to: 'background', type: 'send', tabId: 1, request: { ...req, selectedFiles: [file('m.zip', { kind: 'archive', stripTopFolder: stripTopFolder as boolean })] } });
+    expect(parseBackgroundRequest(withFlag(true))).toBeDefined();
+    expect(parseBackgroundRequest(withFlag(false))).toBeDefined();
+    expect(parseBackgroundRequest(withFlag('yes'))).toBeUndefined();
+    expect(parseBackgroundRequest(withFlag(1))).toBeUndefined();
+  });
+
   it('accepts extraLinks as an array of { url, text } only', () => {
     const withLinks = (extraLinks: unknown) => ({ to: 'background', type: 'send', tabId: 1, request: { ...req, source: { ...req.source, extraLinks } } });
     expect(parseBackgroundRequest(withLinks([{ url: 'https://github.com/a/b', text: 'GitHub folder' }]))).toBeDefined();

@@ -106,10 +106,10 @@ describe('sendModel against a real Manyfold', () => {
     expect(await bogus.testConnection()).toMatchObject({ ok: false, reason: 'unauthorized' });
   });
 
-  it('a Voron-shaped zip (everything under one top folder) is extracted and saves the source link and the GitHub folder as two links', async () => {
+  it('a Voron-shaped zip (everything under one top folder) is extracted without that folder and saves the source link and the GitHub folder as two links', async () => {
     const folder = `https://github.com/VoronDesign/VoronUsers/tree/main/printer_mods/e2e/${stamp}`;
-    const archive = zip({ 'Mod by author/STLs/a.stl': stl('a'), 'Mod by author/README.md': '# Mod\n' });
-    const files: SourceFile[] = [{ name: 'Mod-author.zip', kind: 'archive' }];
+    const archive = zip({ 'Mod by author/': '', 'Mod by author/STLs/': '', 'Mod by author/STLs/a.stl': stl('a'), 'Mod by author/README.md': '# Mod\n' });
+    const files: SourceFile[] = [{ name: 'Mod-author.zip', kind: 'archive', stripTopFolder: true }];
     const base = request('voron', files);
     const r = await sendModel({ ...base, source: { ...base.source, extraLinks: [{ url: folder, text: 'GitHub folder' }] } }, deps({ 'Mod-author.zip': archive, 'cover.png': new Blob([PNG], { type: 'image/png' }) }), () => {});
     expect(r).toMatchObject({ status: 'done' });
@@ -117,13 +117,13 @@ describe('sendModel against a real Manyfold', () => {
     const m = await getModel(r.modelUrl);
     expect(m.hasPart.some((p) => /zip/.test(p.encodingFormat ?? ''))).toBe(false);
     expect(m.hasPart.length).toBeGreaterThanOrEqual(2);
-    // Logged, not asserted: where Manyfold keeps the files of a zip whose entries all sit under one folder.
+    // The pipeline strips the shared top folder, so the files land at the model root like other sites'.
     const paths: string[] = [];
     for (const part of m.hasPart) {
       const file = (await (await client.request(new URL(part['@id']).pathname)).json()) as { contentUrl: string };
       paths.push(decodeURIComponent(new URL(file.contentUrl).pathname).replace(/^.*\/raw\//, ''));
     }
-    console.log('voron top-folder model file paths:', JSON.stringify(paths));
+    expect(paths.sort()).toEqual(['README.md', 'STLs/a.stl']);
     expect(m.links.some((l) => l.url.includes(`${stamp}-voron`) && l.text === 'Page Title ')).toBe(true);
     expect(m.links.some((l) => l.url === folder && l.text === 'GitHub folder ')).toBe(true);
   }, 150_000);

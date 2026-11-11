@@ -2,6 +2,7 @@ import { isAbort, PipelineError } from './errors';
 import { coverFileName, isArchiveName, isHttps, MAX_UPLOAD_BYTES, stem, uniqueNames, uploadName } from './files';
 import type { ModelGroup, SendState } from './state';
 import type { SendDeps, SendProgress } from './types';
+import { stripTopFolder } from './zip-strip';
 
 /** Download step of a send: every selected file into memory, the model plan, and the optional cover image. */
 
@@ -22,7 +23,9 @@ export async function downloadAll(state: SendState, deps: SendDeps, emit: (p: Se
     }
     const blob = await fetchHttps(deps, url, source.name, signal);
     entry.name = uploadName(source.name, resolvedName);
-    entry.blob = blob;
+    // Stripped exactly once: a retry skips entries that already hold a blob, so it never strips again.
+    entry.blob = source.kind === 'archive' && source.stripTopFolder ? await stripTopFolder(blob) : blob;
+    signal?.throwIfAborted();
   }
 }
 

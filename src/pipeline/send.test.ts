@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DownloadLoginRequired } from '../adapters/errors';
 import { ManyfoldError, UNAUTHORIZED_TEXT } from '../manyfold/errors';
+import { stl, zip } from '../manyfold/live-fixtures';
 import { BASE, file, harness, rateLimited, request, source, TOKEN } from './fakes';
 import { CreateLimiter } from './rate';
 import { retrySend, sendModel } from './send';
@@ -35,6 +36,52 @@ describe('sendModel: upload shape and order', () => {
     expect(r.status).toBe('done');
     expect(h.log.slice(1)).toEqual(['upload:parts.zip', 'create:Popup Title[parts.zip]', 'wait:m1', 'metadata:m1:Popup Title', `record:${BASE}/models/m1`]);
     expect(h.waitFake.mock.calls[0]![3]).toMatchObject({ expectedArchiveNames: ['parts.zip'] });
+  });
+
+  describe('an archive with stripTopFolder', () => {
+    const names = async (blob: Blob) => {
+      // Central directory names, read just enough for these tests.
+      const b = new Uint8Array(await blob.arrayBuffer());
+      const v = new DataView(b.buffer);
+      const out: string[] = [];
+      let c = v.getUint32(b.length - 22 + 16, true);
+      for (let i = 0; i < v.getUint16(b.length - 22 + 10, true); i++) {
+        const [n, m, k] = [v.getUint16(c + 28, true), v.getUint16(c + 30, true), v.getUint16(c + 32, true)];
+        out.push(new TextDecoder().decode(b.slice(c + 46, c + 46 + n)));
+        c += 46 + n + m + k;
+      }
+      return out;
+    };
+    const nested = () => zip({ 'Outer/': '', 'Outer/Inner/a.stl': stl('a'), 'Outer/Inner/b.stl': stl('b') });
+
+    it('uploads the zip with its shared top folder removed', async () => {
+      const h = harness();
+      h.fetchFile.mockResolvedValueOnce(zip({ 'Mod by author/README.md': '# Mod\n', 'Mod by author/STLs/a.stl': stl('a') }));
+      const r = await sendModel(request([file('mod.zip', { kind: 'archive', stripTopFolder: true })]), h.deps, noop);
+      expect(r.status).toBe('done');
+      expect(await names(h.uploadFileFake.mock.calls[0]![1])).toEqual(['README.md', 'STLs/a.stl']);
+      expect(h.uploadFileFake.mock.calls[0]![2]).toBe('mod.zip');
+    });
+
+    it('without the flag the downloaded zip is uploaded as is', async () => {
+      const h = harness();
+      const original = nested();
+      h.fetchFile.mockResolvedValueOnce(original);
+      await sendModel(request([file('mod.zip', { kind: 'archive' })]), h.deps, noop);
+      expect(h.uploadFileFake.mock.calls[0]![1]).toBe(original);
+    });
+
+    it('a retried send uploads the zip stripped once, not twice', async () => {
+      const h = harness();
+      h.fetchFile.mockResolvedValueOnce(nested());
+      h.uploadFileFake.mockRejectedValueOnce(new ManyfoldError('upload-failed', 'Uploading "mod.zip" failed after 3 retries.'));
+      const r = await sendModel(request([file('mod.zip', { kind: 'archive', stripTopFolder: true })]), h.deps, noop);
+      expect(r).toMatchObject({ status: 'failed', retryToken: 't1' });
+      const again = await retrySend('t1', h.deps, noop);
+      expect(again.status).toBe('done');
+      expect(h.fetchFile).toHaveBeenCalledTimes(1);
+      expect(await names(h.uploadFileFake.mock.calls[1]![1])).toEqual(['Inner/a.stl', 'Inner/b.stl']);
+    });
   });
 
   it('the popup title wins even if extraction renamed the model: metadata (name, preview) runs after the wait', async () => {

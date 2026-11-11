@@ -79,12 +79,15 @@ function licenseOf(doc: Document): string | undefined {
   return text(label?.parentElement?.querySelector('a'));
 }
 
-/** The single zip of the mod. Its file name is the link's last path segment (decoded) + `.zip`, else `<id>.zip`. */
+/**
+ * The single zip of the mod. Its file name is the link's last path segment (decoded) + `.zip`, else `<id>.zip`.
+ * Every entry sits under `<Title> by <author>/`, so the pipeline strips that folder before upload.
+ */
 function files(doc: Document, id: string): SourceFile[] {
   const href = doc.querySelector('a[href^="/download/"]')?.getAttribute('href');
   if (!href) return [];
   const absolute = new URL(href, ORIGIN);
-  return [{ name: `${zipBase(absolute.pathname) ?? id}.zip`, kind: 'archive', url: absolute.href }];
+  return [{ name: `${zipBase(absolute.pathname) ?? id}.zip`, kind: 'archive', url: absolute.href, stripTopFolder: true }];
 }
 
 function zipBase(pathname: string): string | undefined {
