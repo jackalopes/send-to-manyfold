@@ -24,6 +24,11 @@ export interface SourceFile {
    * (Voron Mods zips put everything under `<Title> by <author>/`). Only entry names change; the data is untouched.
    */
   stripTopFolder?: boolean;
+  /**
+   * Archive only: the files the archive should contain (`path` inside the zip, `url` to download it from). Used to
+   * rebuild the zip when the downloaded archive turns out to be unreadable (Voron Mods sometimes sends a cut-off zip).
+   */
+  parts?: { path: string; url: string }[];
 }
 
 /**

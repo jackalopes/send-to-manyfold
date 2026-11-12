@@ -53,6 +53,12 @@ export class DownloadFailed extends DownloadError {
   override readonly code = 'DOWNLOAD_FAILED';
 }
 
+/** The site answered HTTP 404 for a file link. Same code and message handling as `DownloadFailed`; only a caller that cares tells them apart. */
+export class DownloadNotFound extends DownloadError {
+  override readonly name = 'DownloadNotFound';
+  override readonly code = 'DOWNLOAD_FAILED';
+}
+
 /** The download error code of an error instance or of a plain `{ code }` object received over messaging. */
 export function downloadErrorCode(e: unknown): DownloadErrorCode | undefined {
   if (typeof e !== 'object' || e === null) return undefined;

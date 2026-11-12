@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stripTopFolder } from './zip-strip';
+import { isReadableZip, stripTopFolder } from './zip-strip';
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -443,5 +443,24 @@ describe('stripTopFolder', () => {
     const after = await readZip(await stripTopFolder(reversed));
     expect(after.entries.map((e) => e.name)).toEqual(['STLs/a.stl', 'STLs/', 'README.md']);
     expect(after.entries.map((e) => e.data)).toEqual(['solid a\nendsolid a\n', '', '# Mod\n']);
+  });
+});
+
+describe('isReadableZip', () => {
+  const valid = () => buildZip([{ name: 'Mod/a.stl', data: 'solid a' }, { name: 'Mod/b.stl', data: 'solid b' }]);
+
+  it('is true for a valid zip', async () => {
+    expect(await isReadableZip(valid())).toBe(true);
+  });
+
+  it('is false for a zip cut off after some local headers (no central directory, no end record)', async () => {
+    const whole = new Uint8Array(await valid().arrayBuffer());
+    const cut = new Blob([whole.slice(0, 60)]);
+    expect(await isReadableZip(cut)).toBe(false);
+  });
+
+  it('is false for random bytes and for nothing', async () => {
+    expect(await isReadableZip(new Blob([new Uint8Array(500).map((_, i) => (i * 37 + 11) % 251)]))).toBe(false);
+    expect(await isReadableZip(new Blob([]))).toBe(false);
   });
 });

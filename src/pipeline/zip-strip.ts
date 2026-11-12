@@ -42,6 +42,27 @@ const unchanged = (why: string): never => {
   throw new Unchanged(why);
 };
 
+/** A ZIP64 zip: not parsed here, but a valid zip. */
+class Zip64 extends Unchanged {}
+
+const zip64 = (): never => {
+  throw new Zip64('ZIP64');
+};
+
+/**
+ * Whether the blob has a zip end record and a central directory that lines up. A zip cut off mid-download (local
+ * headers only) is not readable; so are encrypted and split zips, which also trigger the rebuild when parts exist.
+ * ZIP64 zips count as readable: they are not parsed here, but Manyfold may unpack them.
+ */
+export async function isReadableZip(zip: Blob): Promise<boolean> {
+  try {
+    await readDirectory(zip);
+    return true;
+  } catch (e) {
+    return e instanceof Zip64;
+  }
+}
+
 export async function stripTopFolder(zip: Blob): Promise<Blob> {
   try {
     return await strip(zip);
@@ -50,18 +71,22 @@ export async function stripTopFolder(zip: Blob): Promise<Blob> {
   }
 }
 
-async function strip(zip: Blob): Promise<Blob> {
+/** The end record and the central directory entries; throws `Unchanged` (`Zip64` for ZIP64) when they do not line up. */
+async function readDirectory(zip: Blob): Promise<{ eocd: Uint8Array; eocdAt: number; cdOffset: number; entries: Entry[] }> {
   const { eocd, eocdAt } = await findEnd(zip);
   const ev = view(eocd);
   const count = ev.getUint16(10, true);
   const cdSize = ev.getUint32(12, true);
   const cdOffset = ev.getUint32(16, true);
   if (ev.getUint16(4, true) !== 0 || ev.getUint16(6, true) !== 0 || ev.getUint16(8, true) !== count) unchanged('split archive');
-  if (count === 0xffff || cdSize === 0xffffffff || cdOffset === 0xffffffff) unchanged('ZIP64');
+  if (count === 0xffff || cdSize === 0xffffffff || cdOffset === 0xffffffff) zip64();
   if (cdOffset + cdSize !== eocdAt) unchanged('central directory does not end at the end record');
-  if (eocdAt >= 20 && view(await bytes(zip, eocdAt - 20, eocdAt)).getUint32(0, true) === ZIP64_LOCATOR_SIG) unchanged('ZIP64');
+  if (eocdAt >= 20 && view(await bytes(zip, eocdAt - 20, eocdAt)).getUint32(0, true) === ZIP64_LOCATOR_SIG) zip64();
+  return { eocd, eocdAt, cdOffset, entries: readCentral(await bytes(zip, cdOffset, eocdAt), count) };
+}
 
-  const entries = readCentral(await bytes(zip, cdOffset, eocdAt), count);
+async function strip(zip: Blob): Promise<Blob> {
+  const { eocd, cdOffset, entries } = await readDirectory(zip);
   if (entries.length < 2) unchanged('single entry');
 
   const prefix = sharedTopFolder(entries.map((e) => e.name));
@@ -158,7 +183,7 @@ function readCentral(cd: Uint8Array, count: number): Entry[] {
     const disk = v.getUint16(c + 34, true);
     const localOffset = v.getUint32(c + 42, true);
     if (flags & 1) unchanged('encrypted');
-    if (compressedSize === 0xffffffff || size === 0xffffffff || localOffset === 0xffffffff || disk === 0xffff) unchanged('ZIP64');
+    if (compressedSize === 0xffffffff || size === 0xffffffff || localOffset === 0xffffffff || disk === 0xffff) zip64();
     if (disk !== 0) unchanged('split archive');
     const nameAt = c + CENTRAL_SIZE;
     const next = nameAt + nameLen + extraLen + commentLen;

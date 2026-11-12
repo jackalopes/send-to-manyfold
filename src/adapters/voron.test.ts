@@ -74,6 +74,7 @@ describe('extract: Pins Mod (two badges, license v3.0)', () => {
         kind: 'archive',
         url: `https://mods.vorondesign.com/download/${PINS_ID}/Voron2_4%20and%20Trident%20Pins%20Mod-hartk1213`,
         stripTopFolder: true,
+        parts: expect.any(Array),
       },
     ]);
   });
@@ -97,7 +98,7 @@ describe('extract: Belt Tension Meter (four badges, a README with its own h1/h3)
     expect(m.tags).toEqual(['Voron 0', 'Voron 1.8', 'Voron 2.4', 'Voron Switchwire']);
     expect(m.description).toMatch(/^# README/);
     expect(m.files).toEqual([
-      { name: 'Belt_Tension Meter-Kruppes.zip', kind: 'archive', url: 'https://mods.vorondesign.com/download/fmmg4Yx2BLULkfDDpZnAng/Belt_Tension%20Meter-Kruppes', stripTopFolder: true },
+      { name: 'Belt_Tension Meter-Kruppes.zip', kind: 'archive', url: 'https://mods.vorondesign.com/download/fmmg4Yx2BLULkfDDpZnAng/Belt_Tension%20Meter-Kruppes', stripTopFolder: true, parts: expect.any(Array) },
     ]);
   });
 });
@@ -154,6 +155,67 @@ describe('extract: odd pages', () => {
   ])('falls back to <id>.zip for %s (%s)', async (href) => {
     const m = await voron.extract(withHref(href), PINS);
     expect(m.files.map((f) => f.name)).toEqual([`${PINS_ID}.zip`]);
+  });
+
+  describe('parts (the files the zip should hold)', () => {
+    const fileLinks = (doc: Document) => [...doc.querySelectorAll('a[href^="/files/"]')];
+    const addLink = (doc: Document, href: string) => {
+      const a = doc.createElement('a');
+      a.setAttribute('href', href);
+      fileLinks(doc)[0]!.parentElement!.append(a);
+    };
+
+    it('lists every distinct /files/ link of the page, in order, with decoded paths and absolute URLs', async () => {
+      const doc = fixture(PINS_FIXTURE);
+      const hrefs = [...new Set(fileLinks(doc).map((a) => a.getAttribute('href')))];
+      const parts = (await voron.extract(doc, PINS)).files[0]!.parts!;
+      expect(parts).toHaveLength(hrefs.length);
+      expect(parts[0]).toEqual({
+        path: 'CAD/Gantry/AB_Drive_Units/a_drive_frame_lower_pinned.step',
+        url: `https://mods.vorondesign.com${hrefs[0]}`,
+      });
+      expect(parts.map((p) => p.url)).toEqual(hrefs.map((h) => `https://mods.vorondesign.com${h}`));
+    });
+
+    it('lists a link that appears twice once', async () => {
+      const doc = fixture(PINS_FIXTURE);
+      const before = (await voron.extract(doc, PINS)).files[0]!.parts!.length;
+      addLink(doc, fileLinks(doc)[0]!.getAttribute('href')!);
+      expect((await voron.extract(doc, PINS)).files[0]!.parts).toHaveLength(before);
+    });
+
+    it('lists one path once even when two hrefs decode to it', async () => {
+      const doc = fixture(PINS_FIXTURE);
+      const first = fileLinks(doc)[0]!.getAttribute('href')!;
+      const before = (await voron.extract(doc, PINS)).files[0]!.parts!.length;
+      addLink(doc, first.replace('%2F', '/'));
+      addLink(doc, first.replace(/%2F/g, '%2f'));
+      expect((await voron.extract(doc, PINS)).files[0]!.parts).toHaveLength(before);
+    });
+
+    it.each([
+      [`/files/${PINS_ID}/`, 'empty path'],
+      [`/files/${PINS_ID}/%2Fa%2F%2Fb.stl`, 'empty segment'],
+      [`/files/${PINS_ID}/%2Fa%2F`, 'trailing slash'],
+      [`/files/${PINS_ID}/%2Fa%2F.%2Fb.stl`, '. segment'],
+      [`/files/${PINS_ID}/%2F`, 'only a slash'],
+      [`/files/${PINS_ID}/%2F..%2Fx.stl`, '.. segment'],
+      [`/files/${PINS_ID}/%2Fa%2F..%2Fx.stl`, 'inner .. segment'],
+      [`/files/${PINS_ID}/%2F%2Fetc%2Fpasswd`, 'absolute after trimming'],
+      [`/files/${PINS_ID}/%2Fa%5Cb.stl`, 'backslash'],
+      [`/files/${PINS_ID}/%E0%A4%A`, 'undecodable'],
+    ])('skips a link with %s (%s)', async (href) => {
+      const doc = fixture(PINS_FIXTURE);
+      const before = (await voron.extract(doc, PINS)).files[0]!.parts!.length;
+      addLink(doc, href);
+      expect((await voron.extract(doc, PINS)).files[0]!.parts).toHaveLength(before);
+    });
+
+    it('omits parts when the page has no usable /files/ link', async () => {
+      const doc = fixture(PINS_FIXTURE);
+      fileLinks(doc).forEach((a) => a.remove());
+      expect((await voron.extract(doc, PINS)).files[0]).not.toHaveProperty('parts');
+    });
   });
 
   it('has no tags when the badges are gone', async () => {

@@ -133,6 +133,27 @@ describe('sendModel against a real Manyfold', () => {
     expect(m.links.some((l) => l.url === folder && l.text === 'GitHub folder ')).toBe(true);
   }, 150_000);
 
+  it('a Voron-shaped send whose zip is incomplete is rebuilt from the single files, without a top folder', async () => {
+    const whole = zip({ 'Mod by author/README.md': '# Mod\n', 'Mod by author/STLs/a.stl': stl('a') });
+    const truncated = new Blob([(await whole.arrayBuffer()).slice(0, 90)]); // local headers only: no central directory, no end record
+    const parts = [
+      { path: 'STLs/a.stl', url: `${origin}/files/x/a.stl` },
+      { path: 'README.md', url: `${origin}/files/x/readme.md` },
+    ];
+    const files: SourceFile[] = [{ name: 'Broken-author.zip', kind: 'archive', stripTopFolder: true, parts }];
+    const r = await sendModel(request('voron-broken', files), deps({ 'Broken-author.zip': truncated, 'files/x/a.stl': new Blob([stl('a')]), 'files/x/readme.md': new Blob(['# Mod\n']), 'cover.png': new Blob([PNG], { type: 'image/png' }) }), () => {});
+    expect(r).toMatchObject({ status: 'done' });
+    if (r.status !== 'done') return;
+    const m = await getModel(r.modelUrl);
+    expect(m.hasPart.some((p) => /zip/.test(p.encodingFormat ?? ''))).toBe(false);
+    const paths: string[] = [];
+    for (const part of m.hasPart) {
+      const file = (await (await client.request(new URL(part['@id']).pathname)).json()) as { contentUrl: string };
+      paths.push(decodeURIComponent(new URL(file.contentUrl).pathname).replace(/^.*\/raw\//, ''));
+    }
+    expect(paths.sort()).toEqual(['README.md', 'STLs/a.stl']);
+  }, 150_000);
+
   it('loose STL + cover in a collection: title, source link, license note, tags and preview are set', async () => {
     const collectionId = await createCollection(`E2E collection ${stamp}`);
     const files: SourceFile[] = [{ name: 'part.stl', kind: 'model' }];
