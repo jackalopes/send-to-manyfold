@@ -107,8 +107,10 @@ const optNumber = optional(isNumber);
 
 const isStringRecord = (v: unknown): boolean => isRecord(v) && Object.values(v).every(isString);
 
+const isParts = (v: unknown): v is { path: string; url: string }[] => Array.isArray(v) && v.every((x) => isRecord(x) && hasShape(x, { path: isString, url: isString }));
+
 export function isSourceFile(v: unknown): v is SourceFile {
-  return isRecord(v) && hasShape(v, { name: isString, kind: isKind, url: optString, size: optNumber, lfs: optional(isBool), stripTopFolder: optional(isBool), ref: (r) => r === undefined || isStringRecord(r) });
+  return isRecord(v) && hasShape(v, { name: isString, kind: isKind, url: optString, size: optNumber, lfs: optional(isBool), stripTopFolder: optional(isBool), parts: optional(isParts), ref: (r) => r === undefined || isStringRecord(r) });
 }
 
 const isLinkList = (l: unknown): l is { url: string; text: string }[] => Array.isArray(l) && l.every((x) => isRecord(x) && hasShape(x, { url: isString, text: isString }));

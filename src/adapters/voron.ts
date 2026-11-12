@@ -88,7 +88,34 @@ function files(doc: Document, id: string): SourceFile[] {
   const href = doc.querySelector('a[href^="/download/"]')?.getAttribute('href');
   if (!href) return [];
   const absolute = new URL(href, ORIGIN);
-  return [{ name: `${zipBase(absolute.pathname) ?? id}.zip`, kind: 'archive', url: absolute.href, stripTopFolder: true }];
+  const file: SourceFile = { name: `${zipBase(absolute.pathname) ?? id}.zip`, kind: 'archive', url: absolute.href, stripTopFolder: true };
+  const parts = partsOf(doc, id);
+  if (parts.length) file.parts = parts;
+  return [file];
+}
+
+/**
+ * The page's single-file links (`/files/<id>/%2F<path>`), in page order and without repeats: the zip is rebuilt from
+ * them when the site's own zip is cut off. A link whose path is empty, absolute, or climbs with `..` or `\` is skipped.
+ */
+function partsOf(doc: Document, id: string): { path: string; url: string }[] {
+  const prefix = `/files/${id}/`;
+  const seen = new Set<string>();
+  const parts: { path: string; url: string }[] = [];
+  for (const a of doc.querySelectorAll('a[href^="/files/"]')) {
+    const href = a.getAttribute('href') ?? '';
+    if (!href.startsWith(prefix) || seen.has(href)) continue;
+    seen.add(href);
+    let path: string;
+    try {
+      path = decodeURIComponent(href.slice(prefix.length).replace(/[?#].*$/, '')).replace(/^\//, '');
+    } catch {
+      continue;
+    }
+    if (!path || path.startsWith('/') || path.includes('\\') || path.split('/').includes('..')) continue;
+    parts.push({ path, url: new URL(href, ORIGIN).href });
+  }
+  return parts;
 }
 
 function zipBase(pathname: string): string | undefined {

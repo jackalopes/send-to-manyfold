@@ -1,4 +1,4 @@
-import { DownloadFailed } from '../adapters/errors';
+import { DownloadFailed, DownloadNotFound } from '../adapters/errors';
 import { MESSAGES, PipelineError } from '../pipeline/errors';
 import { isHttps, MAX_UPLOAD_BYTES } from '../pipeline/files';
 
@@ -15,7 +15,7 @@ export function createFetchFile(fetchImpl: typeof fetch = (...a) => fetch(...a),
     signal?.throwIfAborted();
     const res = await fetchImpl(url, { credentials: 'omit', redirect: 'follow', cache: 'no-store', ...(signal ? { signal } : {}) });
     if (res.url && !isHttps(res.url)) throw notHttps();
-    if (!res.ok) throw new DownloadFailed(`Downloading the file failed: the site answered HTTP ${res.status}. Try again.`);
+    if (!res.ok) throw new (res.status === 404 ? DownloadNotFound : DownloadFailed)(`Downloading the file failed: the site answered HTTP ${res.status}. Try again.`);
     const length = Number(res.headers.get('content-length'));
     if (Number.isFinite(length) && length > maxBytes) throw tooLarge();
     const type = res.headers.get('content-type') ?? '';

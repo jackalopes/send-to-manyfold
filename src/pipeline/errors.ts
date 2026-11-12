@@ -9,6 +9,7 @@ export type SendErrorCode =
   | 'blocked'
   | 'download-failed'
   | 'download-not-https'
+  | 'source-archive-broken'
   | 'too-large'
   | 'manyfold-unreachable'
   | 'manyfold-unauthorized'
@@ -64,6 +65,8 @@ export const MESSAGES: Record<SendErrorCode, string> = {
   blocked: 'The site answered with a bot check instead of the file. Reload the page and try again.',
   'download-failed': 'Downloading the file from the site failed. Try again.',
   'download-not-https': 'The site gave a download link that is not https, so it was not used.',
+  'source-archive-broken':
+    'Voron Mods sent an incomplete zip for this mod, and downloading its files one by one also failed. Try again later, or download the files from the mod page by hand.',
   'too-large': 'The file is larger than Manyfold accepts (1 GiB).',
   'manyfold-unreachable': UNREACHABLE_TEXT,
   'manyfold-unauthorized': UNAUTHORIZED_TEXT,

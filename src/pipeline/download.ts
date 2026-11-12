@@ -1,8 +1,10 @@
-import { isAbort, PipelineError } from './errors';
+import { DownloadNotFound } from '../adapters/errors';
+import { isAbort, MESSAGES, PipelineError } from './errors';
 import { coverFileName, isArchiveName, isHttps, MAX_UPLOAD_BYTES, stem, uniqueNames, uploadName } from './files';
 import type { ModelGroup, SendState } from './state';
 import type { SendDeps, SendProgress } from './types';
-import { stripTopFolder } from './zip-strip';
+import { isReadableZip, stripTopFolder } from './zip-strip';
+import { storedZip } from './zip-write';
 
 /** Download step of a send: every selected file into memory, the model plan, and the optional cover image. */
 
@@ -23,9 +25,34 @@ export async function downloadAll(state: SendState, deps: SendDeps, emit: (p: Se
     }
     const blob = await fetchHttps(deps, url, source.name, signal);
     entry.name = uploadName(source.name, resolvedName);
-    // Stripped exactly once: a retry skips entries that already hold a blob, so it never strips again.
-    entry.blob = source.kind === 'archive' && source.stripTopFolder ? await stripTopFolder(blob) : blob;
+    // Stripped or rebuilt exactly once: a retry skips entries that already hold a blob, so it never repeats either.
+    if (source.kind === 'archive' && source.parts?.length && !(await isReadableZip(blob))) entry.blob = await rebuildFromParts(source.parts, deps, emit, signal);
+    else entry.blob = source.kind === 'archive' && source.stripTopFolder ? await stripTopFolder(blob) : blob;
     signal?.throwIfAborted();
+  }
+}
+
+/** The site's zip is cut off: download the files it should hold one by one and zip them (no top folder). */
+async function rebuildFromParts(parts: { path: string; url: string }[], deps: SendDeps, emit: (p: SendProgress) => void, signal?: AbortSignal): Promise<Blob> {
+  emit({ stage: 'downloading', label: `Voron Mods sent an incomplete zip. Downloading the ${parts.length} files one by one` });
+  try {
+    const entries: { name: string; blob: Blob }[] = [];
+    for (const [i, part] of parts.entries()) {
+      emit({ stage: 'downloading', label: `Downloading ${part.path} (${i + 1} of ${parts.length})`, fileIndex: i, fileCount: parts.length });
+      try {
+        entries.push({ name: part.path, blob: await fetchHttps(deps, part.url, part.path, signal) });
+      } catch (e) {
+        // The page can list a file the site does not serve (a dotfile such as `.metadata.yml`): leave it out.
+        if (!(e instanceof DownloadNotFound)) throw e;
+      }
+    }
+    if (!entries.length) throw new Error('no part could be downloaded');
+    const zip = await storedZip(entries);
+    if (zip.size > MAX_UPLOAD_BYTES) throw tooLarge('the rebuilt zip');
+    return zip;
+  } catch (e) {
+    if (isAbort(e) || signal?.aborted) throw e;
+    throw new PipelineError('source-archive-broken', MESSAGES['source-archive-broken']);
   }
 }
 
