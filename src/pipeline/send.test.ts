@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DownloadLoginRequired, DownloadNotFound } from '../adapters/errors';
 import { ManyfoldError, UNAUTHORIZED_TEXT } from '../manyfold/errors';
 import { stl, zip } from '../manyfold/live-fixtures';
+import { MESSAGES } from './errors';
 import { BASE, file, harness, rateLimited, request, source, TOKEN } from './fakes';
 import { CreateLimiter } from './rate';
 import { retrySend, sendModel } from './send';
@@ -164,7 +165,7 @@ describe('sendModel: upload shape and order', () => {
       const seen: SendProgress[] = [];
       const r = await sendModel(request([archive()]), h.deps, (p) => seen.push(p));
       expect(r.status).toBe('done');
-      expect(seen.map((p) => p.label)).toContain('Zipping 1 files (1 the site lists but does not serve, skipped)');
+      expect(seen.map((p) => p.label)).toContain('Zipping 1 files. Voron Mods did not serve 1 listed file, so it was left out: STL/a.stl');
       expect(await names(h.uploadFileFake.mock.calls[0]![1])).toEqual(['README.md']);
       expect(h.fetchFile).toHaveBeenCalledTimes(3);
     });
@@ -174,7 +175,7 @@ describe('sendModel: upload shape and order', () => {
       h.fetchFile.mockResolvedValueOnce(await truncated());
       h.fetchFile.mockRejectedValue(new DownloadNotFound('gone'));
       const r = await sendModel(request([archive()]), h.deps, noop);
-      expect(r).toMatchObject({ status: 'failed', error: { code: 'source-archive-broken' } });
+      expect(r).toMatchObject({ status: 'failed', error: { code: 'source-archive-broken', message: MESSAGES['source-archive-broken'] } });
     });
 
     it('an abort while downloading the parts stays an abort', async () => {

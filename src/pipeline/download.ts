@@ -37,6 +37,7 @@ async function rebuildFromParts(parts: { path: string; url: string }[], deps: Se
   emit({ stage: 'downloading', label: `Voron Mods sent an incomplete zip. Downloading the ${parts.length} files one by one` });
   try {
     const entries: { name: string; blob: Blob }[] = [];
+    const missing: string[] = [];
     for (const [i, part] of parts.entries()) {
       emit({ stage: 'downloading', label: `Downloading ${part.path} (${i + 1} of ${parts.length})`, fileIndex: i, fileCount: parts.length });
       try {
@@ -44,11 +45,12 @@ async function rebuildFromParts(parts: { path: string; url: string }[], deps: Se
       } catch (e) {
         // The page can list a file the site does not serve (a dotfile such as `.metadata.yml`): leave it out.
         if (!(e instanceof DownloadNotFound)) throw e;
+        missing.push(part.path);
       }
     }
     if (!entries.length) throw new Error('no part could be downloaded');
     const skipped = parts.length - entries.length;
-    if (skipped) emit({ stage: 'downloading', label: `Zipping ${entries.length} files (${skipped} the site lists but does not serve, skipped)`, fileIndex: parts.length - 1, fileCount: parts.length });
+    if (skipped) emit({ stage: 'downloading', label: `Zipping ${entries.length} files. Voron Mods did not serve ${skipped} listed file${skipped === 1 ? '' : 's'}, so ${skipped === 1 ? 'it was' : 'they were'} left out: ${missing.join(', ')}`, fileIndex: parts.length - 1, fileCount: parts.length });
     const zip = await storedZip(entries);
     if (zip.size > MAX_UPLOAD_BYTES) throw tooLarge('the rebuilt zip');
     return zip;
