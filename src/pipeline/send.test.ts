@@ -161,8 +161,10 @@ describe('sendModel: upload shape and order', () => {
       const h = harness();
       h.fetchFile.mockResolvedValueOnce(await truncated());
       h.fetchFile.mockRejectedValueOnce(new DownloadNotFound('gone'));
-      const r = await sendModel(request([archive()]), h.deps, noop);
+      const seen: SendProgress[] = [];
+      const r = await sendModel(request([archive()]), h.deps, (p) => seen.push(p));
       expect(r.status).toBe('done');
+      expect(seen.map((p) => p.label)).toContain('Zipping 1 files (1 the site lists but does not serve, skipped)');
       expect(await names(h.uploadFileFake.mock.calls[0]![1])).toEqual(['README.md']);
       expect(h.fetchFile).toHaveBeenCalledTimes(3);
     });

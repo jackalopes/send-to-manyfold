@@ -47,6 +47,8 @@ async function rebuildFromParts(parts: { path: string; url: string }[], deps: Se
       }
     }
     if (!entries.length) throw new Error('no part could be downloaded');
+    const skipped = parts.length - entries.length;
+    if (skipped) emit({ stage: 'downloading', label: `Zipping ${entries.length} files (${skipped} the site lists but does not serve, skipped)` });
     const zip = await storedZip(entries);
     if (zip.size > MAX_UPLOAD_BYTES) throw tooLarge('the rebuilt zip');
     return zip;
