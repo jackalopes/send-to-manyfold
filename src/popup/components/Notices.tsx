@@ -29,7 +29,20 @@ export function DiscardedView() {
 }
 
 /** Thingiverse: the extension cannot download the files, so Manyfold's own importer does. */
-export function HandoffView({ model, form, url, openUrl }: { model?: SourceModel; form?: ReviewForm; url: string; openUrl(url: string): void }) {
+export function HandoffView({
+  model,
+  form,
+  url,
+  openUrl,
+  onImporterOpened,
+}: {
+  model?: SourceModel;
+  form?: ReviewForm;
+  url: string;
+  openUrl(url: string): void;
+  /** The importer was opened (the page is then watched for the import). */
+  onImporterOpened?(): void;
+}) {
   const site = model ? SITE_NAMES[model.site] : 'the site';
   return (
     <section>
@@ -37,7 +50,15 @@ export function HandoffView({ model, form, url, openUrl }: { model?: SourceModel
         {site} models are imported by Manyfold itself. Open the importer to continue; nothing is downloaded by this extension.
       </p>
       {form ? <DetailsFields form={form} onPatch={() => undefined} readOnly /> : null}
-      <button type="button" onClick={() => openUrl(url)}>Open in Manyfold importer</button>
+      <button
+        type="button"
+        onClick={() => {
+          openUrl(url);
+          onImporterOpened?.();
+        }}
+      >
+        Open in Manyfold importer
+      </button>
       <p class="meta">The importer's Import button appears only if your Manyfold administrator has set a Thingiverse API key (Manyfold settings, Integrations).</p>
       <p class="meta">Get a key: create an app at <ExternalLink href="https://www.thingiverse.com/developers/my-apps" onOpen={openUrl}>Thingiverse's developer page</ExternalLink> and copy its App Token.</p>
     </section>

@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LookupResult } from '../manyfold/lookup';
-import { createTabStatus, type TabStatusDeps } from './tab-status';
+import { createTabStatus, IMPORT_RECHECK_DELAYS_MS, type TabStatusDeps } from './tab-status';
 
 const PAGE_A = 'https://www.printables.com/model/3161-x';
 const PAGE_B = 'https://www.printables.com/model/99-y';
@@ -152,6 +152,71 @@ describe('tab status', () => {
     await vi.waitFor(() => expect(deps.tellTab).toHaveBeenCalledTimes(1));
     ts.refresh(5);
     expect(deps.tellTab).not.toHaveBeenCalledWith(5, { to: 'content', type: 'reportState' });
+  });
+
+  describe('watchImport() (Thingiverse: Manyfold imports it, the extension never hears when it is done)', () => {
+    const THING = 'https://www.thingiverse.com/thing:4242';
+    const total = IMPORT_RECHECK_DELAYS_MS.reduce((a, b) => a + b, 0);
+
+    async function watched(lookup: TabStatusDeps['lookup']) {
+      vi.useFakeTimers();
+      const s = setup({ lookup });
+      s.ts.report(5, THING);
+      await vi.advanceTimersByTimeAsync(0);
+      vi.mocked(s.deps.lookup).mockClear();
+      s.ts.watchImport(5, THING);
+      return s;
+    }
+    afterEach(() => vi.useRealTimers());
+
+    it('looks the page up again with back-off and flips the tab to the check once the import shows up', async () => {
+      const lookup = vi.fn<TabStatusDeps['lookup']>().mockResolvedValueOnce({ status: 'none' }).mockResolvedValueOnce({ status: 'none' }).mockResolvedValueOnce({ status: 'none' }).mockResolvedValue(FOUND);
+      const { deps } = await watched(lookup);
+      expect(lookup).not.toHaveBeenCalled(); // nothing at once: the import has only just been started
+      await vi.advanceTimersByTimeAsync(IMPORT_RECHECK_DELAYS_MS[0]!);
+      expect(lookup).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(IMPORT_RECHECK_DELAYS_MS[1]! + IMPORT_RECHECK_DELAYS_MS[2]!);
+      expect(lookup).toHaveBeenCalledTimes(3);
+      expect(lastState(deps)).toEqual([5, 'in-manyfold']);
+      expect(deps.tellTab).toHaveBeenLastCalledWith(5, { to: 'content', type: 'modelStatus', key: 'thingiverse:4242', count: 1 });
+      // Stops on the first hit.
+      await vi.advanceTimersByTimeAsync(total);
+      expect(lookup).toHaveBeenCalledTimes(3);
+    });
+
+    it('gives up after the last re-check (about two minutes, each gap under the worker idle limit)', async () => {
+      expect(total).toBeGreaterThanOrEqual(100_000);
+      expect(total).toBeLessThanOrEqual(150_000);
+      expect(IMPORT_RECHECK_DELAYS_MS.every((ms) => ms < 30_000)).toBe(true);
+      const { deps } = await watched(vi.fn(async (): Promise<LookupResult> => ({ status: 'none' })));
+      await vi.advanceTimersByTimeAsync(total * 3);
+      expect(deps.lookup).toHaveBeenCalledTimes(IMPORT_RECHECK_DELAYS_MS.length);
+    });
+
+    it('stops when the tab moved on to another model, or was closed', async () => {
+      const moved = await watched(vi.fn(async (): Promise<LookupResult> => ({ status: 'none' })));
+      moved.ts.report(5, PAGE_A);
+      await vi.advanceTimersByTimeAsync(total);
+      expect(vi.mocked(moved.deps.lookup).mock.calls.map(([u]) => u)).toEqual([PAGE_A]);
+      vi.useRealTimers();
+
+      const closed = await watched(vi.fn(async (): Promise<LookupResult> => ({ status: 'none' })));
+      closed.ts.forget(5);
+      await vi.advanceTimersByTimeAsync(total);
+      expect(closed.deps.lookup).not.toHaveBeenCalled();
+    });
+
+    it('a re-check while the tab has no entry (it is loading) asks nothing and keeps watching', async () => {
+      const { deps, ts } = await watched(vi.fn(async (): Promise<LookupResult> => FOUND));
+      ts.unsupported(5);
+      await vi.advanceTimersByTimeAsync(IMPORT_RECHECK_DELAYS_MS[0]!);
+      expect(deps.lookup).not.toHaveBeenCalled();
+      ts.report(5, THING); // the page reported again: its own lookup finds it
+      await vi.advanceTimersByTimeAsync(0);
+      expect(lastState(deps)).toEqual([5, 'in-manyfold']);
+      await vi.advanceTimersByTimeAsync(total);
+      expect(deps.lookup).toHaveBeenCalledTimes(1); // found: the watch asks nothing more
+    });
   });
 
   describe('resolve()', () => {

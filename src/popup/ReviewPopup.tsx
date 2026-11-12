@@ -123,7 +123,15 @@ export function ReviewPopup({ deps }: { deps: PopupDeps }) {
         />
       );
     case 'handoff':
-      return <HandoffView {...(state.model ? { model: state.model } : {})} {...(state.form ? { form: state.form } : {})} url={state.url} openUrl={deps.openUrl} />;
+      return (
+        <HandoffView
+          {...(state.model ? { model: state.model } : {})}
+          {...(state.form ? { form: state.form } : {})}
+          url={state.url}
+          openUrl={deps.openUrl}
+          onImporterOpened={() => void controller.importerOpened()}
+        />
+      );
     case 'discarded':
       return <DiscardedView />;
   }

@@ -139,6 +139,16 @@ export function createController(deps: ControllerDeps) {
       if (!reply.ok) dispatch(failure(id, reply.error));
     },
 
+    /**
+     * The user opened Manyfold's importer. Manyfold imports the model itself and nothing reports when it is done,
+     * so the background is asked to look the page up again for a while (the badge and button then flip).
+     */
+    async importerOpened(): Promise<void> {
+      const s = getState();
+      if (s.phase !== 'handoff' || !s.model || tabId === undefined) return;
+      await api.importOpened(tabId, s.model.sourceUrl);
+    },
+
     async discard(): Promise<void> {
       const id = sendIdOf();
       if (!id) return;

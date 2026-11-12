@@ -75,6 +75,7 @@ export function createPopupApi(deps: PopupApiDeps) {
     cancel: (sendId: string) => ask<AckReply>({ to: 'background', type: 'cancel', sendId }),
     discard: (sendId: string) => ask<AckReply>({ to: 'background', type: 'discard', sendId }),
     status: () => ask<StatusReply>({ to: 'background', type: 'status' }),
+    importOpened: (tabId: number, url: string) => ask<AckReply>({ to: 'background', type: 'importOpened', tabId, url }),
 
     async remember(tabId: number, sendId: string): Promise<void> {
       await deps.session.set(sessionKey(tabId), sendId).catch(() => undefined);

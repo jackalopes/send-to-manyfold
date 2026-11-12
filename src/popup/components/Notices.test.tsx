@@ -24,6 +24,13 @@ describe('HandoffView', () => {
     expect(root.textContent).toContain('Open in Manyfold importer');
   });
 
+  it('the importer button opens the importer, then says so (the page is watched for the import)', () => {
+    const calls: string[] = [];
+    render(<HandoffView url="http://m/imports/new?url=x" openUrl={(u) => void calls.push(`open ${u}`)} onImporterOpened={() => void calls.push('opened')} />, root);
+    [...root.querySelectorAll('button')].find((b) => b.textContent === 'Open in Manyfold importer')?.click();
+    expect(calls).toEqual(['open http://m/imports/new?url=x', 'opened']);
+  });
+
   it('links to the Thingiverse developer page and opens it through openUrl', () => {
     const opened: string[] = [];
     render(<HandoffView url="http://m/models?q=x" openUrl={(u) => void opened.push(u)} />, root);

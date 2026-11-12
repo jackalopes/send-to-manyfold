@@ -13,7 +13,17 @@ export interface TabStatusDeps {
   lookup(pageUrl: string, signal: AbortSignal): Promise<LookupResult>;
   /** Tells a tab's content script what the lookup found (its button relabels), or to report its page state again. */
   tellTab(tabId: number, message: ModelStatus | ReportState): Promise<void>;
+  /** Timers for `watchImport` (default: the global ones). */
+  setTimeout?(fn: () => void, ms: number): unknown;
+  clearTimeout?(handle: unknown): void;
 }
+
+/**
+ * Gaps between the re-checks after a hand-off to Manyfold's importer (Thingiverse), about two minutes in all.
+ * Each gap stays under the 30 s after which Chrome stops an idle service worker: every re-check calls the
+ * `action` API, which keeps the worker running, so the timers are not lost while the watch lasts.
+ */
+export const IMPORT_RECHECK_DELAYS_MS: readonly number[] = [3_000, 5_000, 10_000, 15_000, 20_000, 20_000, 20_000, 20_000, 20_000];
 
 /** What the background knows about one tab's model page. */
 interface TabEntry {
@@ -36,6 +46,15 @@ export type Resolved = LookupResult | 'not-a-model' | 'moved';
  */
 export function createTabStatus(deps: TabStatusDeps) {
   const tabs = new Map<number, TabEntry>(); // tab id -> its supported model page
+  const watches = new Map<number, unknown>(); // tab id -> the timer of its next import re-check
+  const later = deps.setTimeout ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
+  const cancel = deps.clearTimeout ?? ((h: unknown) => clearTimeout(h as ReturnType<typeof setTimeout>));
+
+  const stopWatch = (tabId: number): void => {
+    if (!watches.has(tabId)) return;
+    cancel(watches.get(tabId));
+    watches.delete(tabId);
+  };
 
   const quiet = (p: Promise<unknown>) => void p.catch(() => undefined);
 
@@ -124,7 +143,40 @@ export function createTabStatus(deps: TabStatusDeps) {
       quiet(deps.setTabState(tabId, 'unsupported'));
     },
 
-    /** The tab was closed: forget it. */
-    forget,
+    /**
+     * The popup handed this tab's model to Manyfold's own importer (Thingiverse). That import runs in Manyfold
+     * and nothing tells the extension when it is done, so the page is looked up again a few times with back-off
+     * (`IMPORT_RECHECK_DELAYS_MS`). It stops at the first hit, when the tab shows another model or is closed,
+     * or after the last re-check. A re-check while the tab has no entry (it is loading) asks nothing: the page
+     * reports itself again and that starts its own lookup.
+     */
+    watchImport(tabId: number, pageUrl: string): void {
+      const key = modelKey(pageUrl);
+      stopWatch(tabId);
+      if (!key) return;
+      const step = (i: number): void => {
+        if (i >= IMPORT_RECHECK_DELAYS_MS.length) return void watches.delete(tabId);
+        const handle = later(() => {
+          if (watches.get(tabId) !== handle) return;
+          const entry = tabs.get(tabId);
+          if (entry && entry.key !== key) return stopWatch(tabId);
+          if (entry?.result?.status === 'found') return stopWatch(tabId);
+          if (!entry || entry.abort) return step(i + 1); // loading, or a lookup is already running
+          void start(tabId, entry.url, key, entry.result).then((result) => {
+            if (watches.get(tabId) !== handle) return;
+            if (result?.status === 'found') stopWatch(tabId);
+            else step(i + 1);
+          });
+        }, IMPORT_RECHECK_DELAYS_MS[i]!);
+        watches.set(tabId, handle);
+      };
+      step(0);
+    },
+
+    /** The tab was closed: forget it, and stop watching for an import. */
+    forget(tabId: number): void {
+      stopWatch(tabId);
+      forget(tabId);
+    },
   };
 }

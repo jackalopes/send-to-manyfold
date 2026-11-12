@@ -3,7 +3,7 @@
  * and Blobs) and is validated on arrival, so an unknown or malformed shape is rejected, never guessed at.
  *
  * Routes:
- * - extension pages (popup, options) -> background: `send`, `cancel`, `retry`, `discard`, `status`
+ * - extension pages (popup, options) -> background: `send`, `cancel`, `retry`, `discard`, `status`, `importOpened`
  * - background -> offscreen document: the same verbs (`start` instead of `send`), which run the pipeline
  * - offscreen document -> background: `getConnection` (base URL and token, in the direct reply only),
  *   `resolveDownload` (forwarded to the source tab's content script), `recordSend` (sent history)
@@ -27,7 +27,9 @@ export type PageRequest =
   /** `tabId`: the tab to resolve download links in from now on (the source tab may have been closed). */
   | { to: 'background'; type: 'retry'; sendId: string; forceCreate?: boolean; tabId?: number }
   | { to: 'background'; type: 'discard'; sendId: string }
-  | { to: 'background'; type: 'status' };
+  | { to: 'background'; type: 'status' }
+  /** The popup opened Manyfold's importer for the model on tab `tabId` (`url`: its page), which Manyfold imports itself. */
+  | { to: 'background'; type: 'importOpened'; tabId: number; url: string };
 
 export type OffscreenToBackground =
   | { to: 'background'; type: 'getConnection' }
@@ -193,6 +195,7 @@ const VERBS: Shapes = {
 const BACKGROUND: Shapes = {
   ...VERBS,
   send: { request: isSendRequest, tabId: isInt },
+  importOpened: { tabId: isInt, url: isString },
   getConnection: {},
   resolveDownload: { sendId: isId, tabId: isInt, site: isSite, file: isSourceFile },
   recordSend: { entry: isHistoryEntry },
