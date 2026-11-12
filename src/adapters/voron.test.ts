@@ -184,8 +184,20 @@ describe('extract: odd pages', () => {
       expect((await voron.extract(doc, PINS)).files[0]!.parts).toHaveLength(before);
     });
 
+    it('lists one path once even when two hrefs decode to it', async () => {
+      const doc = fixture(PINS_FIXTURE);
+      const first = fileLinks(doc)[0]!.getAttribute('href')!;
+      const before = (await voron.extract(doc, PINS)).files[0]!.parts!.length;
+      addLink(doc, first.replace('%2F', '/'));
+      addLink(doc, first.replace(/%2F/g, '%2f'));
+      expect((await voron.extract(doc, PINS)).files[0]!.parts).toHaveLength(before);
+    });
+
     it.each([
       [`/files/${PINS_ID}/`, 'empty path'],
+      [`/files/${PINS_ID}/%2Fa%2F%2Fb.stl`, 'empty segment'],
+      [`/files/${PINS_ID}/%2Fa%2F`, 'trailing slash'],
+      [`/files/${PINS_ID}/%2Fa%2F.%2Fb.stl`, '. segment'],
       [`/files/${PINS_ID}/%2F`, 'only a slash'],
       [`/files/${PINS_ID}/%2F..%2Fx.stl`, '.. segment'],
       [`/files/${PINS_ID}/%2Fa%2F..%2Fx.stl`, 'inner .. segment'],

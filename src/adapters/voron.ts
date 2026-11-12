@@ -95,8 +95,8 @@ function files(doc: Document, id: string): SourceFile[] {
 }
 
 /**
- * The page's single-file links (`/files/<id>/%2F<path>`), in page order and without repeats: the zip is rebuilt from
- * them when the site's own zip is cut off. A link whose path is empty, absolute, or climbs with `..` or `\` is skipped.
+ * The page's single-file links (`/files/<id>/%2F<path>`), in page order, one per path: the zip is rebuilt from
+ * them when the site's own zip is cut off. A link whose path is empty, absolute, has an empty, `.` or `..` segment, or contains `\` is skipped.
  */
 function partsOf(doc: Document, id: string): { path: string; url: string }[] {
   const prefix = `/files/${id}/`;
@@ -104,15 +104,17 @@ function partsOf(doc: Document, id: string): { path: string; url: string }[] {
   const parts: { path: string; url: string }[] = [];
   for (const a of doc.querySelectorAll('a[href^="/files/"]')) {
     const href = a.getAttribute('href') ?? '';
-    if (!href.startsWith(prefix) || seen.has(href)) continue;
-    seen.add(href);
+    if (!href.startsWith(prefix)) continue;
     let path: string;
     try {
       path = decodeURIComponent(href.slice(prefix.length).replace(/[?#].*$/, '')).replace(/^\//, '');
     } catch {
       continue;
     }
-    if (!path || path.startsWith('/') || path.includes('\\') || path.split('/').includes('..')) continue;
+    // No empty segment (leading, doubled or trailing slash), no `.` or `..` segment, no backslash.
+    if (!path || path.includes('\\') || path.split('/').some((seg) => seg === '' || seg === '.' || seg === '..')) continue;
+    if (seen.has(path)) continue;
+    seen.add(path);
     parts.push({ path, url: new URL(href, ORIGIN).href });
   }
   return parts;

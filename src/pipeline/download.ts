@@ -26,36 +26,43 @@ export async function downloadAll(state: SendState, deps: SendDeps, emit: (p: Se
     const blob = await fetchHttps(deps, url, source.name, signal);
     entry.name = uploadName(source.name, resolvedName);
     // Stripped or rebuilt exactly once: a retry skips entries that already hold a blob, so it never repeats either.
-    if (source.kind === 'archive' && source.parts?.length && !(await isReadableZip(blob))) entry.blob = await rebuildFromParts(source.parts, deps, emit, signal);
+    if (source.kind === 'archive' && source.parts?.length && !(await isReadableZip(blob))) entry.blob = await rebuildFromParts(source.parts, { fileIndex: i, fileCount: files.length }, deps, emit, signal);
     else entry.blob = source.kind === 'archive' && source.stripTopFolder ? await stripTopFolder(blob) : blob;
     signal?.throwIfAborted();
   }
 }
 
-/** The site's zip is cut off: download the files it should hold one by one and zip them (no top folder). */
-async function rebuildFromParts(parts: { path: string; url: string }[], deps: SendDeps, emit: (p: SendProgress) => void, signal?: AbortSignal): Promise<Blob> {
-  emit({ stage: 'downloading', label: `Voron Mods sent an incomplete zip. Downloading the ${parts.length} files one by one` });
+/**
+ * The site's zip is cut off: download the files it should hold one by one and zip them (no top folder).
+ * `at` is the archive's own place among the send's files: part labels reuse it, because the monotonic progress
+ * filter orders by `fileIndex` and a part counter would make later labels get dropped.
+ */
+async function rebuildFromParts(parts: { path: string; url: string }[], at: { fileIndex: number; fileCount: number }, deps: SendDeps, emit: (p: SendProgress) => void, signal?: AbortSignal): Promise<Blob> {
+  const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+  emit({ stage: 'downloading', label: `Voron Mods sent an incomplete zip. Downloading the ${parts.length} ${plural(parts.length, 'file', 'files')} one by one`, ...at });
   try {
     const entries: { name: string; blob: Blob }[] = [];
     const missing: string[] = [];
     for (const [i, part] of parts.entries()) {
-      emit({ stage: 'downloading', label: `Downloading ${part.path} (${i + 1} of ${parts.length})`, fileIndex: i, fileCount: parts.length });
+      emit({ stage: 'downloading', label: `Downloading ${part.path} (${i + 1} of ${parts.length})`, ...at });
       try {
         entries.push({ name: part.path, blob: await fetchHttps(deps, part.url, part.path, signal) });
       } catch (e) {
-        // The page can list a file the site does not serve (a dotfile such as `.metadata.yml`): leave it out.
-        if (!(e instanceof DownloadNotFound)) throw e;
+        // The page lists dotfiles (`.metadata.yml`) that the site does not serve: leave only those out.
+        if (!(e instanceof DownloadNotFound) || !part.path.split('/').pop()!.startsWith('.')) throw e;
         missing.push(part.path);
       }
     }
     if (!entries.length) throw new Error('no part could be downloaded');
-    const skipped = parts.length - entries.length;
-    if (skipped) emit({ stage: 'downloading', label: `Zipping ${entries.length} files. Voron Mods did not serve ${skipped} listed file${skipped === 1 ? '' : 's'}, so ${skipped === 1 ? 'it was' : 'they were'} left out: ${missing.join(', ')}`, fileIndex: parts.length - 1, fileCount: parts.length });
+    if (missing.length) {
+      const n = missing.length;
+      emit({ stage: 'downloading', label: `Zipping ${entries.length} ${plural(entries.length, 'file', 'files')}. Voron Mods did not serve ${n} listed ${plural(n, 'file', 'files')}, so ${plural(n, 'it was', 'they were')} left out: ${missing.join(', ')}`, ...at });
+    }
     const zip = await storedZip(entries);
     if (zip.size > MAX_UPLOAD_BYTES) throw tooLarge('the rebuilt zip');
     return zip;
   } catch (e) {
-    if (isAbort(e) || signal?.aborted) throw e;
+    if (isAbort(e) || signal?.aborted || e instanceof PipelineError) throw e;
     throw new PipelineError('source-archive-broken', MESSAGES['source-archive-broken']);
   }
 }

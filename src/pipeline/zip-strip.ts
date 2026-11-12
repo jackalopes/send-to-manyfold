@@ -51,7 +51,8 @@ const zip64 = (): never => {
 
 /**
  * Whether the blob has a zip end record and a central directory that lines up. A zip cut off mid-download (local
- * headers only) is not readable. ZIP64 zips count as readable: they are not parsed here, but Manyfold may unpack them.
+ * headers only) is not readable; so are encrypted and split zips, which also trigger the rebuild when parts exist.
+ * ZIP64 zips count as readable: they are not parsed here, but Manyfold may unpack them.
  */
 export async function isReadableZip(zip: Blob): Promise<boolean> {
   try {
