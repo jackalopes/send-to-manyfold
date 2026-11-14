@@ -36,7 +36,7 @@ describe('send request validation', () => {
 
   it('accepts parts on a file as an array of { path, url } only', () => {
     const withParts = (parts: unknown) => ({ to: 'background', type: 'send', tabId: 1, request: { ...req, selectedFiles: [{ ...file('m.zip', { kind: 'archive' }), parts }] } });
-    expect(parseBackgroundRequest(withParts([{ path: 'STL/a.stl', url: 'https://mods.vorondesign.com/files/x/%2FSTL%2Fa.stl' }]))).toBeDefined();
+    expect(parseBackgroundRequest(withParts([{ path: 'STL/a.stl', url: 'https://mods.vorondesign.com/mods/a/x/files/STL/a.stl' }]))).toBeDefined();
     expect(parseBackgroundRequest(withParts([]))).toBeDefined();
     expect(parseBackgroundRequest(withParts('nope'))).toBeUndefined();
     expect(parseBackgroundRequest(withParts([{ path: 'a.stl' }]))).toBeUndefined();

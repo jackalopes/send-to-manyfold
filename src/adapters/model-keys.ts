@@ -18,7 +18,7 @@ const VORON_HOST = 'mods.vorondesign.com';
 const MAKERWORLD_PATH = /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?models\/(\d+)(?:-[^/]*)?\/?$/i;
 const PRINTABLES_PATH = /^\/model\/(\d+)(?:-[^/]*)?(?:\/|$)/;
 const THINGIVERSE_PATH = /^\/thing:(\d+)(?:\/|$)/;
-const VORON_PATH = /^\/details\/([A-Za-z0-9_-]+)\/?$/;
+const VORON_PATH = /^\/mods\/([^/]+)\/([^/]+)\/?$/;
 const GITHUB_BLOB_PATH = /^\/([^/]+)\/([^/]+)\/blob\/((?:[^/]+\/)+[^/]+)$/;
 const GITHUB_TAG_PATH = /^\/([^/]+)\/([^/]+)\/releases\/tag\/(.+?)\/?$/;
 
@@ -52,8 +52,9 @@ function identify(input: string): Identity | undefined {
     return id ? { key: `thingiverse:${id}`, search: `/thing:${id}` } : undefined;
   }
   if (host === VORON_HOST) {
-    const id = VORON_PATH.exec(path)?.[1];
-    return id ? { key: `voron:${id}`, search: `/details/${id}` } : undefined;
+    // The site 308-redirects any casing to the canonical one, so author and name are case-insensitive.
+    const m = VORON_PATH.exec(path);
+    return m ? { key: `voron:${m[1]!.toLowerCase()}/${m[2]!.toLowerCase()}`, search: `/mods/${m[1]}/${m[2]}` } : undefined;
   }
   if (GITHUB_HOSTS.has(host)) {
     // A file page and a release are different models (the adapter stores `/blob/<ref>/<path>` and

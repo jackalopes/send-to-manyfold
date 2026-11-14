@@ -465,7 +465,7 @@ describe('listCollections', () => {
 });
 
 describe('extra links', () => {
-  const url = 'https://mods.vorondesign.com/details/abc';
+  const url = 'https://mods.vorondesign.com/mods/a/abc';
   const gh = 'https://github.com/VoronDesign/VoronUsers/tree/main/printer_mods/a/b';
   const run = async (input: Partial<Parameters<typeof applyMetadata>[2]>) => {
     const srv = modelServer();

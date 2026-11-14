@@ -27,7 +27,7 @@ const MODEL_PAGES = [
   'https://makerworld.com/en/models/1272656-original-3dbenchy',
   'https://makerworld.com/models/1704385',
   'https://www.makerworld.com/de/models/2158060-benchy-original',
-  'https://mods.vorondesign.com/details/C8XJJ0fBGfBFKQZctjKeA',
+  'https://mods.vorondesign.com/mods/Kruppes/Tension_Meter',
 ];
 
 describe('content script matches', () => {
@@ -97,8 +97,8 @@ describe('Printables download permissions are narrowed to the two download hosts
 describe('Voron Mods', () => {
   it('downloads (zip and cover) from the site itself, and from no other new host', () => {
     expect(DOWNLOAD_HOST_PERMISSIONS).toContain('https://mods.vorondesign.com/*');
-    expect(matchedBy(DOWNLOAD_HOST_PERMISSIONS, 'https://mods.vorondesign.com/download/C8XJJ0fBGfBFKQZctjKeA/x')).toBe(true);
-    expect(matchedBy(DOWNLOAD_HOST_PERMISSIONS, 'https://mods.vorondesign.com/thumb/C8XJJ0fBGfBFKQZctjKeA/300x300')).toBe(true);
+    expect(matchedBy(DOWNLOAD_HOST_PERMISSIONS, 'https://mods.vorondesign.com/mods/Kruppes/Tension_Meter/download')).toBe(true);
+    expect(matchedBy(DOWNLOAD_HOST_PERMISSIONS, 'https://mods.vorondesign.com/media/dd3044f45c125888a08f4ff99456e39be90307d8f8216cc92dc56fb63e444f1c/card-640.webp')).toBe(true);
     expect(DOWNLOAD_HOST_PERMISSIONS.filter((p) => /vorondesign|githubusercontent/.test(p))).toEqual(['https://mods.vorondesign.com/*']);
   });
   it.each(['https://vorondesign.com/x', 'https://www.vorondesign.com/x', 'https://mods.vorondesign.com.evil.example/x'])('neither list matches %s', (href) => {
