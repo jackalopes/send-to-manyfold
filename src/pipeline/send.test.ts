@@ -112,6 +112,25 @@ describe('sendModel: upload shape and order', () => {
     };
     const fetched = (h: ReturnType<typeof harness>) => h.fetchFile.mock.calls.map((c) => c[0]);
 
+    it('keeps page order in the zip when the first part finishes last', async () => {
+      const h = harness({ hooks: { fetch: async (url) => void (url.includes('a.stl') && (await new Promise((r) => setTimeout(r, 20)))) } });
+      const r = await sendModel(request(members()), h.deps, noop);
+      expect(r.status).toBe('done');
+      expect(await names(h.uploadFileFake.mock.calls[0]![1])).toEqual(['STL/a.stl', 'README.md']);
+    });
+
+    it('lists left-out dotfiles in page order, not completion order', async () => {
+      const h = harness();
+      h.fetchFile.mockImplementation(async (url) => {
+        if (!url.includes('.first') && !url.includes('.second')) return new Blob(['a']);
+        await new Promise((r) => setTimeout(r, url.includes('.first') ? 20 : 0));
+        throw new DownloadNotFound('gone');
+      });
+      const seen: SendProgress[] = [];
+      await sendModel(request([member('.first'), member('.second'), member('a.stl')]), h.deps, (p) => seen.push(p));
+      expect(seen.map((p) => p.label).join('\n')).toContain('left out: .first, .second');
+    });
+
     it('downloads the parts and uploads one stored zip with exactly those paths, in input order', async () => {
       const h = harness();
       const seen: SendProgress[] = [];
@@ -169,7 +188,8 @@ describe('sendModel: upload shape and order', () => {
         const h = harness();
         h.fetchFile.mockRejectedValue(new DownloadNotFound('gone'));
         const r = await sendModel(request(members()), h.deps, noop);
-        expect(r).toMatchObject({ status: 'failed', error: { code: 'source-archive-broken', message: MESSAGES['source-archive-broken'] } });
+        expect(r).toMatchObject({ status: 'failed', error: { code: 'source-archive-broken' } });
+        expect(r.status === 'failed' && r.error.message).toContain('"STL/a.stl"');
         expect(h.uploadFileFake).not.toHaveBeenCalled();
       });
 
@@ -177,7 +197,7 @@ describe('sendModel: upload shape and order', () => {
         const h = harness();
         h.fetchFile.mockRejectedValue(new DownloadNotFound('gone'));
         const r = await sendModel(request([member('.keep')]), h.deps, noop);
-        expect(r).toMatchObject({ status: 'failed', error: { code: 'source-archive-broken' } });
+        expect(r).toMatchObject({ status: 'failed', error: { code: 'source-archive-broken', message: MESSAGES['source-archive-broken'] } });
       });
     });
 
@@ -185,7 +205,8 @@ describe('sendModel: upload shape and order', () => {
       const h = harness();
       h.fetchFile.mockRejectedValueOnce(new TypeError('network'));
       const r = await sendModel(request(members()), h.deps, noop);
-      expect(r).toMatchObject({ status: 'failed', stage: 'downloading', error: { code: 'source-archive-broken', message: MESSAGES['source-archive-broken'] } });
+      expect(r).toMatchObject({ status: 'failed', stage: 'downloading', error: { code: 'source-archive-broken' } });
+      expect(r.status === 'failed' && r.error.message).toContain('"STL/a.stl"');
       expect(h.uploadFileFake).not.toHaveBeenCalled();
     });
 
@@ -194,6 +215,20 @@ describe('sendModel: upload shape and order', () => {
       h.fetchFile.mockRejectedValueOnce(new PipelineError('too-large', 'nope, too big'));
       const r = await sendModel(request(members()), h.deps, noop);
       expect(r).toMatchObject({ status: 'failed', error: { code: 'too-large', message: 'nope, too big' } });
+    });
+
+    it('stops with too-large before downloading when the known sizes exceed 1 GiB although one size is unknown', async () => {
+      const h = harness();
+      const files = [member('a.stl', { size: MAX_UPLOAD_BYTES / 2 + 1 }), member('b.stl', { size: MAX_UPLOAD_BYTES / 2 }), member('c.stl')];
+      const r = await sendModel(request(files), h.deps, noop);
+      expect(r).toMatchObject({ status: 'failed', error: { code: 'too-large' } });
+      expect(h.fetchFile).not.toHaveBeenCalled();
+    });
+
+    it('uploads the archive under a sanitized name', async () => {
+      const h = harness();
+      await sendModel(request([member('a.stl', { bundle: 'bad\u0001name.zip' })]), h.deps, noop);
+      expect(h.uploadFileFake.mock.calls[0]![2]).toBe('badname.zip');
     });
 
     it('stops with too-large before downloading when the summed sizes exceed 1 GiB', async () => {

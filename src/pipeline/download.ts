@@ -18,9 +18,11 @@ export async function downloadAll(state: SendState, deps: SendDeps, emit: (p: Se
     const source = entry.source!;
     emit({ stage: 'downloading', label: `Downloading ${source.name} (${i + 1} of ${files.length})`, fileIndex: i, fileCount: files.length });
     if (source.size !== undefined && source.size > MAX_UPLOAD_BYTES) throw tooLarge(source.name);
+    // Known part sizes are a lower bound of the zip, so their sum over the limit already means too large.
+    if (source.parts && source.parts.reduce((sum, p) => sum + (p.size ?? 0), 0) > MAX_UPLOAD_BYTES) throw tooLarge(source.name);
     if (source.kind === 'archive' && source.parts?.length && !source.url) {
       // Built exactly once: a retry skips entries that already hold a blob.
-      entry.name = source.name;
+      entry.name = uploadName(source.name, undefined);
       entry.blob = await zipFromParts(source.parts, { fileIndex: i, fileCount: files.length }, deps, emit, signal);
       signal?.throwIfAborted();
       continue;
@@ -49,9 +51,10 @@ export async function downloadAll(state: SendState, deps: SendDeps, emit: (p: Se
 async function zipFromParts(parts: { path: string; url: string }[], at: { fileIndex: number; fileCount: number }, deps: SendDeps, emit: (p: SendProgress) => void, signal?: AbortSignal): Promise<Blob> {
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
   emit({ stage: 'downloading', label: `Downloading ${parts.length} ${plural(parts.length, 'file', 'files')} from Voron Mods`, ...at });
+  let failedPath: string | undefined;
   try {
     let done = 0;
-    const missing: string[] = [];
+    const missing = new Set<string>();
     const blobs = await mapLimit(
       parts,
       PARALLEL_DOWNLOADS,
@@ -61,8 +64,11 @@ async function zipFromParts(parts: { path: string; url: string }[], at: { fileIn
           blob = await fetchHttps(deps, part.url, part.path, signal);
         } catch (e) {
           // The page lists dotfiles (`.metadata.yml`) that the site does not serve: leave only those out.
-          if (!(e instanceof DownloadNotFound) || !part.path.split('/').pop()!.startsWith('.')) throw e;
-          missing.push(part.path);
+          if (!(e instanceof DownloadNotFound) || !part.path.split('/').pop()!.startsWith('.')) {
+            failedPath ??= part.path;
+            throw e;
+          }
+          missing.add(part.path);
         }
         emit({ stage: 'downloading', label: `Downloaded ${++done} of ${parts.length}`, ...at });
         return blob;
@@ -71,16 +77,20 @@ async function zipFromParts(parts: { path: string; url: string }[], at: { fileIn
     );
     const entries = parts.flatMap((part, i) => (blobs[i] ? [{ name: part.path, blob: blobs[i]! }] : []));
     if (!entries.length) throw new Error('no part could be downloaded');
-    if (missing.length) {
-      const n = missing.length;
-      emit({ stage: 'downloading', label: `Zipping ${entries.length} ${plural(entries.length, 'file', 'files')}. Voron Mods did not serve ${n} listed ${plural(n, 'file', 'files')}, so ${plural(n, 'it was', 'they were')} left out: ${missing.join(', ')}`, ...at });
+    if (missing.size) {
+      const n = missing.size;
+      const left = parts.filter((p) => missing.has(p.path)).map((p) => p.path);
+      emit({ stage: 'downloading', label: `Zipping ${entries.length} ${plural(entries.length, 'file', 'files')}. Voron Mods did not serve ${n} listed ${plural(n, 'file', 'files')}, so ${plural(n, 'it was', 'they were')} left out: ${left.join(', ')}`, ...at });
     }
     const zip = await storedZip(entries);
     if (zip.size > MAX_UPLOAD_BYTES) throw tooLarge('the zip');
     return zip;
   } catch (e) {
     if (isAbort(e) || signal?.aborted || e instanceof PipelineError) throw e;
-    throw new PipelineError('source-archive-broken', MESSAGES['source-archive-broken']);
+    throw new PipelineError(
+      'source-archive-broken',
+      failedPath ? `The file "${failedPath}" could not be downloaded from Voron Mods. Try again later, or download the files from the mod page by hand.` : MESSAGES['source-archive-broken'],
+    );
   }
 }
 

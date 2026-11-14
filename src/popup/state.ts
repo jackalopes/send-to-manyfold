@@ -46,7 +46,8 @@ export function buildInitialForm(model: SourceModel, settings: Settings): Review
       if (file.size !== undefined && file.size > MAX_FILE_BYTES) return { file, selected: false, disabledReason: TOO_LARGE };
       return { file, selected: file.kind === 'image' && file.bundle === undefined ? on.images : true };
     }),
-    includeCover: settings.includeImages && !!model.coverImageUrl,
+    // A Voron send is one zip of the ticked files, so there is no loose-file model to hold a cover image.
+    includeCover: settings.includeImages && !!model.coverImageUrl && !offered.some((f) => f.bundle !== undefined),
     collectionId: settings.defaultCollectionId?.trim() ?? '',
     sensitive: settings.defaultSensitive,
   };
@@ -60,6 +61,11 @@ export function parseTags(text: string): string[] {
 export function tagOffer(model: SourceModel, mode: TagMode, form: ReviewForm): 'add' | 'remove' | undefined {
   if (mode === 'off' || model.site === 'other' || model.tags.length === 0) return undefined;
   return model.tags.every((t) => form.tags.includes(t)) ? 'remove' : 'add';
+}
+
+/** Ticks or unticks the files at `indexes`; disabled files are never changed. */
+export function setSelected(files: FormFile[], indexes: number[], selected: boolean): FormFile[] {
+  return files.map((f, j) => (indexes.includes(j) && !f.disabledReason ? { ...f, selected } : f));
 }
 
 export function canSend(form: ReviewForm): boolean {

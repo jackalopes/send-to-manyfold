@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSettings, type Settings, type TagMode } from '../settings';
 import type { SourceFile, SourceModel } from '../types';
-import { buildInitialForm, canSend, MAX_FILE_BYTES, parseTags, tagOffer, toSendRequest } from './state';
+import { buildInitialForm, canSend, MAX_FILE_BYTES, parseTags, setSelected, tagOffer, toSendRequest } from './state';
 
 const f = (name: string, kind: SourceFile['kind'], size?: number): SourceFile => ({ name, kind, ...(size !== undefined ? { size } : {}) });
 
@@ -65,6 +65,19 @@ describe('buildInitialForm', () => {
     const prefill = { ...defaultSettings().prefill, images: false };
     const form = buildInitialForm(model({ site: 'voron', files }), settings({ includeImages: false, prefill }));
     expect(form.files.map((x) => [x.file.name, x.selected])).toEqual([['a.stl', true], ['p.png', true]]);
+  });
+
+  it('a Voron bundle send does not include the page image as preview; other sites still do', () => {
+    const files: SourceFile[] = [{ name: 'a.stl', path: 'a.stl', url: 'https://v/a', kind: 'model', bundle: 'm.zip' }];
+    expect(buildInitialForm(model({ site: 'voron', files, coverImageUrl: 'https://v/c.png' }), settings()).includeCover).toBe(false);
+    expect(buildInitialForm(model(), settings()).includeCover).toBe(true);
+  });
+
+  it('setSelected never changes a disabled file', () => {
+    const f = (selected: boolean, disabledReason?: string) => ({ file: { name: 'a', kind: 'model' as const }, selected, ...(disabledReason ? { disabledReason } : {}) });
+    const out = setSelected([f(false), f(false, 'too big'), f(true)], [0, 1, 2], true);
+    expect(out.map((x) => x.selected)).toEqual([true, false, true]);
+    expect(setSelected([f(true), f(true)], [1], false).map((x) => x.selected)).toEqual([true, false]);
   });
 
   it('offers no images and no cover when includeImages is off', () => {

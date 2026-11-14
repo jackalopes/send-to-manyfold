@@ -36,8 +36,9 @@ describe('failedFields', () => {
 describe('formatBytes', () => {
   it('formats sizes', () => {
     expect(formatBytes(0)).toBe('0 B');
-    expect(formatBytes(1536)).toBe('1.5 KB');
-    expect(formatBytes(5 * 1024 ** 2)).toBe('5.0 MB');
-    expect(formatBytes(1024 ** 3)).toBe('1.0 GB');
+    expect(formatBytes(999)).toBe('999 B');
+    expect(formatBytes(1500)).toBe('1.5 kB');
+    expect(formatBytes(5 * 1000 ** 2)).toBe('5.0 MB');
+    expect(formatBytes(1000 ** 3)).toBe('1.0 GB');
   });
 });

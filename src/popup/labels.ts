@@ -40,13 +40,13 @@ export function failedFields(failed: { field: string; error: string }[]): string
 }
 
 export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  const units = ['KB', 'MB', 'GB'];
+  if (n < 1000) return `${n} B`;
+  const units = ['kB', 'MB', 'GB'];
   let v = n;
   let i = -1;
   do {
-    v /= 1024;
+    v /= 1000;
     i++;
-  } while (v >= 1024 && i < units.length - 1);
+  } while (v >= 1000 && i < units.length - 1);
   return `${v.toFixed(1)} ${units[i]}`;
 }

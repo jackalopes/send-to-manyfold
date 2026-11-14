@@ -1,7 +1,7 @@
 import type { NamedRef } from '../../manyfold/metadata';
 import { SITE_NAMES } from '../site-names';
 import type { ConnectionProblem, PriorSend } from '../machine';
-import { canSend, type ReviewForm } from '../state';
+import { canSend, setSelected, type ReviewForm } from '../state';
 import { errorText } from '../labels';
 import type { SendError } from '../../pipeline/errors';
 import type { SourceModel } from '../../types';
@@ -91,7 +91,7 @@ export function ReviewView(p: ReviewViewProps) {
       <label class="inline">
         <input type="checkbox" checked={p.form.sensitive} onChange={(e) => patch({ sensitive: e.currentTarget.checked })} /> Mark as sensitive
       </label>
-      {p.model.coverImageUrl ? (
+      {p.model.coverImageUrl && !p.form.files.some((f) => f.file.bundle !== undefined) ? (
         <label class="inline">
           <input type="checkbox" checked={p.form.includeCover} onChange={(e) => patch({ includeCover: e.currentTarget.checked })} /> Use the page image as the preview
         </label>
@@ -99,7 +99,7 @@ export function ReviewView(p: ReviewViewProps) {
       {p.form.files.some((f) => f.file.bundle !== undefined) ? (
         <FileTree
           files={p.form.files}
-          onSet={(indexes, selected) => patch({ files: p.form.files.map((f, j) => (indexes.includes(j) && !f.disabledReason ? { ...f, selected } : f)) })}
+          onSet={(indexes, selected) => patch({ files: setSelected(p.form.files, indexes, selected) })}
         />
       ) : (
         <FileList files={p.form.files} onToggle={(i, selected) => patch({ files: p.form.files.map((f, j) => (j === i ? { ...f, selected } : f)) })} />

@@ -19,7 +19,7 @@ function FolderCheckbox({ folder, files, onSet }: { folder: TreeFolder; files: F
     <input
       ref={ref}
       type="checkbox"
-      aria-label={folder.name}
+      aria-label={`Select ${folder.path}`}
       checked={state === 'all'}
       disabled={state === 'disabled'}
       onChange={() => onSet(folderFiles(folder), state !== 'all')}
@@ -42,11 +42,11 @@ export function FileTree({ files, onSet }: Props) {
     return (
       <li key={folder.path}>
         <div class="tree-row">
-          <button type="button" class="tree-toggle" aria-label={folder.name} aria-expanded={open} onClick={() => toggle(folder.path)}>
+          <button type="button" class="tree-toggle" aria-label={`${open ? 'Collapse' : 'Expand'} ${folder.path}`} aria-expanded={open} onClick={() => toggle(folder.path)}>
             {open ? '▾' : '▸'}
           </button>
           <FolderCheckbox folder={folder} files={files} onSet={onSet} />
-          <span>{folder.name}/</span>
+          <span class="tree-name" onClick={() => toggle(folder.path)}>{folder.name}/</span>
           <span class="meta">
             {' '}
             {count} {count === 1 ? 'file' : 'files'}
