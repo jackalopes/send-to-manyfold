@@ -1,6 +1,6 @@
 {
   "name": "send-to-manyfold",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Unofficial. Send 3D models from Printables, Thingiverse, MakerWorld and Voron Mods to your Manyfold instance.",
   "license": "MIT",
