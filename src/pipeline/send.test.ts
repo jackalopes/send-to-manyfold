@@ -87,14 +87,17 @@ describe('sendModel: upload shape and order', () => {
     });
   });
 
-  describe('an archive with parts (the site sent an incomplete zip)', () => {
-    const parts = [
-      { path: 'STL/a.stl', url: 'https://mods.example.com/files/x/%2FSTL%2Fa.stl' },
-      { path: 'README.md', url: 'https://mods.example.com/files/x/%2FREADME.md' },
-    ];
-    const archive = (extra: Partial<SourceFile> = {}) => file('mod.zip', { kind: 'archive', stripTopFolder: true, parts, ...extra });
-    const whole = () => zip({ 'Mod by author/README.md': '# Mod\n', 'Mod by author/STLs/a.stl': stl('a') });
-    const truncated = async () => new Blob([(await whole().arrayBuffer()).slice(0, 80)]);
+  describe('a Voron bundle (archive with parts, no url)', () => {
+    const base = 'https://mods.example.com/files/x/';
+    const member = (path: string, extra: Partial<SourceFile> = {}): SourceFile => ({
+      name: path.split('/').pop()!,
+      path,
+      url: `${base}${encodeURIComponent(path)}`,
+      kind: 'model',
+      bundle: 'mod.zip',
+      ...extra,
+    });
+    const members = () => [member('STL/a.stl'), member('README.md')];
     const names = async (blob: Blob) => {
       const b = new Uint8Array(await blob.arrayBuffer());
       const v = new DataView(b.buffer);
@@ -107,150 +110,152 @@ describe('sendModel: upload shape and order', () => {
       }
       return out;
     };
+    const fetched = (h: ReturnType<typeof harness>) => h.fetchFile.mock.calls.map((c) => c[0]);
 
-    it('downloads the parts in order and uploads a readable zip with exactly those paths', async () => {
+    it('downloads the parts and uploads one stored zip with exactly those paths, in input order', async () => {
       const h = harness();
-      h.fetchFile.mockResolvedValueOnce(await truncated());
       const seen: SendProgress[] = [];
-      const r = await sendModel(request([archive()]), h.deps, (p) => seen.push(p));
+      const r = await sendModel(request(members()), h.deps, (p) => seen.push(p));
       expect(r.status).toBe('done');
-      expect(h.fetchFile.mock.calls.map((c) => c[0])).toEqual(['https://cdn.example.com/mod.zip', parts[0]!.url, parts[1]!.url]);
+      expect(fetched(h).sort()).toEqual(members().map((m) => m.url!).sort());
       expect(await names(h.uploadFileFake.mock.calls[0]![1])).toEqual(['STL/a.stl', 'README.md']);
       expect(h.uploadFileFake.mock.calls[0]![2]).toBe('mod.zip');
       const labels = seen.map((p) => p.label);
-      expect(labels).toContain('Voron Mods sent an incomplete zip. Downloading the 2 files one by one');
-      expect(labels).toContain('Downloading STL/a.stl (1 of 2)');
-      expect(labels).toContain('Downloading README.md (2 of 2)');
+      expect(labels).toContain('Downloading 2 files from Voron Mods');
+      expect(labels).toContain('Downloaded 2 of 2');
     });
 
-    it('never fetches the parts when the zip is readable, and strips it as before', async () => {
+    it('keeps the outer file counter for every progress label, so later labels are never dropped', async () => {
       const h = harness();
-      h.fetchFile.mockResolvedValueOnce(whole());
-      const r = await sendModel(request([archive()]), h.deps, noop);
-      expect(r.status).toBe('done');
-      expect(h.fetchFile.mock.calls.map((c) => c[0])).toEqual(['https://cdn.example.com/mod.zip']);
-      expect(await names(h.uploadFileFake.mock.calls[0]![1])).toEqual(['README.md', 'STLs/a.stl']);
+      const seen: SendProgress[] = [];
+      await sendModel(request(members()), h.deps, (p) => seen.push(p));
+      for (const p of seen.filter((p) => p.stage === 'downloading')) expect([p.fileIndex, p.fileCount]).toEqual([0, 1]);
     });
 
-    it('an unreadable archive without parts is uploaded as before', async () => {
-      const h = harness();
-      const broken = await truncated();
-      h.fetchFile.mockResolvedValueOnce(broken);
-      const r = await sendModel(request([archive({ parts: undefined })]), h.deps, noop);
-      expect(r.status).toBe('done');
-      expect(h.uploadFileFake.mock.calls[0]![1]).toBe(broken);
-      expect(h.fetchFile).toHaveBeenCalledTimes(1);
-    });
-
-    it('fails with source-archive-broken when a part cannot be downloaded', async () => {
-      const h = harness();
-      h.fetchFile.mockResolvedValueOnce(await truncated());
-      h.fetchFile.mockResolvedValueOnce(new Blob(['a']));
-      h.fetchFile.mockRejectedValueOnce(new TypeError('network'));
-      const r = await sendModel(request([archive()]), h.deps, noop);
-      expect(r).toMatchObject({
-        status: 'failed',
-        stage: 'downloading',
-        error: {
-          code: 'source-archive-broken',
-          message: 'Voron Mods sent an incomplete zip for this mod, and downloading its files one by one also failed. Try again later, or download the files from the mod page by hand.',
+    it('downloads at most 4 parts at a time', async () => {
+      let running = 0;
+      let max = 0;
+      const h = harness({
+        hooks: {
+          fetch: async () => {
+            running++;
+            max = Math.max(max, running);
+            await new Promise((r) => setTimeout(r, 5));
+            running--;
+          },
         },
       });
-      expect(h.uploadFileFake).not.toHaveBeenCalled();
+      const r = await sendModel(request(Array.from({ length: 9 }, (_, i) => member(`f${i}.stl`))), h.deps, noop);
+      expect(r.status).toBe('done');
+      expect(max).toBe(4);
     });
 
     describe('a part that answers 404', () => {
-      const withDot = [{ path: 'STL/a.stl', url: 'https://mods.example.com/files/x/a' }, { path: '.metadata.yml', url: 'https://mods.example.com/files/x/m' }];
-
       it('is skipped when it is a dotfile, the rest is zipped, and the label names it', async () => {
         const h = harness();
-        h.fetchFile.mockResolvedValueOnce(await truncated());
-        h.fetchFile.mockResolvedValueOnce(new Blob(['a']));
-        h.fetchFile.mockRejectedValueOnce(new DownloadNotFound('gone'));
+        const files = [member('STL/a.stl'), member('.metadata.yml')];
+        h.fetchFile.mockImplementation(async (url) => {
+          if (url.includes('metadata')) throw new DownloadNotFound('gone');
+          return new Blob(['a']);
+        });
         const seen: SendProgress[] = [];
-        const r = await sendModel(request([archive({ parts: withDot })]), h.deps, (p) => seen.push(p));
+        const r = await sendModel(request(files), h.deps, (p) => seen.push(p));
         expect(r.status).toBe('done');
         expect(seen.map((p) => p.label)).toContain('Zipping 1 file. Voron Mods did not serve 1 listed file, so it was left out: .metadata.yml');
         expect(await names(h.uploadFileFake.mock.calls[0]![1])).toEqual(['STL/a.stl']);
       });
 
-      it('is skipped for a dotfile in a folder too', async () => {
+      it('fails with source-archive-broken for any other file', async () => {
         const h = harness();
-        h.fetchFile.mockResolvedValueOnce(await truncated());
-        h.fetchFile.mockResolvedValueOnce(new Blob(['a']));
-        h.fetchFile.mockRejectedValueOnce(new DownloadNotFound('gone'));
-        const r = await sendModel(request([archive({ parts: [withDot[0]!, { path: 'CAD/.keep', url: 'https://mods.example.com/files/x/k' }] })]), h.deps, noop);
-        expect(r.status).toBe('done');
-      });
-
-      it('fails the rebuild with source-archive-broken for any other file', async () => {
-        const h = harness();
-        h.fetchFile.mockResolvedValueOnce(await truncated());
-        h.fetchFile.mockRejectedValueOnce(new DownloadNotFound('gone'));
-        const r = await sendModel(request([archive()]), h.deps, noop);
+        h.fetchFile.mockRejectedValue(new DownloadNotFound('gone'));
+        const r = await sendModel(request(members()), h.deps, noop);
         expect(r).toMatchObject({ status: 'failed', error: { code: 'source-archive-broken', message: MESSAGES['source-archive-broken'] } });
         expect(h.uploadFileFake).not.toHaveBeenCalled();
       });
 
       it('fails with source-archive-broken when nothing is left (every part is a dotfile that 404s)', async () => {
         const h = harness();
-        h.fetchFile.mockResolvedValueOnce(await truncated());
         h.fetchFile.mockRejectedValue(new DownloadNotFound('gone'));
-        const r = await sendModel(request([archive({ parts: [withDot[1]!] })]), h.deps, noop);
-        expect(r).toMatchObject({ status: 'failed', error: { code: 'source-archive-broken', message: MESSAGES['source-archive-broken'] } });
+        const r = await sendModel(request([member('.keep')]), h.deps, noop);
+        expect(r).toMatchObject({ status: 'failed', error: { code: 'source-archive-broken' } });
       });
+    });
+
+    it('fails with source-archive-broken when any other part fails', async () => {
+      const h = harness();
+      h.fetchFile.mockRejectedValueOnce(new TypeError('network'));
+      const r = await sendModel(request(members()), h.deps, noop);
+      expect(r).toMatchObject({ status: 'failed', stage: 'downloading', error: { code: 'source-archive-broken', message: MESSAGES['source-archive-broken'] } });
+      expect(h.uploadFileFake).not.toHaveBeenCalled();
     });
 
     it('keeps a specific error from a part (too large) instead of rewrapping it', async () => {
       const h = harness();
-      h.fetchFile.mockResolvedValueOnce(await truncated());
       h.fetchFile.mockRejectedValueOnce(new PipelineError('too-large', 'nope, too big'));
-      const r = await sendModel(request([archive()]), h.deps, noop);
+      const r = await sendModel(request(members()), h.deps, noop);
       expect(r).toMatchObject({ status: 'failed', error: { code: 'too-large', message: 'nope, too big' } });
     });
 
-    it('keeps the too-large error when the rebuilt zip is over the limit', async () => {
+    it('stops with too-large before downloading when the summed sizes exceed 1 GiB', async () => {
       const h = harness();
-      h.fetchFile.mockResolvedValueOnce(await truncated());
+      const files = [member('a.stl', { size: MAX_UPLOAD_BYTES / 2 + 1 }), member('b.stl', { size: MAX_UPLOAD_BYTES / 2 })];
+      const r = await sendModel(request(files), h.deps, noop);
+      expect(r).toMatchObject({ status: 'failed', error: { code: 'too-large' } });
+      expect(h.fetchFile).not.toHaveBeenCalled();
+    });
+
+    it('keeps the too-large error when the built zip is over the limit', async () => {
+      const h = harness();
       const big = new Blob(['x']);
       Object.defineProperty(big, 'size', { value: MAX_UPLOAD_BYTES });
       h.fetchFile.mockResolvedValueOnce(big);
-      const r = await sendModel(request([archive({ parts: [parts[0]!] })]), h.deps, noop);
+      const r = await sendModel(request([member('a.stl')]), h.deps, noop);
       expect(r).toMatchObject({ status: 'failed', error: { code: 'too-large' } });
     });
 
-    it('keeps the outer file counter for every part label, so later labels are never dropped', async () => {
-      const h = harness();
-      h.fetchFile.mockResolvedValueOnce(await truncated());
-      const seen: SendProgress[] = [];
-      await sendModel(request([archive()]), h.deps, (p) => seen.push(p));
-      expect(seen.some((p) => p.label === 'Downloading STL/a.stl (1 of 2)')).toBe(true);
-      for (const p of seen.filter((p) => p.stage === 'downloading')) expect([p.fileIndex, p.fileCount]).toEqual([0, 1]);
-    });
-
-    it('an abort while downloading the parts stays an abort', async () => {
+    it('an abort while downloading the bundle stays an abort', async () => {
       const h = harness();
       const ctl = new AbortController();
-      h.fetchFile.mockResolvedValueOnce(await truncated());
-      h.fetchFile.mockImplementationOnce(async () => {
+      const files = Array.from({ length: 10 }, (_, i) => member(`f${i}.stl`));
+      h.fetchFile.mockImplementation(async () => {
         ctl.abort();
         throw new DOMException('aborted', 'AbortError');
       });
-      const r = await sendModel(request([archive()]), h.deps, noop, { signal: ctl.signal });
+      const r = await sendModel(request(files), h.deps, noop, { signal: ctl.signal });
       expect(r).toMatchObject({ status: 'failed', error: { code: 'cancelled' } });
+      expect(h.fetchFile.mock.calls.length).toBeLessThanOrEqual(4);
     });
 
-    it('a retry after the rebuild reuses the stored zip: nothing is downloaded again', async () => {
+    it('a retry after a failed part rebuilds the bundle', async () => {
       const h = harness();
-      h.fetchFile.mockResolvedValueOnce(await truncated());
+      h.fetchFile.mockRejectedValueOnce(new TypeError('network'));
+      const r = await sendModel(request(members()), h.deps, noop);
+      expect(r).toMatchObject({ status: 'failed', retryToken: 't1' });
+      h.fetchFile.mockClear();
+      const again = await retrySend('t1', h.deps, noop);
+      expect(again.status).toBe('done');
+      expect(h.fetchFile).toHaveBeenCalledTimes(2);
+      expect(await names(h.uploadFileFake.mock.calls[0]![1])).toEqual(['STL/a.stl', 'README.md']);
+    });
+
+    it('a retry after the bundle was built downloads nothing', async () => {
+      const h = harness();
       h.uploadFileFake.mockRejectedValueOnce(new ManyfoldError('upload-failed', 'Uploading "mod.zip" failed after 3 retries.'));
-      const r = await sendModel(request([archive()]), h.deps, noop);
+      const r = await sendModel(request(members()), h.deps, noop);
       expect(r).toMatchObject({ status: 'failed', retryToken: 't1' });
       const fetches = h.fetchFile.mock.calls.length;
       const again = await retrySend('t1', h.deps, noop);
       expect(again.status).toBe('done');
       expect(h.fetchFile).toHaveBeenCalledTimes(fetches);
       expect(await names(h.uploadFileFake.mock.calls[1]![1])).toEqual(['STL/a.stl', 'README.md']);
+    });
+
+    it('a site zip with stripTopFolder (the fallback) is stripped as before', async () => {
+      const h = harness();
+      h.fetchFile.mockResolvedValueOnce(zip({ 'Mod by author/README.md': '# Mod\n', 'Mod by author/STLs/a.stl': stl('a') }));
+      const r = await sendModel(request([file('mod.zip', { kind: 'archive', stripTopFolder: true })]), h.deps, noop);
+      expect(r.status).toBe('done');
+      expect(await names(h.uploadFileFake.mock.calls[0]![1])).toEqual(['README.md', 'STLs/a.stl']);
     });
   });
 

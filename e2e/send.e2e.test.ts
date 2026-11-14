@@ -107,12 +107,36 @@ describe('sendModel against a real Manyfold', () => {
     expect(await bogus.testConnection()).toMatchObject({ ok: false, reason: 'unauthorized' });
   });
 
-  it('a Voron-shaped zip (everything under one top folder) is extracted without that folder and saves the source link and the GitHub folder as two links', async () => {
+  it('a Voron bundle is zipped from the selected files and extracted with its folders, and saves the source link and the GitHub folder as two links', async () => {
     const folder = `https://github.com/VoronDesign/VoronUsers/tree/main/printer_mods/e2e/${stamp}`;
-    const archive = zip({ 'Mod by author/': '', 'Mod by author/STLs/': '', 'Mod by author/STLs/a.stl': stl('a'), 'Mod by author/README.md': '# Mod\n' });
-    const files: SourceFile[] = [{ name: 'Mod-author.zip', kind: 'archive', stripTopFolder: true }];
+    const member = (path: string, name: string): SourceFile => ({ name: path.split('/').pop()!, path, url: `${origin}/files/${name}`, kind: 'model', bundle: 'Mod-author.zip' });
+    const files: SourceFile[] = [member('README.md', 'readme.md'), member('STLs/a.stl', 'a.stl'), member('STLs/b/c.stl', 'c.stl')];
     const page = `https://mods.vorondesign.com/mods/e2e/E2e${stamp}`;
     const base = request('voron', files);
+    const source = { ...base.source, site: 'voron' as const, sourceUrl: page, extraLinks: [{ url: folder, text: 'GitHub folder' }] };
+    const r = await sendModel({ ...base, source }, deps({ 'files/readme.md': new Blob(['# Mod\n']), 'files/a.stl': new Blob([stl('a')]), 'files/c.stl': new Blob([stl('c')]), 'cover.png': new Blob([PNG], { type: 'image/png' }) }), () => {});
+    expect(r).toMatchObject({ status: 'done' });
+    if (r.status !== 'done') return;
+    // The "In Manyfold" refresh runs this lookup as soon as the send reports done: the model must be found already (#30).
+    expect(await lookupModel(client, page)).toMatchObject({ status: 'found', models: [{ id: new URL(r.modelUrl).pathname.split('/').pop() }] });
+    const m = await getModel(r.modelUrl);
+    expect(m.hasPart.some((p) => /zip/.test(p.encodingFormat ?? ''))).toBe(false);
+    const paths: string[] = [];
+    for (const part of m.hasPart) {
+      const file = (await (await client.request(new URL(part['@id']).pathname)).json()) as { contentUrl: string };
+      paths.push(decodeURIComponent(new URL(file.contentUrl).pathname).replace(/^.*\/raw\//, ''));
+    }
+    expect(paths.sort()).toEqual(['README.md', 'STLs/a.stl', 'STLs/b/c.stl']);
+    expect(m.links.some((l) => l.url === page && l.text === 'Page Title ')).toBe(true);
+    expect(m.links.some((l) => l.url === folder && l.text === 'GitHub folder ')).toBe(true);
+  }, 150_000);
+
+  it('a Voron site zip (fallback: everything under one top folder) is extracted without that folder', async () => {
+    const folder = `https://github.com/VoronDesign/VoronUsers/tree/main/printer_mods/e2e/fallback-${stamp}`;
+    const archive = zip({ 'Mod by author/': '', 'Mod by author/STLs/': '', 'Mod by author/STLs/a.stl': stl('a'), 'Mod by author/README.md': '# Mod\n' });
+    const files: SourceFile[] = [{ name: 'Mod-author.zip', kind: 'archive', stripTopFolder: true }];
+    const page = `https://mods.vorondesign.com/mods/e2e/E2eFallback${stamp}`;
+    const base = request('voron-fallback', files);
     const source = { ...base.source, site: 'voron' as const, sourceUrl: page, extraLinks: [{ url: folder, text: 'GitHub folder' }] };
     const r = await sendModel({ ...base, source }, deps({ 'Mod-author.zip': archive, 'cover.png': new Blob([PNG], { type: 'image/png' }) }), () => {});
     expect(r).toMatchObject({ status: 'done' });
@@ -131,29 +155,6 @@ describe('sendModel against a real Manyfold', () => {
     expect(paths.sort()).toEqual(['README.md', 'STLs/a.stl']);
     expect(m.links.some((l) => l.url === page && l.text === 'Page Title ')).toBe(true);
     expect(m.links.some((l) => l.url === folder && l.text === 'GitHub folder ')).toBe(true);
-  }, 150_000);
-
-  it('a Voron-shaped send whose zip is incomplete is rebuilt from the single files, without a top folder', async () => {
-    const whole = zip({ 'Mod by author/README.md': '# Mod\n', 'Mod by author/STLs/a.stl': stl('a') });
-    const truncated = new Blob([(await whole.arrayBuffer()).slice(0, 90)]); // local headers only: no central directory, no end record
-    const parts = [
-      { path: 'STLs/a.stl', url: `${origin}/files/x/a.stl` },
-      { path: 'README.md', url: `${origin}/files/x/readme.md` },
-    ];
-    const files: SourceFile[] = [{ name: 'Broken-author.zip', kind: 'archive', stripTopFolder: true, parts }];
-    const base = request('voron-broken', files);
-    const source = { ...base.source, site: 'voron' as const, sourceUrl: `https://mods.vorondesign.com/mods/e2e/E2eBroken${stamp}` };
-    const r = await sendModel({ ...base, source }, deps({ 'Broken-author.zip': truncated, 'files/x/a.stl': new Blob([stl('a')]), 'files/x/readme.md': new Blob(['# Mod\n']), 'cover.png': new Blob([PNG], { type: 'image/png' }) }), () => {});
-    expect(r).toMatchObject({ status: 'done' });
-    if (r.status !== 'done') return;
-    const m = await getModel(r.modelUrl);
-    expect(m.hasPart.some((p) => /zip/.test(p.encodingFormat ?? ''))).toBe(false);
-    const paths: string[] = [];
-    for (const part of m.hasPart) {
-      const file = (await (await client.request(new URL(part['@id']).pathname)).json()) as { contentUrl: string };
-      paths.push(decodeURIComponent(new URL(file.contentUrl).pathname).replace(/^.*\/raw\//, ''));
-    }
-    expect(paths.sort()).toEqual(['README.md', 'STLs/a.stl']);
   }, 150_000);
 
   it('loose STL + cover in a collection: title, source link, license note, tags and preview are set', async () => {

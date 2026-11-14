@@ -25,8 +25,8 @@ export interface SourceFile {
    */
   stripTopFolder?: boolean;
   /**
-   * Archive only: the files the archive should contain (`path` inside the zip, `url` to download it from). Used to
-   * rebuild the zip when the downloaded archive turns out to be unreadable (Voron Mods sometimes sends a cut-off zip).
+   * Archive without `url` only: the files the extension packs into one stored zip itself (`path` inside the zip,
+   * `url` to download it from, `size` when known). Built by `bundleFiles` from the files that share a `bundle`.
    */
   parts?: { path: string; url: string; size?: number }[];
   /** The file's path inside the mod (`STLs/Gantry/a.stl`): shown in the file tree and used as the zip entry name. Set only with `bundle`. */

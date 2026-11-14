@@ -1,10 +1,13 @@
 import { DownloadNotFound } from '../adapters/errors';
 import { isAbort, MESSAGES, PipelineError } from './errors';
+import { mapLimit } from './limit';
 import { coverFileName, isArchiveName, isHttps, MAX_UPLOAD_BYTES, stem, uniqueNames, uploadName } from './files';
 import type { ModelGroup, SendState } from './state';
 import type { SendDeps, SendProgress } from './types';
-import { isReadableZip, stripTopFolder } from './zip-strip';
+import { stripTopFolder } from './zip-strip';
 import { storedZip } from './zip-write';
+
+const PARALLEL_DOWNLOADS = 4;
 
 /** Download step of a send: every selected file into memory, the model plan, and the optional cover image. */
 
@@ -15,6 +18,13 @@ export async function downloadAll(state: SendState, deps: SendDeps, emit: (p: Se
     const source = entry.source!;
     emit({ stage: 'downloading', label: `Downloading ${source.name} (${i + 1} of ${files.length})`, fileIndex: i, fileCount: files.length });
     if (source.size !== undefined && source.size > MAX_UPLOAD_BYTES) throw tooLarge(source.name);
+    if (source.kind === 'archive' && source.parts?.length && !source.url) {
+      // Built exactly once: a retry skips entries that already hold a blob.
+      entry.name = source.name;
+      entry.blob = await zipFromParts(source.parts, { fileIndex: i, fileCount: files.length }, deps, emit, signal);
+      signal?.throwIfAborted();
+      continue;
+    }
     let url = source.url;
     let resolvedName: string | undefined;
     if (!url) {
@@ -25,41 +35,48 @@ export async function downloadAll(state: SendState, deps: SendDeps, emit: (p: Se
     }
     const blob = await fetchHttps(deps, url, source.name, signal);
     entry.name = uploadName(source.name, resolvedName);
-    // Stripped or rebuilt exactly once: a retry skips entries that already hold a blob, so it never repeats either.
-    if (source.kind === 'archive' && source.parts?.length && !(await isReadableZip(blob))) entry.blob = await rebuildFromParts(source.parts, { fileIndex: i, fileCount: files.length }, deps, emit, signal);
-    else entry.blob = source.kind === 'archive' && source.stripTopFolder ? await stripTopFolder(blob) : blob;
+    // Stripped exactly once: a retry skips entries that already hold a blob.
+    entry.blob = source.kind === 'archive' && source.stripTopFolder ? await stripTopFolder(blob) : blob;
     signal?.throwIfAborted();
   }
 }
 
 /**
- * The site's zip is cut off: download the files it should hold one by one and zip them (no top folder).
- * `at` is the archive's own place among the send's files: part labels reuse it, because the monotonic progress
+ * Downloads the files of a bundle (4 at a time) and zips them without a top folder, in the order given.
+ * `at` is the archive's own place among the send's files: progress labels reuse it, because the monotonic progress
  * filter orders by `fileIndex` and a part counter would make later labels get dropped.
  */
-async function rebuildFromParts(parts: { path: string; url: string }[], at: { fileIndex: number; fileCount: number }, deps: SendDeps, emit: (p: SendProgress) => void, signal?: AbortSignal): Promise<Blob> {
+async function zipFromParts(parts: { path: string; url: string }[], at: { fileIndex: number; fileCount: number }, deps: SendDeps, emit: (p: SendProgress) => void, signal?: AbortSignal): Promise<Blob> {
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
-  emit({ stage: 'downloading', label: `Voron Mods sent an incomplete zip. Downloading the ${parts.length} ${plural(parts.length, 'file', 'files')} one by one`, ...at });
+  emit({ stage: 'downloading', label: `Downloading ${parts.length} ${plural(parts.length, 'file', 'files')} from Voron Mods`, ...at });
   try {
-    const entries: { name: string; blob: Blob }[] = [];
+    let done = 0;
     const missing: string[] = [];
-    for (const [i, part] of parts.entries()) {
-      emit({ stage: 'downloading', label: `Downloading ${part.path} (${i + 1} of ${parts.length})`, ...at });
-      try {
-        entries.push({ name: part.path, blob: await fetchHttps(deps, part.url, part.path, signal) });
-      } catch (e) {
-        // The page lists dotfiles (`.metadata.yml`) that the site does not serve: leave only those out.
-        if (!(e instanceof DownloadNotFound) || !part.path.split('/').pop()!.startsWith('.')) throw e;
-        missing.push(part.path);
-      }
-    }
+    const blobs = await mapLimit(
+      parts,
+      PARALLEL_DOWNLOADS,
+      async (part) => {
+        let blob: Blob | undefined;
+        try {
+          blob = await fetchHttps(deps, part.url, part.path, signal);
+        } catch (e) {
+          // The page lists dotfiles (`.metadata.yml`) that the site does not serve: leave only those out.
+          if (!(e instanceof DownloadNotFound) || !part.path.split('/').pop()!.startsWith('.')) throw e;
+          missing.push(part.path);
+        }
+        emit({ stage: 'downloading', label: `Downloaded ${++done} of ${parts.length}`, ...at });
+        return blob;
+      },
+      signal,
+    );
+    const entries = parts.flatMap((part, i) => (blobs[i] ? [{ name: part.path, blob: blobs[i]! }] : []));
     if (!entries.length) throw new Error('no part could be downloaded');
     if (missing.length) {
       const n = missing.length;
       emit({ stage: 'downloading', label: `Zipping ${entries.length} ${plural(entries.length, 'file', 'files')}. Voron Mods did not serve ${n} listed ${plural(n, 'file', 'files')}, so ${plural(n, 'it was', 'they were')} left out: ${missing.join(', ')}`, ...at });
     }
     const zip = await storedZip(entries);
-    if (zip.size > MAX_UPLOAD_BYTES) throw tooLarge('the rebuilt zip');
+    if (zip.size > MAX_UPLOAD_BYTES) throw tooLarge('the zip');
     return zip;
   } catch (e) {
     if (isAbort(e) || signal?.aborted || e instanceof PipelineError) throw e;

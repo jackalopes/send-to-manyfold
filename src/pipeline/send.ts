@@ -3,6 +3,7 @@ import { applyMetadata, metadataInputFromSource, type MetadataResult } from '../
 import { checkManyfold } from '../manyfold/preflight';
 import { createModel, uploadFile, waitForExtraction } from '../manyfold/upload';
 import { isAbort, MESSAGES, PipelineError, toSendError, type SendError } from './errors';
+import { bundleFiles } from './bundle';
 import { addCover, downloadAll, planGroups } from './download';
 import { handoffUrl } from './handoff';
 import { recordCreatedModels, recordModel } from './history-record';
@@ -31,7 +32,7 @@ export async function sendModel(req: SendRequest, deps: SendDeps, onProgress: (p
   if (!req.selectedFiles.length) return failure('downloading', { code: 'no-files', message: MESSAGES['no-files'], stage: 'downloading' }, []);
 
   const token = deps.newToken?.() ?? crypto.randomUUID();
-  const state: SendState = { token, req, entries: req.selectedFiles.map((source) => ({ source })) };
+  const state: SendState = { token, req, entries: bundleFiles(req.selectedFiles).map((source) => ({ source })) };
   deps.store.put(state);
   return run(state, deps, onProgress, opts);
 }
