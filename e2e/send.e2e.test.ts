@@ -141,7 +141,9 @@ describe('sendModel against a real Manyfold', () => {
       { path: 'README.md', url: `${origin}/files/x/readme.md` },
     ];
     const files: SourceFile[] = [{ name: 'Broken-author.zip', kind: 'archive', stripTopFolder: true, parts }];
-    const r = await sendModel(request('voron-broken', files), deps({ 'Broken-author.zip': truncated, 'files/x/a.stl': new Blob([stl('a')]), 'files/x/readme.md': new Blob(['# Mod\n']), 'cover.png': new Blob([PNG], { type: 'image/png' }) }), () => {});
+    const base = request('voron-broken', files);
+    const source = { ...base.source, site: 'voron' as const, sourceUrl: `https://mods.vorondesign.com/details/E2eBroken${stamp}` };
+    const r = await sendModel({ ...base, source }, deps({ 'Broken-author.zip': truncated, 'files/x/a.stl': new Blob([stl('a')]), 'files/x/readme.md': new Blob(['# Mod\n']), 'cover.png': new Blob([PNG], { type: 'image/png' }) }), () => {});
     expect(r).toMatchObject({ status: 'done' });
     if (r.status !== 'done') return;
     const m = await getModel(r.modelUrl);
