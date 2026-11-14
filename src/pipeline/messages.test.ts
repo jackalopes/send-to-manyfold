@@ -41,6 +41,19 @@ describe('send request validation', () => {
     expect(parseBackgroundRequest(withParts('nope'))).toBeUndefined();
     expect(parseBackgroundRequest(withParts([{ path: 'a.stl' }]))).toBeUndefined();
     expect(parseBackgroundRequest(withParts([{ path: 1, url: 'https://x' }]))).toBeUndefined();
+    expect(parseBackgroundRequest(withParts([{ path: 'a.stl', url: 'https://x', size: 5 }]))).toBeDefined();
+    expect(parseBackgroundRequest(withParts([{ path: 'a.stl', url: 'https://x', size: '5' }]))).toBeUndefined();
+  });
+
+  it('isSourceFile accepts path and bundle', () => {
+    const withFile = (extra: object) => ({ to: 'background', type: 'send', tabId: 1, request: { ...req, selectedFiles: [{ ...file('a.stl'), ...extra }] } });
+    expect(parseBackgroundRequest(withFile({ path: 'STLs/a.stl', bundle: 'Mod.zip' }))).toBeDefined();
+    expect(parseBackgroundRequest(withFile({ path: 5 }))).toBeUndefined();
+  });
+
+  it('rejects a non-string bundle', () => {
+    const withFile = (bundle: unknown) => ({ to: 'background', type: 'send', tabId: 1, request: { ...req, selectedFiles: [{ ...file('a.stl'), bundle }] } });
+    expect(parseBackgroundRequest(withFile(3))).toBeUndefined();
   });
 
   it('accepts extraLinks as an array of { url, text } only', () => {

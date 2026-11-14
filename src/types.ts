@@ -28,7 +28,11 @@ export interface SourceFile {
    * Archive only: the files the archive should contain (`path` inside the zip, `url` to download it from). Used to
    * rebuild the zip when the downloaded archive turns out to be unreadable (Voron Mods sometimes sends a cut-off zip).
    */
-  parts?: { path: string; url: string }[];
+  parts?: { path: string; url: string; size?: number }[];
+  /** The file's path inside the mod (`STLs/Gantry/a.stl`): shown in the file tree and used as the zip entry name. Set only with `bundle`. */
+  path?: string;
+  /** Zip file name (`Z_Belt_Clip.zip`): files with the same value are packed into one zip before upload. */
+  bundle?: string;
 }
 
 /**

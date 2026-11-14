@@ -1,7 +1,7 @@
 import { voronAnchor } from './anchors';
 import { htmlMarkdown } from './html-markdown';
 import { voronTags } from './voron-tags';
-import type { SourceFile, SourceModel } from '../types';
+import { classifyFile, type SourceFile, type SourceModel } from '../types';
 import type { SiteAdapter } from './index';
 
 /**
@@ -14,9 +14,12 @@ import type { SiteAdapter } from './index';
  * - The `h1` sits in a `header`; just before it a `ul[aria-label="Printers"]` holds the badges (`V0.2`, `V1.8`,
  *   `V2.4`, `Trident`, `Switchwire`). The "Related mods" cards further down have the same `ul`, so only the header's
  *   one is read.
+ * - Single files: `a[href="/mods/<author>/<name>/files/<path>"]`, one per `li` of the file list; the `li` also holds a
+ *   `span` with the size (`204 kB`, `1.1 MB`, decimal units). Each is listed as its own file with its path in the mod
+ *   and `bundle` = `<name>.zip`, so the extension zips the ticked ones itself.
  * - One download link: `a[href="/mods/<author>/<name>/download"]` ("Download all (.zip)"), a zip of the whole mod
- *   folder with every entry under `<Title> by <author>/`.
- * - Single files: `a[href="/mods/<author>/<name>/files/<path>"]`.
+ *   folder with every entry under `<Title> by <author>/`. It is only used as a fallback when the page has no
+ *   single-file links (one archive, top folder stripped).
  * - The README is rendered inside `section[aria-labelledby="mod-readme-heading"]` (images are `/media/<hash>/...`).
  * - No license name on the page (only a site-wide "Licence and attribution" link to the VoronUsers repo), so no
  *   `licenseText` is set.
@@ -107,19 +110,27 @@ function oneLiner(h1: Element | null): string | undefined {
 }
 
 /**
- * The single zip of the mod, named after the `<name>` path segment (`<name>.zip`; the site's own
- * `content-disposition` name is `<Title> by <author>.zip`, but the pipeline never reads that header).
- * Every entry sits under `<Title> by <author>/`, so the pipeline strips that folder before upload.
+ * The mod's files, one per single-file link, each bundled into `<name>.zip`. Without any single-file link the site's
+ * own zip of the mod (`<Title> by <author>/...` inside, so the top folder is stripped) is the one file; without that
+ * link too there are none.
  */
 function files(doc: Document, base: string, name: string): SourceFile[] {
+  const bundle = `${safeName(name)}.zip`;
+  const found = singleFiles(doc, base);
+  if (found.length) return found.map((f) => ({ ...f, bundle }));
   const href = [...doc.querySelectorAll('a[href$="/download"]')]
     .map((a) => a.getAttribute('href') ?? '')
     .find((h) => h.toLowerCase() === `${base.toLowerCase()}/download`);
   if (!href) return [];
-  const file: SourceFile = { name: `${safeName(name)}.zip`, kind: 'archive', url: new URL(href, ORIGIN).href, stripTopFolder: true };
-  const parts = partsOf(doc, base);
-  if (parts.length) file.parts = parts;
-  return [file];
+  return [{ name: bundle, kind: 'archive', url: new URL(href, ORIGIN).href, stripTopFolder: true }];
+}
+
+const UNITS: Record<string, number> = { B: 1, kB: 1e3, MB: 1e6, GB: 1e9 };
+
+/** A displayed size (`204 kB`, `1.1 MB`; decimal units) in bytes, or undefined when the text is not exactly a size. */
+export function parseSize(text: string): number | undefined {
+  const m = /^(\d+(?:\.\d+)?)\s*(B|kB|MB|GB)$/.exec(text.trim());
+  return m ? Math.round(Number(m[1]) * UNITS[m[2]!]!) : undefined;
 }
 
 function safeName(name: string): string {
@@ -133,14 +144,13 @@ function safeName(name: string): string {
 }
 
 /**
- * The page's single-file links (`/mods/<author>/<name>/files/<path>`), in page order, one per path: the zip is
- * rebuilt from them when the site's own zip is cut off. A link whose path is empty, absolute, has an empty, `.` or
- * `..` segment, or contains `\` is skipped.
+ * The page's single-file links (`/mods/<author>/<name>/files/<path>`), in page order, one per path. A link whose path
+ * is empty, absolute, has an empty, `.` or `..` segment, or contains `\` is skipped.
  */
-function partsOf(doc: Document, base: string): { path: string; url: string }[] {
+function singleFiles(doc: Document, base: string): Omit<SourceFile, 'bundle'>[] {
   const prefix = `${base.toLowerCase()}/files/`;
   const seen = new Set<string>();
-  const parts: { path: string; url: string }[] = [];
+  const out: Omit<SourceFile, 'bundle'>[] = [];
   for (const a of doc.querySelectorAll('a[href^="/mods/"]')) {
     const href = a.getAttribute('href') ?? '';
     if (!href.toLowerCase().startsWith(prefix)) continue;
@@ -154,7 +164,20 @@ function partsOf(doc: Document, base: string): { path: string; url: string }[] {
     if (!path || path.includes('\\') || path.split('/').some((seg) => seg === '' || seg === '.' || seg === '..')) continue;
     if (seen.has(path)) continue;
     seen.add(path);
-    parts.push({ path, url: new URL(href, ORIGIN).href });
+    const name = path.slice(path.lastIndexOf('/') + 1);
+    const file: Omit<SourceFile, 'bundle'> = { name, path, url: new URL(href, ORIGIN).href, kind: classifyFile(name) };
+    const size = sizeIn(a.closest('li'));
+    if (size !== undefined) file.size = size;
+    out.push(file);
   }
-  return parts;
+  return out;
+}
+
+/** The size shown in a file's list item: the first `span` whose whole text is a size. */
+function sizeIn(li: Element | null): number | undefined {
+  for (const span of li?.querySelectorAll('span') ?? []) {
+    const size = parseSize(span.textContent ?? '');
+    if (size !== undefined) return size;
+  }
+  return undefined;
 }
