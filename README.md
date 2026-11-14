@@ -4,7 +4,7 @@ A Chrome and Firefox extension that sends 3D models from Printables, Thingiverse
 
 Not affiliated with or endorsed by Manyfold, Printables, Thingiverse, MakerWorld or Voron Mods. Those names are trademarks of their respective owners and are used here only to say which services this works with.
 
-> Status: version 0.1.2, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Firefox: coming to addons.mozilla.org; until then, install from source. The Firefox build is newer and has had less real-world use than the Chrome one. Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
+> Status: version 0.2.0, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Firefox: submitted to addons.mozilla.org; until it is listed, install from source. The Firefox build is newer and has had less real-world use than the Chrome one. Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
 
 ![Sending a Printables model to Manyfold with the extension](assets/demo.gif)
 
@@ -93,7 +93,7 @@ The full policy is at <https://jackalopes.github.io/send-to-manyfold/privacy/>.
 - No analytics, no tracking, no other servers.
 - Your Manyfold address and token are stored in the browser's local extension storage (`chrome.storage.local`, also used by Firefox) on your computer.
 - The extension never reads or copies the login tokens of the source sites.
-- The only automatic request is a read-only check, sent to your own Manyfold, of whether the model page you're on is already saved (a search by the page's link, so it can show a check). Nothing else is sent until you press Send. On the three supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
+- The only automatic request is a read-only check, sent to your own Manyfold, of whether the model page you're on is already saved (a search by the page's link, so it can show a check). Nothing else is sent until you press Send. On the supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
 
 ## Site terms and model licenses
 
@@ -115,7 +115,7 @@ If you represent Manyfold or one of these sites and have a concern, please [open
 - Collections can only be chosen when the model is created.
 - Manyfold limits how fast models can be created. Large batches are paced and may wait.
 - The Manyfold version check is best-effort (see Settings).
-- Updating to the release that adds Voron Mods asks for access to `mods.vorondesign.com`. Chrome turns the extension off until you accept it on the extensions page (or in the prompt). Your settings are kept.
+- Updating to 0.2.0 (the release that adds Voron Mods) asks for access to `mods.vorondesign.com`. Chrome turns the extension off until you accept it on the extensions page (or in the prompt). Your settings are kept.
 - Voron Mods sometimes sends an incomplete zip for a mod. When it does, the extension downloads the mod's files one by one instead and zips them itself, which is slower for large mods.
 
 ## Development
