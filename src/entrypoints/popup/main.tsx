@@ -42,6 +42,7 @@ const deps: PopupDeps = {
     if (/^https?:\/\//i.test(url)) void chrome.tabs.create({ url });
   },
   setSiteTagMode,
+  closePopup: () => window.close(),
   openSettings: () => void chrome.runtime.openOptionsPage(),
 };
 
