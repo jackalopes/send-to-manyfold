@@ -33,7 +33,8 @@ const TOO_LARGE = 'Larger than 1 GiB, which Manyfold does not accept.';
 /** Applies the per-field prefill toggles, the image settings, the default collection and the sensitive flag. */
 export function buildInitialForm(model: SourceModel, settings: Settings): ReviewForm {
   const on = settings.prefill;
-  const offered = model.files.filter((f) => settings.includeImages || f.kind !== 'image');
+  // Voron files are zipped together, so the image settings do not apply to them.
+  const offered = model.files.filter((f) => f.bundle !== undefined || settings.includeImages || f.kind !== 'image');
   return {
     title: on.title ? model.title : '',
     description: on.description ? (model.description ?? '') : '',
@@ -43,7 +44,7 @@ export function buildInitialForm(model: SourceModel, settings: Settings): Review
     sourceLink: on.sourceUrl,
     files: offered.map((file) => {
       if (file.size !== undefined && file.size > MAX_FILE_BYTES) return { file, selected: false, disabledReason: TOO_LARGE };
-      return { file, selected: file.kind === 'image' ? on.images : true };
+      return { file, selected: file.kind === 'image' && file.bundle === undefined ? on.images : true };
     }),
     includeCover: settings.includeImages && !!model.coverImageUrl,
     collectionId: settings.defaultCollectionId?.trim() ?? '',

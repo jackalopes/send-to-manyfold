@@ -8,6 +8,7 @@ import type { SourceModel } from '../../types';
 import { CollectionPicker } from '../../ui/CollectionPicker';
 import { DetailsFields, type TagSuggestion } from './DetailsFields';
 import { FileList } from './FileList';
+import { FileTree } from './FileTree';
 import { ExternalLink } from './Link';
 
 export interface ReviewViewProps {
@@ -95,7 +96,14 @@ export function ReviewView(p: ReviewViewProps) {
           <input type="checkbox" checked={p.form.includeCover} onChange={(e) => patch({ includeCover: e.currentTarget.checked })} /> Use the page image as the preview
         </label>
       ) : null}
-      <FileList files={p.form.files} onToggle={(i, selected) => patch({ files: p.form.files.map((f, j) => (j === i ? { ...f, selected } : f)) })} />
+      {p.form.files.some((f) => f.file.bundle !== undefined) ? (
+        <FileTree
+          files={p.form.files}
+          onSet={(indexes, selected) => patch({ files: p.form.files.map((f, j) => (indexes.includes(j) && !f.disabledReason ? { ...f, selected } : f)) })}
+        />
+      ) : (
+        <FileList files={p.form.files} onToggle={(i, selected) => patch({ files: p.form.files.map((f, j) => (j === i ? { ...f, selected } : f)) })} />
+      )}
       <button type="submit" disabled={!canSend(p.form) || !!warn}>Send to Manyfold</button>
     </form>
   );

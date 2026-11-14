@@ -57,6 +57,16 @@ describe('buildInitialForm', () => {
     expect(form.files.map((x) => [x.file.name, x.selected])).toEqual([['a.stl', true], ['pic.png', false], ['pack.zip', true]]);
   });
 
+  it('Voron bundle files are all offered and ticked even with images off', () => {
+    const files: SourceFile[] = [
+      { name: 'a.stl', path: 'STLs/a.stl', url: 'https://v/a', kind: 'model', bundle: 'm.zip' },
+      { name: 'p.png', path: 'p.png', url: 'https://v/p', kind: 'image', bundle: 'm.zip' },
+    ];
+    const prefill = { ...defaultSettings().prefill, images: false };
+    const form = buildInitialForm(model({ site: 'voron', files }), settings({ includeImages: false, prefill }));
+    expect(form.files.map((x) => [x.file.name, x.selected])).toEqual([['a.stl', true], ['p.png', true]]);
+  });
+
   it('offers no images and no cover when includeImages is off', () => {
     const form = buildInitialForm(model(), settings({ includeImages: false }));
     expect(form.files.map((x) => x.file.name)).toEqual(['a.stl', 'pack.zip']);
