@@ -269,3 +269,27 @@ describe('page sync: already in Manyfold', () => {
     expect(label()).toBe('Send to Manyfold');
   });
 });
+
+describe('page sync: Voron Mods stacked button', () => {
+  const VORON = 'https://mods.vorondesign.com/details/C8XJJ0fBGfBFKQZctjKeA';
+  const stack =
+    '<div class="space-y-3"><a href="/download/C8XJJ0fBGfBFKQZctjKeA/x" class="block w-full"><button>Download</button></a><a href="https://github.com/x" class="block w-full"><button>GitHub</button></a></div>';
+
+  it('puts the button right after Download in the stack, as a full-width block', () => {
+    const { sync, watches } = setup(VORON, stack);
+    sync.sync();
+    const dl = document.querySelector('a[href^="/download/"]')!;
+    expect(dl.nextElementSibling).toBe(host());
+    expect(host()!.nextElementSibling?.getAttribute('href')).toBe('https://github.com/x');
+    expect((host() as HTMLElement).style.display).toBe('block');
+    expect(roots.at(-1)!.querySelector('style')!.textContent).toMatch(/width:\s*100%/);
+    expect(watches[0]!.el).toBe(dl);
+  });
+
+  it('leaves other sites with the inline, side-by-side button', () => {
+    const { sync } = setup();
+    sync.sync();
+    expect((host() as HTMLElement).style.display).toBe('');
+    expect(roots.at(-1)!.querySelector('style')!.textContent).not.toMatch(/width:\s*100%/);
+  });
+});

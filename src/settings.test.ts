@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   isPrivateHost, isInsecurePublicUrl,
   normalizeBaseUrl, loadSettings, saveSettings, requestManyfoldPermission, saveWithPermission, defaultSettings,
+  ASK_SITES, setSiteTagMode,
 } from './settings';
 
 let store: Record<string, unknown>;
@@ -90,7 +91,7 @@ describe('settings storage', () => {
     const s = await loadSettings();
     expect(Object.values(s.prefill).every((v) => v === true)).toBe(true);
     expect(Object.keys(s.prefill).sort()).toEqual(
-      ['creator', 'description', 'images', 'license', 'sourceUrl', 'tags', 'title'],
+      ['creator', 'description', 'images', 'license', 'sourceUrl', 'title'],
     );
     expect(s.includeImages).toBe(true);
     expect(s.defaultSensitive).toBe(false);
@@ -99,10 +100,10 @@ describe('settings storage', () => {
   });
   it('round-trips and merges partial stored prefill with defaults', async () => {
     const s = await loadSettings();
-    await saveSettings({ ...s, manyfoldUrl: 'http://h:1', token: 't', prefill: { ...s.prefill, tags: false } });
+    await saveSettings({ ...s, manyfoldUrl: 'http://h:1', token: 't', prefill: { ...s.prefill, images: false } });
     const again = await loadSettings();
     expect(again.token).toBe('t');
-    expect(again.prefill.tags).toBe(false);
+    expect(again.prefill.images).toBe(false);
     expect(again.prefill.title).toBe(true);
   });
 });
@@ -158,5 +159,42 @@ describe('saveWithPermission', () => {
     const r = await saveWithPermission({ ...s, manyfoldUrl: 'not a url' }, d);
     expect(r).toMatchObject({ ok: false, reason: 'error' });
     expect(d.requestPermission).not.toHaveBeenCalled();
+  });
+});
+
+describe('per-site tag modes', () => {
+  const put = (settings: unknown) => { store.settings = settings; };
+  const ALL_ON = { printables: 'on', thingiverse: 'on', makerworld: 'on', github: 'on', voron: 'ask' };
+
+  it('defaults every site to on, except voron which asks', () => {
+    expect(defaultSettings().siteTags).toEqual(ALL_ON);
+    expect(ASK_SITES).toEqual(['voron']);
+  });
+  it('migrates a stored global tags=false to off for every existing site, voron stays ask', async () => {
+    put({ prefill: { tags: false, title: true } });
+    const s = await loadSettings();
+    expect(s.siteTags).toEqual({ printables: 'off', thingiverse: 'off', makerworld: 'off', github: 'off', voron: 'ask' });
+    expect('tags' in s.prefill).toBe(false);
+    expect(s.prefill.title).toBe(true);
+  });
+  it.each([true, undefined])('migrates stored tags=%s to on', async (tags) => {
+    put({ prefill: { tags, title: true } });
+    expect((await loadSettings()).siteTags).toEqual(ALL_ON);
+  });
+  it('fills a missing site with its default and loads a disallowed ask as off', async () => {
+    put({ siteTags: { printables: 'off', thingiverse: 'ask' } });
+    const s = await loadSettings();
+    expect(s.siteTags).toEqual({ ...ALL_ON, printables: 'off', thingiverse: 'off' });
+  });
+  it('keeps a stored siteTags over the legacy flag', async () => {
+    put({ prefill: { tags: false }, siteTags: { ...ALL_ON, printables: 'on' } });
+    expect((await loadSettings()).siteTags.printables).toBe('on');
+  });
+  it('setSiteTagMode changes only that site', async () => {
+    put({ manyfoldUrl: 'http://h:1', token: 't' });
+    await setSiteTagMode('voron', 'on');
+    const s = await loadSettings();
+    expect(s.siteTags).toEqual({ ...ALL_ON, voron: 'on' });
+    expect(s.token).toBe('t');
   });
 });

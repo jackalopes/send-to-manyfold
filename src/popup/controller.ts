@@ -18,6 +18,8 @@ export interface ControllerDeps {
   search: string;
   dispatch(action: PopupAction): void;
   getState(): PopupState;
+  /** Closes the popup (`window.close()`); Firefox keeps it open over a tab the popup opened. */
+  closePopup(): void;
 }
 
 const failure = (sendId: string, error: SendError): PopupAction => ({
@@ -137,6 +139,22 @@ export function createController(deps: ControllerDeps) {
       dispatch({ type: 'retryStarted' });
       const reply = await api.retry(id, { forceCreate, ...(tabId !== undefined ? { tabId } : {}) });
       if (!reply.ok) dispatch(failure(id, reply.error));
+    },
+
+    /**
+     * The user opened Manyfold's importer. Manyfold imports the model itself and nothing reports when it is done,
+     * so the background is asked to look the page up again for a while (the badge and button then flip).
+     * The popup then closes: Firefox leaves it open over the importer tab.
+     */
+    async importerOpened(): Promise<void> {
+      const s = getState();
+      if (s.phase !== 'handoff' || !s.model || tabId === undefined) return;
+      try {
+        await api.importOpened(tabId, s.model.sourceUrl);
+      } finally {
+        // After the watch message is sent (closing first could lose it); a failure still closes, and still propagates.
+        deps.closePopup();
+      }
     },
 
     async discard(): Promise<void> {

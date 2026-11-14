@@ -1,10 +1,10 @@
 # Send To Manyfold
 
-A Chrome and Firefox extension that sends 3D models from Printables, Thingiverse and MakerWorld to your own [Manyfold](https://manyfold.app) library. It uploads the files and fills in the details (title, description, creator, license, tags, source link, cover image) for you.
+A Chrome and Firefox extension that sends 3D models from Printables, Thingiverse, MakerWorld and Voron Mods to your own [Manyfold](https://manyfold.app) library. It uploads the files and fills in the details (title, description, creator, license, tags, source link, cover image) for you.
 
-Not affiliated with or endorsed by Manyfold, Printables, Thingiverse or MakerWorld. Those names are trademarks of their respective owners and are used here only to say which services this works with.
+Not affiliated with or endorsed by Manyfold, Printables, Thingiverse, MakerWorld or Voron Mods. Those names are trademarks of their respective owners and are used here only to say which services this works with.
 
-> Status: version 0.1.2, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Firefox: coming to addons.mozilla.org; until then, install from source. The Firefox build is newer and has had less real-world use than the Chrome one. Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
+> Status: version 0.2.0, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Firefox: submitted to addons.mozilla.org; until it is listed, install from source. The Firefox build is newer and has had less real-world use than the Chrome one. Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
 
 ![Sending a Printables model to Manyfold with the extension](assets/demo.gif)
 
@@ -16,6 +16,7 @@ Open a model page, click the toolbar icon (or the green "Send to Manyfold" butto
 |---|---|---|
 | Printables | model pages (`/model/...`) | Downloads the files and uploads them to Manyfold. |
 | MakerWorld | model pages (`/models/...`) | Downloads the files and uploads them to Manyfold. |
+| Voron Mods | mod pages (`/details/...`) | Downloads the mod's zip and uploads it to Manyfold. |
 | Thingiverse | thing pages (`/thing:...`) | Does not upload files. The popup shows the details and hands the page over to Manyfold's own Thingiverse importer. This needs a Thingiverse App Token set in Manyfold: (1) create an app at https://www.thingiverse.com/developers/my-apps; (2) click the "Create & Get App Key" button at the top right (it is white on white until you hover over it); (3) paste the App Token into Manyfold under Settings → Integrations. |
 
 On any other page the popup says the page is not supported and sends nothing.
@@ -81,6 +82,7 @@ Open the extension's options page (right-click the toolbar icon, then Options).
 - "Test connection". When Manyfold does not tell tokens its version, this says just "Connected." That is expected. Version 0.147.0 or newer is still required.
 - Which fields to prefill: title, description, creator, license, tags, source link, images.
 - Include preview images.
+- Printer tags, per site: On, Off or Ask. Voron Mods marks each mod with the printers it fits (Voron 2.4, Voron Trident and so on). Its default is Ask: the popup suggests "Add printer tags: ..." and you choose. Clicking the suggestion saves On for Voron Mods; "Not this time" skips the tags for that send only. You can change it later on the options page.
 - A default collection and a default "sensitive" flag.
 
 ## Privacy
@@ -91,7 +93,7 @@ The full policy is at <https://jackalopes.github.io/send-to-manyfold/privacy/>.
 - No analytics, no tracking, no other servers.
 - Your Manyfold address and token are stored in the browser's local extension storage (`chrome.storage.local`, also used by Firefox) on your computer.
 - The extension never reads or copies the login tokens of the source sites.
-- The only automatic request is a read-only check, sent to your own Manyfold, of whether the model page you're on is already saved (a search by the page's link, so it can show a check). Nothing else is sent until you press Send. On the three supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
+- The only automatic request is a read-only check, sent to your own Manyfold, of whether the model page you're on is already saved (a search by the page's link, so it can show a check). Nothing else is sent until you press Send. On the supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
 
 ## Site terms and model licenses
 
@@ -106,13 +108,15 @@ If you represent Manyfold or one of these sites and have a concern, please [open
 - MakerWorld may answer with a bot check partway through a send. Downloading a file by hand on the site, then sending again, has cleared it. See [#2](https://github.com/jackalopes/send-to-manyfold/issues/2).
 - The injected buttons depend on each site's page layout and may stop appearing when a site changes. The toolbar icon keeps working.
 - Thingiverse files are not uploaded (see above).
-- Firefox lets you revoke the extension's host permissions, including the download hosts (`files.printables.com`, `media.printables.com`, `makerworld.bblmw.com`), in `about:addons`. If you do, sends from that site fail until you grant them again.
-- On Firefox the site access for `printables.com`, `thingiverse.com` and `makerworld.com` can also be revoked in `about:addons`. If you do, there is no injected button and the toolbar icon stays greyed until you grant it again.
+- Firefox lets you revoke the extension's host permissions, including the download hosts (`files.printables.com`, `media.printables.com`, `makerworld.bblmw.com`, `mods.vorondesign.com`), in `about:addons`. If you do, sends from that site fail until you grant them again.
+- On Firefox the site access for `printables.com`, `thingiverse.com`, `makerworld.com` and `mods.vorondesign.com` can also be revoked in `about:addons`. If you do, there is no injected button and the toolbar icon stays greyed until you grant it again.
 - On Firefox, sends run in a hidden page inside the extension's background page, kept alive while a send runs. If Firefox restarts the extension in the middle of a send, that send is lost and you need to send again.
 - Files over 1 GiB are not accepted by Manyfold and are disabled in the popup.
 - Collections can only be chosen when the model is created.
 - Manyfold limits how fast models can be created. Large batches are paced and may wait.
 - The Manyfold version check is best-effort (see Settings).
+- Updating to 0.2.0 (the release that adds Voron Mods) asks for access to `mods.vorondesign.com`. Chrome turns the extension off until you accept it on the extensions page (or in the prompt). Your settings are kept.
+- Voron Mods sometimes sends an incomplete zip for a mod. When it does, the extension downloads the mod's files one by one instead and zips them itself, which is slower for large mods.
 
 ## Development
 

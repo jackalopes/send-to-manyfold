@@ -13,10 +13,12 @@ const MAKERWORLD_HOSTS = new Set(['makerworld.com', 'www.makerworld.com']);
 const PRINTABLES_HOSTS = new Set(['printables.com', 'www.printables.com']);
 const THINGIVERSE_HOSTS = new Set(['thingiverse.com', 'www.thingiverse.com']);
 const GITHUB_HOSTS = new Set(['github.com', 'www.github.com']);
+const VORON_HOST = 'mods.vorondesign.com';
 
 const MAKERWORLD_PATH = /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?models\/(\d+)(?:-[^/]*)?\/?$/i;
 const PRINTABLES_PATH = /^\/model\/(\d+)(?:-[^/]*)?(?:\/|$)/;
 const THINGIVERSE_PATH = /^\/thing:(\d+)(?:\/|$)/;
+const VORON_PATH = /^\/details\/([A-Za-z0-9_-]+)\/?$/;
 const GITHUB_BLOB_PATH = /^\/([^/]+)\/([^/]+)\/blob\/((?:[^/]+\/)+[^/]+)$/;
 const GITHUB_TAG_PATH = /^\/([^/]+)\/([^/]+)\/releases\/tag\/(.+?)\/?$/;
 
@@ -48,6 +50,10 @@ function identify(input: string): Identity | undefined {
   if (THINGIVERSE_HOSTS.has(host)) {
     const id = THINGIVERSE_PATH.exec(path)?.[1];
     return id ? { key: `thingiverse:${id}`, search: `/thing:${id}` } : undefined;
+  }
+  if (host === VORON_HOST) {
+    const id = VORON_PATH.exec(path)?.[1];
+    return id ? { key: `voron:${id}`, search: `/details/${id}` } : undefined;
   }
   if (GITHUB_HOSTS.has(host)) {
     // A file page and a release are different models (the adapter stores `/blob/<ref>/<path>` and

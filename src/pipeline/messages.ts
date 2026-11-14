@@ -3,7 +3,7 @@
  * and Blobs) and is validated on arrival, so an unknown or malformed shape is rejected, never guessed at.
  *
  * Routes:
- * - extension pages (popup, options) -> background: `send`, `cancel`, `retry`, `discard`, `status`
+ * - extension pages (popup, options) -> background: `send`, `cancel`, `retry`, `discard`, `status`, `importOpened`
  * - background -> offscreen document: the same verbs (`start` instead of `send`), which run the pipeline
  * - offscreen document -> background: `getConnection` (base URL and token, in the direct reply only),
  *   `resolveDownload` (forwarded to the source tab's content script), `recordSend` (sent history)
@@ -27,7 +27,9 @@ export type PageRequest =
   /** `tabId`: the tab to resolve download links in from now on (the source tab may have been closed). */
   | { to: 'background'; type: 'retry'; sendId: string; forceCreate?: boolean; tabId?: number }
   | { to: 'background'; type: 'discard'; sendId: string }
-  | { to: 'background'; type: 'status' };
+  | { to: 'background'; type: 'status' }
+  /** The popup opened Manyfold's importer for the model on tab `tabId` (`url`: its page), which Manyfold imports itself. */
+  | { to: 'background'; type: 'importOpened'; tabId: number; url: string };
 
 export type OffscreenToBackground =
   | { to: 'background'; type: 'getConnection' }
@@ -97,7 +99,7 @@ export type ConnectionReply = { ok: true; baseUrl: string; token: string } | Fai
 export type ResolveReply = { ok: true; download: string | ResolvedDownload } | { ok: false; error: WireError };
 export type ExtractReply = { ok: true; model: SourceModel } | { ok: false; error: WireError };
 
-const SITES = ['printables', 'thingiverse', 'makerworld', 'github'] as const satisfies readonly SiteId[];
+const SITES = ['printables', 'thingiverse', 'makerworld', 'github', 'voron'] as const satisfies readonly SiteId[];
 const STAGES = ['downloading', 'uploading', 'creating', 'extracting', 'metadata', 'done'] as const satisfies readonly SendStage[];
 const isSite = oneOf(SITES);
 const isStage = oneOf(STAGES);
@@ -107,9 +109,13 @@ const optNumber = optional(isNumber);
 
 const isStringRecord = (v: unknown): boolean => isRecord(v) && Object.values(v).every(isString);
 
+const isParts = (v: unknown): v is { path: string; url: string }[] => Array.isArray(v) && v.every((x) => isRecord(x) && hasShape(x, { path: isString, url: isString }));
+
 export function isSourceFile(v: unknown): v is SourceFile {
-  return isRecord(v) && hasShape(v, { name: isString, kind: isKind, url: optString, size: optNumber, lfs: optional(isBool), ref: (r) => r === undefined || isStringRecord(r) });
+  return isRecord(v) && hasShape(v, { name: isString, kind: isKind, url: optString, size: optNumber, lfs: optional(isBool), stripTopFolder: optional(isBool), parts: optional(isParts), ref: (r) => r === undefined || isStringRecord(r) });
 }
+
+const isLinkList = (l: unknown): l is { url: string; text: string }[] => Array.isArray(l) && l.every((x) => isRecord(x) && hasShape(x, { url: isString, text: isString }));
 
 export function isSourceModel(v: unknown): v is SourceModel {
   if (!isRecord(v)) return false;
@@ -122,6 +128,7 @@ export function isSourceModel(v: unknown): v is SourceModel {
       description: optString,
       licenseText: optString,
       coverImageUrl: optString,
+      extraLinks: optional(isLinkList),
       tags: isStringArray,
       creator,
       loginRequired: optional(isBool),
@@ -190,6 +197,7 @@ const VERBS: Shapes = {
 const BACKGROUND: Shapes = {
   ...VERBS,
   send: { request: isSendRequest, tabId: isInt },
+  importOpened: { tabId: isInt, url: isString },
   getConnection: {},
   resolveDownload: { sendId: isId, tabId: isInt, site: isSite, file: isSourceFile },
   recordSend: { entry: isHistoryEntry },

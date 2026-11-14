@@ -92,7 +92,7 @@ describe('Options switches', () => {
     const set = stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 't' });
     render(<Options />, root);
     await vi.waitFor(() => expect((root.querySelector('input') as HTMLInputElement).value).toBe('http://192.168.1.5:3214'));
-    for (const name of ['Title', 'Tags']) expect(byLabel(name).getAttribute('role')).toBe('switch');
+    for (const name of ['Title']) expect(byLabel(name).getAttribute('role')).toBe('switch');
     const title = byLabel('Title').checked;
     const images = byLabel('Images').checked;
     const inc = byLabel('Include preview images').checked;
@@ -109,6 +109,27 @@ describe('Options switches', () => {
     expect(saved.prefill.images).toBe(!images);
     expect(saved.includeImages).toBe(!inc);
     expect(saved.defaultSensitive).toBe(!sens);
+  });
+});
+
+describe('Options per-site tags', () => {
+  it('has no Tags prefill switch and one Tags control per visible site', async () => {
+    const set = stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 't' });
+    render(<Options />, root);
+    await vi.waitFor(() => expect((root.querySelector('input') as HTMLInputElement).value).toBe('http://192.168.1.5:3214'));
+    expect(root.querySelector('input[role="switch"][aria-label="Tags"]')).toBeNull();
+    const selects = [...root.querySelectorAll('select[aria-label$=" tags"]')] as HTMLSelectElement[];
+    expect(selects.map((s) => s.getAttribute('aria-label'))).toEqual(['Printables tags', 'Thingiverse tags', 'MakerWorld tags', 'Voron Mods tags']);
+    expect(selects.map((s) => [...s.options].map((o) => o.value))).toEqual([['on', 'off'], ['on', 'off'], ['on', 'off'], ['on', 'off', 'ask']]);
+    expect(selects[3]!.value).toBe('ask');
+    selects[3]!.value = 'off';
+    selects[3]!.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    submit();
+    await vi.waitFor(() => expect(set).toHaveBeenCalled());
+    const saved = (set.mock.calls[0]![0] as { settings: { siteTags: Record<string, string> } }).settings;
+    expect(saved.siteTags.voron).toBe('off');
+    expect(saved.siteTags.printables).toBe('on');
   });
 });
 

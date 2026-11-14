@@ -1,4 +1,4 @@
-export type SiteId = 'printables' | 'thingiverse' | 'makerworld' | 'github';
+export type SiteId = 'printables' | 'thingiverse' | 'makerworld' | 'github' | 'voron';
 
 export interface SourceFile {
   name: string;
@@ -19,6 +19,16 @@ export interface SourceFile {
    * the LFS pointer text, so it downloads like any other file.
    */
   lfs?: boolean;
+  /**
+   * Archive only: the pipeline removes the one top folder that every entry of the zip shares before upload
+   * (Voron Mods zips put everything under `<Title> by <author>/`). Only entry names change; the data is untouched.
+   */
+  stripTopFolder?: boolean;
+  /**
+   * Archive only: the files the archive should contain (`path` inside the zip, `url` to download it from). Used to
+   * rebuild the zip when the downloaded archive turns out to be unreadable (Voron Mods sometimes sends a cut-off zip).
+   */
+  parts?: { path: string; url: string }[];
 }
 
 /**
@@ -39,6 +49,8 @@ export interface SourceModel {
   tags: string[];
   files: SourceFile[];
   coverImageUrl?: string;
+  /** Further links to save on the model beside the source link (e.g. a mod's GitHub folder). */
+  extraLinks?: { url: string; text: string }[];
   loginRequired?: boolean;
   /** Defaults to `download`. */
   delivery?: Delivery;

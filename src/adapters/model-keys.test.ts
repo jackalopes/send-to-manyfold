@@ -59,7 +59,17 @@ describe('linkSearch', () => {
     }
   });
 
+  it('keys a Voron Mods detail page by its case-sensitive id', () => {
+    const key = modelKey('https://mods.vorondesign.com/details/C8XJJ0fBGfBFKQZctjKeA/');
+    expect(key).toBe('voron:C8XJJ0fBGfBFKQZctjKeA');
+    expect(modelKey('http://mods.vorondesign.com/details/C8XJJ0fBGfBFKQZctjKeA?x=1#y')).toBe(key);
+    expect(modelKey('https://mods.vorondesign.com/details/c8xjj0fbgfbfkqzctjkea')).not.toBe(key);
+    expect(modelKey('https://github.com/VoronDesign/VoronUsers/tree/main/printer_mods/hartk1213/Voron2.4_Trident_Pins_Mod')).toBeUndefined();
+    expect(modelKey('https://mods.vorondesign.com/details/')).toBeUndefined();
+  });
+
   it('gives one search per site', () => {
+    expect(linkSearch('https://mods.vorondesign.com/details/C8XJJ0fBGfBFKQZctjKeA/')).toBe('/details/C8XJJ0fBGfBFKQZctjKeA');
     expect(linkSearch('https://www.printables.com/model/123456-x/files')).toBe('/model/123456');
     expect(linkSearch('https://www.thingiverse.com/thing:763622/files')).toBe('/thing:763622');
     expect(linkSearch('https://github.com/o/r/blob/main/a%20b.stl?plain=1')).toBe('github.com/o/r/blob/main/a%20b.stl');

@@ -26,7 +26,7 @@ export default defineConfig({
     const firefox = browser === 'firefox';
     return {
       name: 'Send To Manyfold',
-      description: 'Unofficial. Send 3D models from Printables, Thingiverse and MakerWorld to your Manyfold instance.',
+      description: 'Unofficial. Send 3D models from Printables, Thingiverse, MakerWorld and Voron Mods to your Manyfold instance.',
       // chrome.action.openPopup (the injected button) needs Chrome 127; see manifest-hosts.ts.
       ...(firefox ? {} : { minimum_chrome_version: MINIMUM_CHROME_VERSION }),
       ...(firefox

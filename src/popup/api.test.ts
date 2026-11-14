@@ -50,7 +50,7 @@ describe('popup api', () => {
     expect(r).toEqual({ ok: false, code: 'source-tab-changed' });
   });
 
-  it('sends, retries (with the current tab id), cancels, discards and asks status through the background', async () => {
+  it('sends, retries (with the current tab id), cancels, discards, asks status and reports an opened importer through the background', async () => {
     const d = deps({ toBackground: vi.fn(async () => ({ ok: true, sendId: 's1', sends: [] })) });
     const api = createPopupApi(d);
     const req = request([file('a.stl')]);
@@ -59,12 +59,14 @@ describe('popup api', () => {
     await api.cancel('s1');
     await api.discard('s1');
     await api.status();
+    await api.importOpened(7, 'https://www.thingiverse.com/thing:1');
     expect((d.toBackground as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0])).toEqual([
       { to: 'background', type: 'send', request: req, tabId: 7 },
       { to: 'background', type: 'retry', sendId: 's1', forceCreate: true, tabId: 9 },
       { to: 'background', type: 'cancel', sendId: 's1' },
       { to: 'background', type: 'discard', sendId: 's1' },
       { to: 'background', type: 'status' },
+      { to: 'background', type: 'importOpened', tabId: 7, url: 'https://www.thingiverse.com/thing:1' },
     ]);
   });
 

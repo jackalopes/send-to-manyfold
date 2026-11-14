@@ -6,7 +6,7 @@ import { errorText } from '../labels';
 import type { SendError } from '../../pipeline/errors';
 import type { SourceModel } from '../../types';
 import { CollectionPicker } from '../../ui/CollectionPicker';
-import { DetailsFields } from './DetailsFields';
+import { DetailsFields, type TagSuggestion } from './DetailsFields';
 import { FileList } from './FileList';
 import { ExternalLink } from './Link';
 
@@ -20,6 +20,9 @@ export interface ReviewViewProps {
   /** Why the collections could not be loaded, once known. */
   collectionsFailure?: string | undefined;
   connectionProblem?: ConnectionProblem;
+  /** The tag suggestion or per-send removal, when the site offers one. */
+  tagSuggestion?: TagSuggestion | undefined;
+  tagsKey?: number;
   openSettings(): void;
   onChange(form: ReviewForm): void;
   onSend(): void;
@@ -82,7 +85,7 @@ export function ReviewView(p: ReviewViewProps) {
       {p.model.loginRequired ? (
         <p class="warning">Sign in to {SITE_NAMES[p.model.site]} to download these files, or the send will fail.</p>
       ) : null}
-      <DetailsFields form={p.form} onPatch={patch} />
+      <DetailsFields form={p.form} onPatch={patch} {...(p.tagsKey !== undefined ? { tagsKey: p.tagsKey } : {})} {...(p.tagSuggestion ? { suggestion: p.tagSuggestion } : {})} />
       <CollectionPicker value={p.form.collectionId} options={p.collections} failure={p.collectionsFailure} onChange={(collectionId) => patch({ collectionId })} />
       <label class="inline">
         <input type="checkbox" checked={p.form.sensitive} onChange={(e) => patch({ sensitive: e.currentTarget.checked })} /> Mark as sensitive

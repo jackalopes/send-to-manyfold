@@ -25,6 +25,31 @@ describe('send request validation', () => {
     expect(parseBackgroundRequest(ok)).toBeDefined();
     expect(parseBackgroundRequest({ ...ok, request: { ...req, omitSourceLink: 'yes' } })).toBeUndefined();
   });
+
+  it('accepts stripTopFolder on a file as a boolean only', () => {
+    const withFlag = (stripTopFolder: unknown) => ({ to: 'background', type: 'send', tabId: 1, request: { ...req, selectedFiles: [file('m.zip', { kind: 'archive', stripTopFolder: stripTopFolder as boolean })] } });
+    expect(parseBackgroundRequest(withFlag(true))).toBeDefined();
+    expect(parseBackgroundRequest(withFlag(false))).toBeDefined();
+    expect(parseBackgroundRequest(withFlag('yes'))).toBeUndefined();
+    expect(parseBackgroundRequest(withFlag(1))).toBeUndefined();
+  });
+
+  it('accepts parts on a file as an array of { path, url } only', () => {
+    const withParts = (parts: unknown) => ({ to: 'background', type: 'send', tabId: 1, request: { ...req, selectedFiles: [{ ...file('m.zip', { kind: 'archive' }), parts }] } });
+    expect(parseBackgroundRequest(withParts([{ path: 'STL/a.stl', url: 'https://mods.vorondesign.com/files/x/%2FSTL%2Fa.stl' }]))).toBeDefined();
+    expect(parseBackgroundRequest(withParts([]))).toBeDefined();
+    expect(parseBackgroundRequest(withParts('nope'))).toBeUndefined();
+    expect(parseBackgroundRequest(withParts([{ path: 'a.stl' }]))).toBeUndefined();
+    expect(parseBackgroundRequest(withParts([{ path: 1, url: 'https://x' }]))).toBeUndefined();
+  });
+
+  it('accepts extraLinks as an array of { url, text } only', () => {
+    const withLinks = (extraLinks: unknown) => ({ to: 'background', type: 'send', tabId: 1, request: { ...req, source: { ...req.source, extraLinks } } });
+    expect(parseBackgroundRequest(withLinks([{ url: 'https://github.com/a/b', text: 'GitHub folder' }]))).toBeDefined();
+    expect(parseBackgroundRequest(withLinks('nope'))).toBeUndefined();
+    expect(parseBackgroundRequest(withLinks([{ text: 'GitHub folder' }]))).toBeUndefined();
+    expect(parseBackgroundRequest(withLinks([{ url: 'https://github.com/a/b' }]))).toBeUndefined();
+  });
 });
 
 describe('parseBackgroundRequest', () => {

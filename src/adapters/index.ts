@@ -2,6 +2,7 @@ import type { Delivery, SiteId, SourceFile, SourceModel } from '../types';
 import { makerworld } from './makerworld';
 import { printables } from './printables';
 import { thingiverse } from './thingiverse';
+import { voron } from './voron';
 
 export {
   DOWNLOAD_ERROR_CODES,
@@ -40,6 +41,8 @@ export interface SiteAdapter {
    * around it: the injected button takes this element's height.
    */
   downloadAnchor?(doc: Document): Element | null;
+  /** The site stacks its buttons vertically (full-width blocks): the injected button is then a full-width stack item, not an inline neighbour. */
+  stackedButton?: boolean;
   extract(doc: Document, url: URL, options?: ExtractOptions): Promise<SourceModel>;
   /**
    * Turns a file's `ref` into a short-lived download URL, in the content script on the user's click and with
@@ -51,7 +54,7 @@ export interface SiteAdapter {
 }
 
 // GitHub is switched off for v1 (unverified, needs community feedback); its adapter stays in ./github.ts.
-const ADAPTERS: SiteAdapter[] = [printables, thingiverse, makerworld];
+const ADAPTERS: SiteAdapter[] = [printables, thingiverse, makerworld, voron];
 
 export function adapterFor(url: URL): SiteAdapter | undefined {
   return ADAPTERS.find((a) => a.matches(url));

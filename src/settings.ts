@@ -1,11 +1,21 @@
 import { manyfoldOriginPattern } from './manyfold/permission-pattern';
+import type { SiteId } from './types';
 
-export type PrefillField = 'title' | 'description' | 'creator' | 'license' | 'tags' | 'sourceUrl' | 'images';
+export type PrefillField = 'title' | 'description' | 'creator' | 'license' | 'sourceUrl' | 'images';
+
+/** Whether a site's tags are imported: always, never, or suggested in the popup (only for sites with structured tags). */
+export type TagMode = 'on' | 'off' | 'ask';
+
+/** Sites that may use `ask`. */
+export const ASK_SITES: readonly SiteId[] = ['voron'];
+
+const SITE_IDS: readonly SiteId[] = ['printables', 'thingiverse', 'makerworld', 'github', 'voron'];
 
 export interface Settings {
   manyfoldUrl: string;
   token: string;
   prefill: Record<PrefillField, boolean>;
+  siteTags: Record<SiteId, TagMode>;
   defaultCollectionId?: string;
   defaultSensitive: boolean;
   includeImages: boolean;
@@ -14,7 +24,7 @@ export interface Settings {
 const STORAGE_KEY = 'settings';
 
 export const PREFILL_FIELDS: PrefillField[] = [
-  'title', 'description', 'creator', 'license', 'tags', 'sourceUrl', 'images',
+  'title', 'description', 'creator', 'license', 'sourceUrl', 'images',
 ];
 
 export function defaultSettings(): Settings {
@@ -22,6 +32,7 @@ export function defaultSettings(): Settings {
     manyfoldUrl: '',
     token: '',
     prefill: Object.fromEntries(PREFILL_FIELDS.map((f) => [f, true])) as Record<PrefillField, boolean>,
+    siteTags: Object.fromEntries(SITE_IDS.map((id) => [id, ASK_SITES.includes(id) ? 'ask' : 'on'])) as Record<SiteId, TagMode>,
     defaultSensitive: false,
     includeImages: true,
   };
@@ -73,16 +84,34 @@ export function normalizeBaseUrl(input: string): string {
 
 export async function loadSettings(): Promise<Settings> {
   const defaults = defaultSettings();
-  const stored = (await chrome.storage.local.get(STORAGE_KEY))[STORAGE_KEY] as Partial<Settings> | undefined;
+  const stored = (await chrome.storage.local.get(STORAGE_KEY))[STORAGE_KEY] as
+    (Partial<Omit<Settings, 'prefill'>> & { prefill?: Partial<Record<PrefillField | 'tags', boolean>> }) | undefined;
+  // Older versions had one global Tags switch: off becomes off for every site that existed then.
+  const legacyOff = stored?.prefill?.tags === false;
+  const storedPrefill = { ...stored?.prefill };
+  delete storedPrefill.tags;
+  const siteTags = { ...defaults.siteTags };
+  for (const id of SITE_IDS) {
+    const mode = stored?.siteTags?.[id];
+    if (mode === 'on' || mode === 'off') siteTags[id] = mode;
+    else if (mode === 'ask') siteTags[id] = ASK_SITES.includes(id) ? 'ask' : 'off';
+    else if (legacyOff && !ASK_SITES.includes(id)) siteTags[id] = 'off';
+  }
   return {
     ...defaults,
     ...stored,
-    prefill: { ...defaults.prefill, ...stored?.prefill },
+    prefill: { ...defaults.prefill, ...storedPrefill },
+    siteTags,
   };
 }
 
 export async function saveSettings(s: Settings): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEY]: s });
+}
+
+export async function setSiteTagMode(site: SiteId, mode: TagMode): Promise<void> {
+  const s = await loadSettings();
+  await saveSettings({ ...s, siteTags: { ...s.siteTags, [site]: mode } });
 }
 
 export function requestManyfoldPermission(baseUrl: string): Promise<boolean> {

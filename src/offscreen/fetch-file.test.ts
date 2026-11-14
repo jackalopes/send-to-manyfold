@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { DownloadFailed, DownloadNotFound } from '../adapters/errors';
 import { toSendError } from '../pipeline/errors';
 import { createFetchFile } from './fetch-file';
 
@@ -56,6 +57,19 @@ describe('fetchFile', () => {
   it('a non-2xx answer is a download failure', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => response('denied', { status: 403 }));
     expect(await code(createFetchFile(fetchImpl)('https://cdn.example.com/a.stl'))).toBe('download-failed');
+  });
+
+  it('an HTTP 404 is still a download failure, but one that can be told apart', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => response('nope', { status: 404 }));
+    expect(await code(createFetchFile(fetchImpl)('https://cdn.example.com/a.stl'))).toBe('download-failed');
+    await expect(createFetchFile(fetchImpl)('https://cdn.example.com/a.stl')).rejects.toBeInstanceOf(DownloadNotFound);
+    for (const status of [403, 500]) {
+      const other = vi.fn<typeof fetch>(async () => response('x', { status }));
+      const err = await createFetchFile(other)('https://cdn.example.com/a.stl').catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(DownloadFailed);
+      expect(err).not.toBeInstanceOf(DownloadNotFound);
+      expect((err as Error).message).toBe(`Downloading the file failed: the site answered HTTP ${status}. Try again.`);
+    }
   });
 
   it('a Content-Length over 1 GiB is refused before reading', async () => {

@@ -2,7 +2,7 @@
 import { render } from 'preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ManyfoldError, UNAUTHORIZED_TEXT } from '../manyfold/errors';
-import { defaultSettings } from '../settings';
+import { defaultSettings, type TagMode } from '../settings';
 import type { SourceModel } from '../types';
 import type { PopupApi } from './api';
 import { ReviewPopup, type PopupDeps } from './ReviewPopup';
@@ -15,6 +15,8 @@ const model: SourceModel = {
 function deps(over: { api?: Partial<PopupApi>; delivery?: SourceModel['delivery']; files?: SourceModel['files'] } = {}) {
   const sent: unknown[] = [];
   const opened: string[] = [];
+  const watched: { tabId: number; url: string }[] = [];
+  const order: string[] = [];
   const api = {
     resolveTabId: async () => 7,
     extract: async () => ({ ok: true as const, model: { ...model, ...(over.delivery ? { delivery: over.delivery } : {}), ...(over.files ? { files: over.files } : {}) } }),
@@ -27,6 +29,7 @@ function deps(over: { api?: Partial<PopupApi>; delivery?: SourceModel['delivery'
     recall: async () => undefined,
     forget: async () => undefined,
     subscribe: () => () => undefined,
+    importOpened: async (tabId: number, url: string) => { watched.push({ tabId, url }); order.push('watched'); return { ok: true as const }; },
     ...over.api,
   } as unknown as PopupApi;
   const d: PopupDeps = {
@@ -38,8 +41,10 @@ function deps(over: { api?: Partial<PopupApi>; delivery?: SourceModel['delivery'
     listCollections: async () => [{ id: '/collections/c1', name: 'Boats' }],
     openUrl: (u) => void opened.push(u),
     openSettings: () => undefined,
+    setSiteTagMode: async () => undefined,
+    closePopup: () => void order.push('closed'),
   };
-  return { d, sent, opened };
+  return { d, sent, opened, watched, order };
 }
 
 let root: HTMLElement;
@@ -80,14 +85,16 @@ describe('ReviewPopup', () => {
     expect(root.querySelector('form')).toBeNull();
   });
 
-  it('shows the importer button for a manyfold-import model and opens its URL', async () => {
-    const { d, opened } = deps({ delivery: 'manyfold-import', files: [] });
+  it('shows the importer button for a manyfold-import model, opens its URL and has the tab watched for the import', async () => {
+    const { d, opened, watched, order } = deps({ delivery: 'manyfold-import', files: [] });
     mount(d);
     await vi.waitFor(() => expect(root.textContent).toContain('Open in Manyfold importer'));
     expect(root.textContent).toContain('API key');
     expect(root.querySelector<HTMLInputElement>('input[type=text]')?.readOnly).toBe(true);
     [...root.querySelectorAll('button')].find((b) => b.textContent === 'Open in Manyfold importer')!.click();
     expect(opened).toEqual(['http://m/imports/new?url=https%3A%2F%2Fp%2F1']);
+    await vi.waitFor(() => expect(watched).toEqual([{ tabId: 7, url: 'https://p/1' }]));
+    await vi.waitFor(() => expect(order).toEqual(['watched', 'closed']));
   });
 
   it('shows a settings button when nothing is configured', async () => {
@@ -201,5 +208,94 @@ describe('ReviewPopup', () => {
       await vi.waitFor(() => expect(root.querySelector('.warning')).toBeNull());
       expect(root.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false);
     });
+  });
+});
+
+describe('ReviewPopup printer tags', () => {
+  const voron: SourceModel = {
+    site: 'voron', sourceUrl: 'https://mods.vorondesign.com/1', title: 'Mod', tags: ['Voron 2.4', 'Voron Trident'],
+    files: [{ name: 'a.stl', kind: 'model', size: 10 }],
+  };
+  function setup(mode: TagMode, m: SourceModel = voron, handoff = false) {
+    const { d } = deps({ api: { extract: async () => ({ ok: true as const, model: handoff ? { ...m, delivery: 'manyfold-import' as const } : m }) } });
+    const calls: unknown[][] = [];
+    d.loadSettings = async () => ({ ...defaultSettings(), manyfoldUrl: 'http://m', token: 'tok', siteTags: { ...defaultSettings().siteTags, [m.site]: mode } });
+    d.setSiteTagMode = async (...a) => void calls.push(a);
+    mount(d);
+    return calls;
+  }
+  const tagsBox = () => root.querySelectorAll<HTMLInputElement>('input[type=text]')[3]!;
+  const button = (text: string) => [...root.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.startsWith(text));
+  const ready = () => vi.waitFor(() => expect(root.querySelector('form')).toBeTruthy());
+
+  it('ask: empty box, suggestion adds the tags and saves On once, then offers Not this time', async () => {
+    const calls = setup('ask');
+    await ready();
+    expect(tagsBox().value).toBe('');
+    expect(button('Add printer tags: Voron 2.4, Voron Trident')).toBeTruthy();
+    button('Add printer tags')!.click();
+    await vi.waitFor(() => expect(tagsBox().value).toBe('Voron 2.4, Voron Trident'));
+    expect(calls).toEqual([['voron', 'on']]);
+    expect(button('Not this time')).toBeTruthy();
+    expect(button('Add printer tags')).toBeUndefined();
+  });
+
+  it('on: prefilled; Not this time clears for this send only and the suggestion re-adds without saving', async () => {
+    const calls = setup('on');
+    await ready();
+    expect(tagsBox().value).toBe('Voron 2.4, Voron Trident');
+    button('Not this time')!.click();
+    await vi.waitFor(() => expect(tagsBox().value).toBe(''));
+    expect(button('Add printer tags')).toBeTruthy();
+    button('Add printer tags')!.click();
+    await vi.waitFor(() => expect(tagsBox().value).toBe('Voron 2.4, Voron Trident'));
+    expect(calls).toEqual([]);
+  });
+
+  it('shows neither control when off or when the page has no tags', async () => {
+    setup('off');
+    await ready();
+    expect(button('Not this time') ?? button('Add printer tags')).toBeUndefined();
+    render(null, root);
+    root.remove();
+    setup('ask', { ...voron, tags: [] });
+    await ready();
+    expect(button('Not this time') ?? button('Add printer tags')).toBeUndefined();
+  });
+
+  it('Not this time removes only the page tags, keeping typed ones', async () => {
+    setup('on');
+    await ready();
+    const box = tagsBox();
+    box.value = 'Voron 2.4, Voron Trident, mine';
+    box.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.waitFor(() => expect(button('Not this time')).toBeTruthy());
+    button('Not this time')!.click();
+    await vi.waitFor(() => expect(tagsBox().value).toBe('mine'));
+  });
+
+  it('shows neither control on a Printables model with tags and mode on', async () => {
+    setup('on', { site: 'printables', sourceUrl: 'https://p/1', title: 'Benchy', tags: ['boat'], files: [{ name: 'a.stl', kind: 'model', size: 10 }] });
+    await ready();
+    expect(button('Not this time') ?? button('Add printer tags')).toBeUndefined();
+  });
+
+  it('keeps a typed comma after a button press', async () => {
+    setup('on');
+    await ready();
+    button('Not this time')!.click();
+    await vi.waitFor(() => expect(tagsBox().value).toBe(''));
+    const box = tagsBox();
+    box.value = 'a,';
+    box.dispatchEvent(new Event('input', { bubbles: true }));
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(tagsBox().value).toBe('a,');
+  });
+
+  it('shows neither control in the read-only handoff view', async () => {
+    setup('on', voron, true);
+    await vi.waitFor(() => expect(root.textContent).toContain('Tags'));
+    expect(button('Not this time') ?? button('Add printer tags')).toBeUndefined();
   });
 });

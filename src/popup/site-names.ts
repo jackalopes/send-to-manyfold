@@ -5,5 +5,6 @@ export const SITE_NAMES: Record<SourceModel['site'], string> = {
   thingiverse: 'Thingiverse',
   makerworld: 'MakerWorld',
   github: 'GitHub',
+  voron: 'Voron Mods',
   other: 'the site',
 };

@@ -5,7 +5,7 @@ import { createBrowserLookup } from '../../manyfold/browser-lookup';
 import { createPopupApi, isOffscreenSender } from '../../popup/api';
 import '../../popup/popup.css';
 import { ReviewPopup, type PopupDeps } from '../../popup/ReviewPopup';
-import { loadSettings } from '../../settings';
+import { loadSettings, setSiteTagMode } from '../../settings';
 
 const offscreenUrl = chrome.runtime.getURL('offscreen.html');
 
@@ -41,6 +41,8 @@ const deps: PopupDeps = {
   openUrl: (url) => {
     if (/^https?:\/\//i.test(url)) void chrome.tabs.create({ url });
   },
+  setSiteTagMode,
+  closePopup: () => window.close(),
   openSettings: () => void chrome.runtime.openOptionsPage(),
 };
 

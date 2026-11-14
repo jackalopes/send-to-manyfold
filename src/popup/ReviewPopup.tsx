@@ -5,6 +5,9 @@ import { DoneView, FailedView } from './components/ResultViews';
 import { DiscardedView, ErrorView, HandoffView, UnsupportedView } from './components/Notices';
 import { ReviewView } from './components/ReviewView';
 import { SendingView } from './components/SendingView';
+import { tagOffer } from './state';
+import type { SiteId } from '../types';
+import { ASK_SITES, type TagMode } from '../settings';
 import { initialState, reduce } from './machine';
 import { collectionsFailureText } from '../ui/collections-failure';
 
@@ -12,17 +15,21 @@ export interface PopupDeps extends Omit<ControllerDeps, 'dispatch' | 'getState'>
   listCollections(): Promise<NamedRef[]>;
   openUrl(url: string): void;
   openSettings(): void;
+  /** Saves a site's tag mode (the suggestion switches Voron to On). */
+  setSiteTagMode(site: SiteId, mode: TagMode): Promise<void>;
 }
 
 /** The review popup: thin view over the state machine; every decision lives in `machine.ts` and `controller.ts`. */
 export function ReviewPopup({ deps }: { deps: PopupDeps }) {
   const [state, dispatch] = useReducer(reduce, initialState);
   const [collections, setCollections] = useState<NamedRef[] | undefined>();
+  const [tagModes, setTagModes] = useState<Record<string, TagMode> | undefined>();
+  const [tagsKey, setTagsKey] = useState(0);
   const [collectionsFailure, setCollectionsFailure] = useState<string | undefined>();
   // `getState` reads the latest state through a ref-like closure over the reducer's current value.
   const latest = useMemo(() => ({ state }), []);
   latest.state = state;
-  const controller = useMemo(() => createController({ ...deps, dispatch, getState: () => latest.state }), []);
+  const controller = useMemo(() => createController({ ...deps, loadSettings: async () => { const s = await deps.loadSettings(); setTagModes(s.siteTags); return s; }, dispatch, getState: () => latest.state }), []);
 
   useEffect(() => {
     void controller.init();
@@ -52,7 +59,30 @@ export function ReviewPopup({ deps }: { deps: PopupDeps }) {
       return <UnsupportedView />;
     case 'error':
       return <ErrorView code={state.code} onOpenSettings={deps.openSettings} />;
-    case 'review':
+    case 'review': {
+      const { model, form } = state;
+      const site = model.site === 'other' ? undefined : model.site;
+      const mode = site ? tagModes?.[site] : undefined;
+      const offer = mode && site && ASK_SITES.includes(site) ? tagOffer(model, mode, form) : undefined;
+      const replaceTags = (tags: string[]) => {
+        controller.changeForm({ ...form, tags });
+        setTagsKey((k) => k + 1);
+      };
+      const tagSuggestion =
+        offer && site
+          ? {
+              kind: offer,
+              tags: model.tags,
+              onAccept: () => {
+                if (offer === 'remove') return replaceTags(form.tags.filter((t) => !model.tags.includes(t)));
+                replaceTags([...new Set([...form.tags, ...model.tags])]);
+                if (mode === 'ask') {
+                  setTagModes({ ...tagModes, [site]: 'on' });
+                  deps.setSiteTagMode(site, 'on').catch(() => {});
+                }
+              },
+            }
+          : undefined;
       return (
         <ReviewView
           model={state.model}
@@ -68,8 +98,11 @@ export function ReviewPopup({ deps }: { deps: PopupDeps }) {
           onSend={() => void controller.send()}
           onDismissDuplicate={controller.dismissDuplicate}
           openUrl={deps.openUrl}
+          tagSuggestion={tagSuggestion}
+          tagsKey={tagsKey}
         />
       );
+    }
     case 'sending':
       return <SendingView {...(state.progress ? { progress: state.progress } : {})} {...(state.cancelling ? { cancelling: true } : {})} onCancel={() => void controller.cancel()} />;
     case 'done':
@@ -90,7 +123,15 @@ export function ReviewPopup({ deps }: { deps: PopupDeps }) {
         />
       );
     case 'handoff':
-      return <HandoffView {...(state.model ? { model: state.model } : {})} {...(state.form ? { form: state.form } : {})} url={state.url} openUrl={deps.openUrl} />;
+      return (
+        <HandoffView
+          {...(state.model ? { model: state.model } : {})}
+          {...(state.form ? { form: state.form } : {})}
+          url={state.url}
+          openUrl={deps.openUrl}
+          onImporterOpened={() => void controller.importerOpened()}
+        />
+      );
     case 'discarded':
       return <DiscardedView />;
   }

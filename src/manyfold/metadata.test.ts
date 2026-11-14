@@ -115,6 +115,8 @@ describe('mapLicense', () => {
     ['apache-2.0', 'Apache-2.0'],
     ['GPL-3.0', 'GPL-3.0-only'],
     ['GNU General Public License v3.0', 'GPL-3.0-only'],
+    ['General Public License v3.0', 'GPL-3.0-only'],
+    ['General Public License v2.0', 'GPL-2.0-only'],
     ['GPL-3.0-or-later', 'GPL-3.0-or-later'],
     ['Creative Commons - Attribution - Non-Commercial - Share Alike 4.0', 'CC-BY-NC-SA-4.0'],
     ['CC BY-NC-SA 4.0', 'CC-BY-NC-SA-4.0'],
@@ -459,6 +461,42 @@ describe('listCollections', () => {
     const err = await listCollections(client(s.fetch)).then(() => new Error('resolved'), (e: unknown) => e as Error);
     expect(err.message).toMatch(/revoked, expired or mistyped.*new token/);
     expect(err.message).not.toContain(TOKEN);
+  });
+});
+
+describe('extra links', () => {
+  const url = 'https://mods.vorondesign.com/details/abc';
+  const gh = 'https://github.com/VoronDesign/VoronUsers/tree/main/printer_mods/a/b';
+  const run = async (input: Partial<Parameters<typeof applyMetadata>[2]>) => {
+    const srv = modelServer();
+    const s = stub(srv.handler);
+    const result = await applyMetadata(client(s.fetch), { id: 'abc123' }, { name: 'Title', ...input });
+    return { result, patch: s.calls.find((c) => c.method === 'PATCH')?.json };
+  };
+
+  it('sends them after the source link, with the same trailing-space rule', async () => {
+    const { result, patch } = await run({ sourceUrl: url, sourceLinkText: 'Pins Mod', extraLinks: [{ url: gh, text: 'GitHub folder' }] });
+    expect(patch!.links).toEqual([{ url, text: 'Pins Mod ' }, { url: gh, text: 'GitHub folder ' }]);
+    expect(result.failed).toEqual([]);
+  });
+
+  it('drops a non-http extra link without failing the source link', async () => {
+    const { result, patch } = await run({ sourceUrl: url, extraLinks: [{ url: 'javascript:alert(1)', text: 'Bad' }, { url: gh, text: 'GitHub folder' }] });
+    expect(patch!.links).toEqual([{ url }, { url: gh, text: 'GitHub folder ' }]);
+    expect(result.failed).toEqual([]);
+  });
+
+  it('does not save extra links without a source URL', async () => {
+    const { patch } = await run({ extraLinks: [{ url: gh, text: 'GitHub folder' }] });
+    expect(patch).not.toHaveProperty('links');
+  });
+
+  it('copies them from the source, and omitSourceLink drops them too', () => {
+    const src: SourceModel = { site: 'voron', sourceUrl: url, title: 'T', tags: [], files: [], extraLinks: [{ url: gh, text: 'GitHub folder' }] };
+    expect(metadataInputFromSource(src, { name: 'T', sensitive: false }).extraLinks).toEqual([{ url: gh, text: 'GitHub folder' }]);
+    const omitted = metadataInputFromSource(src, { name: 'T', sensitive: false, omitSourceLink: true });
+    expect(omitted.sourceUrl).toBeUndefined();
+    expect(omitted.extraLinks).toBeUndefined();
   });
 });
 

@@ -21,6 +21,8 @@ export interface MetadataInput {
   sourceUrl?: string;
   /** Link text for the source URL: the source model's own name, e.g. "Articulated Dragon". */
   sourceLinkText?: string;
+  /** More links saved after the source link. Only saved together with `sourceUrl`; non-http(s) ones are dropped. */
+  extraLinks?: { url: string; text: string }[];
   /** Matched by name (case-insensitive) or created, with `url` as its profile link. */
   creator?: { name: string; url?: string };
   /** Already-resolved creator id (`/creators/<slug>` or its URL). Takes precedence over `creator`. */
@@ -55,7 +57,7 @@ export interface PopupChoices {
   omitSourceLink?: boolean;
 }
 
-const SITE_LABELS: Record<SiteId, string> = { printables: 'Printables', thingiverse: 'Thingiverse', makerworld: 'MakerWorld', github: 'GitHub' };
+const SITE_LABELS: Record<SiteId, string> = { printables: 'Printables', thingiverse: 'Thingiverse', makerworld: 'MakerWorld', github: 'GitHub', voron: 'Voron Mods' };
 
 const MAX_PAGES = 200;
 
@@ -66,6 +68,7 @@ export function metadataInputFromSource(source: SourceModel, popup: PopupChoices
   if (source.licenseText !== undefined) input.licenseText = source.licenseText;
   if (popup.licenseId !== undefined) input.licenseId = popup.licenseId;
   if (!popup.omitSourceLink) input.sourceUrl = source.sourceUrl;
+  if (!popup.omitSourceLink && source.extraLinks?.length) input.extraLinks = source.extraLinks;
   if (!popup.omitSourceLink && source.site !== 'other') input.sourceLinkText = source.title.trim() || SITE_LABELS[source.site];
   if (source.creator) input.creator = source.creator;
   input.tags = source.tags;
@@ -152,7 +155,13 @@ export async function applyMetadata(client: ManyfoldClient, model: { id: string 
       // (sanitize is an output helper there), so without it the two run together ("...BaysMakerWorld").
       const trimmed = input.sourceLinkText?.trim();
       const text = trimmed ? `${trimmed} ` : undefined;
-      add('links', { links: [text ? { url, text } : { url }] }, (r) => Array.isArray(r.links) && r.links.some((l) => (l as Json)?.url === url));
+      const links: { url: string; text?: string }[] = [text ? { url, text } : { url }];
+      for (const extra of input.extraLinks ?? []) {
+        const extraUrl = httpUrl(extra.url);
+        const extraText = extra.text.trim();
+        if (extraUrl && !links.some((l) => l.url === extraUrl)) links.push(extraText ? { url: extraUrl, text: `${extraText} ` } : { url: extraUrl });
+      }
+      add('links', { links }, (r) => Array.isArray(r.links) && links.every((want) => (r.links as unknown[]).some((l) => (l as Json)?.url === want.url)));
     }
   }
 

@@ -1,4 +1,4 @@
-import type { Settings } from '../settings';
+import type { Settings, TagMode } from '../settings';
 import type { SendRequest } from '../pipeline/types';
 import type { SourceFile, SourceModel } from '../types';
 
@@ -39,7 +39,7 @@ export function buildInitialForm(model: SourceModel, settings: Settings): Review
     description: on.description ? (model.description ?? '') : '',
     creatorName: on.creator ? (model.creator?.name ?? '') : '',
     licenseText: on.license ? (model.licenseText ?? '') : '',
-    tags: on.tags ? [...model.tags] : [],
+    tags: model.site !== 'other' && settings.siteTags[model.site] === 'on' ? [...model.tags] : [],
     sourceLink: on.sourceUrl,
     files: offered.map((file) => {
       if (file.size !== undefined && file.size > MAX_FILE_BYTES) return { file, selected: false, disabledReason: TOO_LARGE };
@@ -53,6 +53,12 @@ export function buildInitialForm(model: SourceModel, settings: Settings): Review
 
 export function parseTags(text: string): string[] {
   return [...new Set(text.split(',').map((t) => t.trim()).filter(Boolean))];
+}
+
+/** What the popup suggests for the page's tags: add them, remove them for this send, or nothing. */
+export function tagOffer(model: SourceModel, mode: TagMode, form: ReviewForm): 'add' | 'remove' | undefined {
+  if (mode === 'off' || model.site === 'other' || model.tags.length === 0) return undefined;
+  return model.tags.every((t) => form.tags.includes(t)) ? 'remove' : 'add';
 }
 
 export function canSend(form: ReviewForm): boolean {
