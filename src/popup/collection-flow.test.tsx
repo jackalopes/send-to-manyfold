@@ -38,6 +38,7 @@ function mount(defaultCollectionId?: string) {
     openUrl: () => undefined,
     openSettings: () => undefined,
     setSiteTagMode: async () => undefined,
+    closePopup: () => undefined,
   };
   root = document.createElement('div');
   document.body.append(root);

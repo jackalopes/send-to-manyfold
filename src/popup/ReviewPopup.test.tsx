@@ -16,6 +16,7 @@ function deps(over: { api?: Partial<PopupApi>; delivery?: SourceModel['delivery'
   const sent: unknown[] = [];
   const opened: string[] = [];
   const watched: { tabId: number; url: string }[] = [];
+  const order: string[] = [];
   const api = {
     resolveTabId: async () => 7,
     extract: async () => ({ ok: true as const, model: { ...model, ...(over.delivery ? { delivery: over.delivery } : {}), ...(over.files ? { files: over.files } : {}) } }),
@@ -28,7 +29,7 @@ function deps(over: { api?: Partial<PopupApi>; delivery?: SourceModel['delivery'
     recall: async () => undefined,
     forget: async () => undefined,
     subscribe: () => () => undefined,
-    importOpened: async (tabId: number, url: string) => { watched.push({ tabId, url }); return { ok: true as const }; },
+    importOpened: async (tabId: number, url: string) => { watched.push({ tabId, url }); order.push('watched'); return { ok: true as const }; },
     ...over.api,
   } as unknown as PopupApi;
   const d: PopupDeps = {
@@ -41,8 +42,9 @@ function deps(over: { api?: Partial<PopupApi>; delivery?: SourceModel['delivery'
     openUrl: (u) => void opened.push(u),
     openSettings: () => undefined,
     setSiteTagMode: async () => undefined,
+    closePopup: () => void order.push('closed'),
   };
-  return { d, sent, opened, watched };
+  return { d, sent, opened, watched, order };
 }
 
 let root: HTMLElement;
@@ -84,7 +86,7 @@ describe('ReviewPopup', () => {
   });
 
   it('shows the importer button for a manyfold-import model, opens its URL and has the tab watched for the import', async () => {
-    const { d, opened, watched } = deps({ delivery: 'manyfold-import', files: [] });
+    const { d, opened, watched, order } = deps({ delivery: 'manyfold-import', files: [] });
     mount(d);
     await vi.waitFor(() => expect(root.textContent).toContain('Open in Manyfold importer'));
     expect(root.textContent).toContain('API key');
@@ -92,6 +94,7 @@ describe('ReviewPopup', () => {
     [...root.querySelectorAll('button')].find((b) => b.textContent === 'Open in Manyfold importer')!.click();
     expect(opened).toEqual(['http://m/imports/new?url=https%3A%2F%2Fp%2F1']);
     await vi.waitFor(() => expect(watched).toEqual([{ tabId: 7, url: 'https://p/1' }]));
+    await vi.waitFor(() => expect(order).toEqual(['watched', 'closed']));
   });
 
   it('shows a settings button when nothing is configured', async () => {
