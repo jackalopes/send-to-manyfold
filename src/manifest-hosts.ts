@@ -32,7 +32,7 @@ export const DOWNLOAD_HOST_PERMISSIONS = [
   'https://media.printables.com/*',
   // MakerWorld: the design-service answer is a signed makerworld.bblmw.com link; covers are there too.
   'https://makerworld.bblmw.com/*',
-  // Voron Mods: the zip (/download/<id>/<name>) and covers (/thumb/<id>/300x300) are both served from the site itself.
+  // Voron Mods: the zip (/mods/<author>/<name>/download), single files (/files/...) and covers/README images (/media/<hash>/...) are all served from the site itself.
   'https://mods.vorondesign.com/*',
 ] as const;
 

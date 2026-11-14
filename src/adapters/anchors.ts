@@ -26,5 +26,5 @@ export const makerworldAnchor = (doc: Document): Element | null => {
   return ordered.find((row) => row.checkVisibility?.() !== false) ?? ordered[0] ?? null;
 };
 
-/** Voron Mods detail page (buttons are a vertical stack, so the injected button is a full-width item under it): the full-width "Download" link (a link wrapping the button) to `/download/<id>/<name>`. */
-export const voronAnchor = (doc: Document): Element | null => doc.querySelector('a[href^="/download/"]');
+/** Voron Mods detail page (the header buttons are a `flex-col` stack, so the injected button is a full-width item under it): the full-width "Download all (.zip)" link to `/mods/<author>/<name>/download`. */
+export const voronAnchor = (doc: Document): Element | null => doc.querySelector('a[href^="/mods/"][href$="/download"]');

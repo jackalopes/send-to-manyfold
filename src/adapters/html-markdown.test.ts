@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { htmlMarkdown } from './html-markdown';
 
-const BASE = 'https://mods.vorondesign.com/details/X';
+const BASE = 'https://mods.vorondesign.com/mods/a/X';
 
 function md(html: string, base = BASE, options?: { imageWidth?: number }): string | undefined {
   const root = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html').body.firstElementChild!;
@@ -24,7 +24,7 @@ describe('htmlMarkdown', () => {
   });
 
   it('resolves relative links against the base', () => {
-    expect(md('<a href="/files/X/%2FSTL%2Fa.stl">a</a>')).toBe('[a](https://mods.vorondesign.com/files/X/%2FSTL%2Fa.stl)');
+    expect(md('<a href="/mods/a/X/files/STL/a.stl">a</a>')).toBe('[a](https://mods.vorondesign.com/mods/a/X/files/STL/a.stl)');
   });
 
   it('resolves relative images and keeps absolute ones', () => {

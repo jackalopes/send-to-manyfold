@@ -16,7 +16,7 @@ Open a model page, click the toolbar icon (or the green "Send to Manyfold" butto
 |---|---|---|
 | Printables | model pages (`/model/...`) | Downloads the files and uploads them to Manyfold. |
 | MakerWorld | model pages (`/models/...`) | Downloads the files and uploads them to Manyfold. |
-| Voron Mods | mod pages (`/details/...`) | Downloads the mod's zip and uploads it to Manyfold. |
+| Voron Mods | mod pages (`/mods/<author>/<name>`) | Downloads the mod's zip and uploads it to Manyfold. |
 | Thingiverse | thing pages (`/thing:...`) | Does not upload files. The popup shows the details and hands the page over to Manyfold's own Thingiverse importer. This needs a Thingiverse App Token set in Manyfold: (1) create an app at https://www.thingiverse.com/developers/my-apps; (2) click the "Create & Get App Key" button at the top right (it is white on white until you hover over it); (3) paste the App Token into Manyfold under Settings → Integrations. |
 
 On any other page the popup says the page is not supported and sends nothing.

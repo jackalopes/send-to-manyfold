@@ -111,7 +111,7 @@ describe('sendModel against a real Manyfold', () => {
     const folder = `https://github.com/VoronDesign/VoronUsers/tree/main/printer_mods/e2e/${stamp}`;
     const archive = zip({ 'Mod by author/': '', 'Mod by author/STLs/': '', 'Mod by author/STLs/a.stl': stl('a'), 'Mod by author/README.md': '# Mod\n' });
     const files: SourceFile[] = [{ name: 'Mod-author.zip', kind: 'archive', stripTopFolder: true }];
-    const page = `https://mods.vorondesign.com/details/E2e${stamp}`;
+    const page = `https://mods.vorondesign.com/mods/e2e/E2e${stamp}`;
     const base = request('voron', files);
     const source = { ...base.source, site: 'voron' as const, sourceUrl: page, extraLinks: [{ url: folder, text: 'GitHub folder' }] };
     const r = await sendModel({ ...base, source }, deps({ 'Mod-author.zip': archive, 'cover.png': new Blob([PNG], { type: 'image/png' }) }), () => {});
@@ -142,7 +142,7 @@ describe('sendModel against a real Manyfold', () => {
     ];
     const files: SourceFile[] = [{ name: 'Broken-author.zip', kind: 'archive', stripTopFolder: true, parts }];
     const base = request('voron-broken', files);
-    const source = { ...base.source, site: 'voron' as const, sourceUrl: `https://mods.vorondesign.com/details/E2eBroken${stamp}` };
+    const source = { ...base.source, site: 'voron' as const, sourceUrl: `https://mods.vorondesign.com/mods/e2e/E2eBroken${stamp}` };
     const r = await sendModel({ ...base, source }, deps({ 'Broken-author.zip': truncated, 'files/x/a.stl': new Blob([stl('a')]), 'files/x/readme.md': new Blob(['# Mod\n']), 'cover.png': new Blob([PNG], { type: 'image/png' }) }), () => {});
     expect(r).toMatchObject({ status: 'done' });
     if (r.status !== 'done') return;
