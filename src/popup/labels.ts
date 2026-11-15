@@ -38,15 +38,3 @@ const FIELDS: Record<string, string> = {
 export function failedFields(failed: { field: string; error: string }[]): string[] {
   return failed.map((f) => FIELDS[f.field] ?? f.field);
 }
-
-export function formatBytes(n: number): string {
-  if (n < 1000) return `${n} B`;
-  const units = ['kB', 'MB', 'GB'];
-  let v = n;
-  let i = -1;
-  do {
-    v /= 1000;
-    i++;
-  } while (v >= 1000 && i < units.length - 1);
-  return `${v.toFixed(1)} ${units[i]}`;
-}

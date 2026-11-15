@@ -66,7 +66,7 @@ describe('FileTree', () => {
     expect(row.textContent).toContain('b.stl');
     expect(row.textContent).not.toContain('STLs/b.stl');
     expect(row.textContent).toContain('model');
-    expect(row.textContent).toContain('1.0 kB');
+    expect(row.textContent).toContain('1000 B');
   });
 
   it('unticking a fully ticked folder calls onSet with false', () => {

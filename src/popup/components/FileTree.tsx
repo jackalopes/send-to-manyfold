@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { buildTree, folderFiles, folderState, folderSummary, type TreeFolder } from '../file-tree';
-import { formatBytes } from '../labels';
+import { formatBytes } from '../../format';
 import type { FormFile } from '../state';
 
 interface Props {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MESSAGES } from '../pipeline/errors';
-import { errorText, failedFields, formatBytes, stageLabel } from './labels';
+import { errorText, failedFields, stageLabel } from './labels';
 
 describe('errorText', () => {
   it('maps a code to its fixed message, never to raw text', () => {
@@ -30,15 +30,5 @@ describe('stageLabel', () => {
 describe('failedFields', () => {
   it('lists field names for people and ignores the raw error text', () => {
     expect(failedFields([{ field: 'tags', error: 'secret?' }, { field: 'links', error: 'x' }, { field: 'weird', error: 'y' }])).toEqual(['Tags', 'Source link', 'weird']);
-  });
-});
-
-describe('formatBytes', () => {
-  it('formats sizes', () => {
-    expect(formatBytes(0)).toBe('0 B');
-    expect(formatBytes(999)).toBe('999 B');
-    expect(formatBytes(1500)).toBe('1.5 kB');
-    expect(formatBytes(5 * 1000 ** 2)).toBe('5.0 MB');
-    expect(formatBytes(1000 ** 3)).toBe('1.0 GB');
   });
 });

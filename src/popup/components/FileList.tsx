@@ -1,4 +1,4 @@
-import { formatBytes } from '../labels';
+import { formatBytes } from '../../format';
 import type { FormFile } from '../state';
 
 const KIND: Record<string, string> = { model: 'model', image: 'image', archive: 'archive', other: 'other' };
