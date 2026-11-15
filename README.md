@@ -16,7 +16,7 @@ Open a model page, click the toolbar icon (or the green "Send to Manyfold" butto
 |---|---|---|
 | Printables | model pages (`/model/...`) | Downloads the files and uploads them to Manyfold. |
 | MakerWorld | model pages (`/models/...`) | Downloads the files and uploads them to Manyfold. |
-| Voron Mods | mod pages (`/mods/<author>/<name>`) | Downloads the mod's zip and uploads it to Manyfold. |
+| Voron Mods | mod pages (`/mods/<author>/<name>`) | Lists the mod's files as a folder tree; you pick files or whole folders, and the extension zips them (folders kept) and uploads the zip to Manyfold. |
 | Thingiverse | thing pages (`/thing:...`) | Does not upload files. The popup shows the details and hands the page over to Manyfold's own Thingiverse importer. This needs a Thingiverse App Token set in Manyfold: (1) create an app at https://www.thingiverse.com/developers/my-apps; (2) click the "Create & Get App Key" button at the top right (it is white on white until you hover over it); (3) paste the App Token into Manyfold under Settings → Integrations. |
 
 On any other page the popup says the page is not supported and sends nothing.
@@ -116,7 +116,6 @@ If you represent Manyfold or one of these sites and have a concern, please [open
 - Manyfold limits how fast models can be created. Large batches are paced and may wait.
 - The Manyfold version check is best-effort (see Settings).
 - Updating to 0.2.0 or later from an earlier version (0.2.0 is the release that adds Voron Mods) asks for access to `mods.vorondesign.com`. Chrome turns the extension off until you accept it on the extensions page (or in the prompt). Your settings are kept.
-- Voron Mods sometimes sends an incomplete zip for a mod. When it does, the extension downloads the mod's files one by one instead and zips them itself, which is slower for large mods.
 
 ## Development
 

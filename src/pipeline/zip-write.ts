@@ -1,5 +1,5 @@
 /**
- * A plain zip writer for the rebuild of an incomplete archive: every file stored (method 0), UTF-8 names, CRC-32 and
+ * A plain zip writer for the zip of a Voron bundle's files: every file stored (method 0), UTF-8 names, CRC-32 and
  * sizes in both headers (no data descriptors). It never writes ZIP64: anything that would need it throws instead of
  * producing a corrupt zip (unreachable under Manyfold's 1 GiB upload limit).
  */

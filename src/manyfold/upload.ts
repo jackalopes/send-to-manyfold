@@ -1,4 +1,5 @@
 import type { ManyfoldClient } from './client';
+import { formatBytes } from '../format';
 import { isArchiveExtension } from '../types';
 import { FORBIDDEN_TEXT, ManyfoldError, RATE_LIMITED_TEXT, UNAUTHORIZED_TEXT, UNREACHABLE_TEXT } from './errors';
 import { collectionUrl } from './paths';
@@ -303,16 +304,6 @@ function isNoLibraryRedirect(res: Response): boolean {
 
 function tooLarge(name: string, size: number, max: number): ManyfoldError {
   return new ManyfoldError('too-large', `"${name}" is ${formatBytes(size)}; this Manyfold server accepts files up to ${formatBytes(max)}.`);
-}
-
-function formatBytes(n: number): string {
-  const units = ['bytes', 'KiB', 'MiB', 'GiB', 'TiB'];
-  let i = 0;
-  while (n >= 1024 && i < units.length - 1) {
-    n /= 1024;
-    i++;
-  }
-  return `${Number.isInteger(n) ? n : n.toFixed(1)} ${units[i]}`;
 }
 
 function extension(name: string): string {
