@@ -4,7 +4,7 @@ A Chrome and Firefox extension that sends 3D models from Printables, Thingiverse
 
 Not affiliated with or endorsed by Manyfold, Printables, Thingiverse, MakerWorld or Voron Mods. Those names are trademarks of their respective owners and are used here only to say which services this works with.
 
-> Status: version 0.2.1, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Firefox: submitted to addons.mozilla.org; until it is listed, install from source. The Firefox build is newer and has had less real-world use than the Chrome one. Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
+> Status: version 0.3.0, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Firefox: submission to addons.mozilla.org is pending; until it is listed, install from source. The Firefox build is newer and has had less real-world use than the Chrome one. Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
 
 ![Sending a Printables model to Manyfold with the extension](assets/demo.gif)
 
