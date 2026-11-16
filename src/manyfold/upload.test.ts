@@ -315,18 +315,51 @@ describe('createModel', () => {
     expect(srv.calls).toHaveLength(1);
   });
 
-  it.each([401, 403, 429, 500, 502])('a %i for a create with keywords is not retried', async (status) => {
+  it.each([401, 403, 404, 409, 413, 429, 500, 502, 504])('a %i for a create with keywords is not retried', async (status) => {
     const srv = modelsServer(() => new Response('x', { status }));
     await createModel(client(srv.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: ['t'] }).catch(() => undefined);
     expect(srv.calls).toHaveLength(1);
   });
 
-  it('a network failure or an abort after sending is not retried (the model may exist)', async () => {
+  it('a network failure for a create with keywords is not retried (the model may exist)', async () => {
     const s = stub(() => {
       throw new TypeError('network down');
     });
     await createModel(client(s.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: ['t'] }).catch(() => undefined);
     expect(s.calls).toHaveLength(1);
+  });
+
+  it('an abort during the retry is passed on and nothing is posted again', async () => {
+    const ctl = new AbortController();
+    let n = 0;
+    const s = stub(() => {
+      if (++n === 1) return new Response('{}', { status: 422 });
+      ctl.abort();
+      throw new DOMException('Aborted', 'AbortError');
+    });
+    await expect(createModel(client(s.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: ['t'], signal: ctl.signal })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(s.calls).toHaveLength(2);
+  });
+
+  it('an already aborted signal sends nothing more than the first attempt and is not retried', async () => {
+    const ctl = new AbortController();
+    const s = stub(() => {
+      ctl.abort();
+      throw new DOMException('Aborted', 'AbortError');
+    });
+    await createModel(client(s.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: ['t'], signal: ctl.signal }).catch(() => undefined);
+    expect(s.calls).toHaveLength(1);
+  });
+
+  it('leaves tags over 255 bytes out of keywords, and omits the key when none are left', async () => {
+    const long = 'x'.repeat(256);
+    const wide = 'é'.repeat(128); // 128 characters but 256 bytes in UTF-8
+    const srv = modelsServer(() => new Response(null, { status: 201, headers: { Location: '/models/x1' } }));
+    await createModel(client(srv.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: ['ok', long, wide, 'x'.repeat(255)] });
+    expect(srv.body().keywords).toEqual(['ok', 'x'.repeat(255)]);
+    const only = modelsServer(() => new Response(null, { status: 201, headers: { Location: '/models/x1' } }));
+    await createModel(client(only.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: [long] });
+    expect(only.body()).not.toHaveProperty('keywords');
   });
 
   it('several archives answer 202 without Location; the keywords went out in that one request', async () => {

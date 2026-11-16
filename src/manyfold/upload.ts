@@ -101,6 +101,8 @@ export async function uploadFile(
   return { id: url, name, size: total };
 }
 
+const MAX_TAG_BYTES = 255;
+
 export interface CreateModelOptions {
   name: string;
   /** Collection public ids (e.g. `abc123`) or absolute collection `@id` URLs. */
@@ -145,9 +147,13 @@ export async function createModel(client: ManyfoldClient, files: UploadedFile[],
     throwIfFatal(r, name);
     return r;
   };
+  // Manyfold rejects a tag over 255 characters when it saves the model, which would fail the whole create (a 500).
+  // Measured in UTF-8 bytes, which is never fewer than characters, so the safe side either way. Such a tag is left
+  // out here only; the later tag PATCH still sends the full list and reports it as failed, as before.
+  const keywords = (opts.tags ?? []).filter((t) => new TextEncoder().encode(t).length <= MAX_TAG_BYTES);
   let res: Response;
-  if (opts.tags?.length) {
-    res = await post({ ...body, keywords: opts.tags });
+  if (keywords.length) {
+    res = await post({ ...body, keywords });
     // A server that refuses the request itself (400, 422) may be refusing `keywords`. Nothing was created then, so
     // one retry without them is safe; the tag PATCH after creation sets the tags. Not 5xx or a network error: the
     // model may already exist.
