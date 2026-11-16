@@ -83,14 +83,14 @@ export function ReviewView(p: ReviewViewProps) {
       {p.sendError ? <p role="alert" class="error">{errorText(p.sendError.code, p.sendError.message)}</p> : null}
       {p.connectionProblem ? <ConnectionNotice problem={p.connectionProblem} openSettings={p.openSettings} /> : null}
       {warn ? (
-        <div role="alert" class="warning">
+        <div role="alert" class="warning" data-testid="duplicate-warning">
           <PriorSendNotice prior={p.prior!} openUrl={p.openUrl} />
           <button type="button" onClick={p.onDismissDuplicate}>Send anyway</button>
         </div>
       ) : null}
       {blocked.length ? (
         <p class="warning" role="status" data-testid="over-limit">
-          {blocked.length === 1 ? '1 file is' : `${blocked.length} files are`} over the upload limit and will not be sent: {blocked.map((f) => f.file.path ?? f.file.name).join(', ')}.
+          {blocked.length === 1 ? '1 file is' : `${blocked.length} files are`} over the upload limit and will not be sent: {blocked.slice(0, 3).map((f) => f.file.path ?? f.file.name).join(', ')}{blocked.length > 3 ? ` and ${blocked.length - 3} more` : ''}.
         </p>
       ) : null}
       {bundles.map((b) => (

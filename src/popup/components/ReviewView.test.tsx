@@ -74,6 +74,17 @@ describe('ReviewView size-limit notes', () => {
     expect(note.textContent).toMatch(/1 file is over the upload limit and will not be sent: STLs\/big\.stl/);
   });
 
+  it.each([
+    [1, '1 file is over the upload limit and will not be sent: STLs/f1.stl.'],
+    [3, '3 files are over the upload limit and will not be sent: STLs/f1.stl, STLs/f2.stl, STLs/f3.stl.'],
+    [4, '4 files are over the upload limit and will not be sent: STLs/f1.stl, STLs/f2.stl, STLs/f3.stl and 1 more.'],
+    [12, '12 files are over the upload limit and will not be sent: STLs/f1.stl, STLs/f2.stl, STLs/f3.stl and 9 more.'],
+  ])('lists at most three names, then "and N more" (%i over)', (n, text) => {
+    const files = Array.from({ length: n }, (_, i) => part(`f${i + 1}.stl`, 600 * MiB, { selected: false, disabledReason: 'Larger than 512 MiB' }));
+    showForm({ ...formOf(model('m.zip')), files: [...files, part('ok.stl', MiB)] });
+    expect(root.querySelector('[data-testid="over-limit"]')!.textContent).toBe(text);
+  });
+
   it('shows no such note when every file fits', () => {
     showForm({ ...formOf(model('m.zip')), files: [part('ok.stl', MiB)] });
     expect(root.querySelector('[data-testid="over-limit"]')).toBeNull();
