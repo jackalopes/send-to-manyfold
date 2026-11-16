@@ -113,6 +113,7 @@ If you represent Manyfold or one of these sites and have a concern, please [open
 - On Firefox, sends run in a hidden page inside the extension's background page, kept alive while a send runs. If Firefox restarts the extension in the middle of a send, that send is lost and you need to send again.
 - Files over 1 GiB are not accepted by Manyfold and are disabled in the popup.
 - Collections can only be chosen when the model is created.
+- If your Manyfold library's path template contains `{tags}` (Manyfold's default), Manyfold makes one folder level per tag, so a model with many tags lands in a deeply nested folder. The extension sends the tags when it creates the model, so the first folder is already the right one, but Manyfold, not the extension, chooses the order of the folders. Turn off tags in the settings (or remove some in the popup) if that is too deep.
 - Manyfold limits how fast models can be created. Large batches are paced and may wait.
 - The Manyfold version check is best-effort (see Settings).
 - Updating to 0.2.0 or later from an earlier version (0.2.0 is the release that adds Voron Mods) asks for access to `mods.vorondesign.com`. Chrome turns the extension off until you accept it on the extensions page (or in the prompt). Your settings are kept.
