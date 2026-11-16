@@ -25,6 +25,8 @@ export const GITHUB_URL = 'https://github.com/jackalopes/send-to-manyfold';
 
 /** How long the Save button reads "Saved ✓" after a save. */
 const SAVED_FLASH_MS = 2000;
+/** How long the "Settings saved." line stays; longer than the button flash so a screen reader and a slow reader both get it. */
+const SAVED_MESSAGE_MS = 4000;
 
 function manifestVersion(): string | undefined {
   try {
@@ -52,6 +54,7 @@ export function Options() {
   const [save, setSave] = useState<{ level: ConnectionLevel; text: string }>({ level: 'ok', text: '' });
   const [justSaved, setJustSaved] = useState(false);
   const savedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const messageTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [savedUrl, setSavedUrl] = useState('');
   const [collections, setCollections] = useState<{ options?: NamedRef[]; failure?: string }>({});
 
@@ -63,9 +66,21 @@ export function Options() {
     });
   }, []);
 
+  useEffect(() => () => {
+    clearTimeout(savedTimer.current);
+    clearTimeout(messageTimer.current);
+  }, []);
+
+  /** Drops a "Settings saved." line (success or warning) so it never describes an older save; errors stay until the next action. */
+  function clearSavedMessage() {
+    clearTimeout(messageTimer.current);
+    setSave((p) => (p.level === 'error' ? p : { level: 'ok', text: '' }));
+  }
+
   /** Saves the form (same validation and permission handling as the Save button); returns the stored settings, or the error message. */
   async function persist(): Promise<{ saved: Settings } | { error: string }> {
     // Clear first so a repeat save changes the live region again and is announced again.
+    clearTimeout(messageTimer.current);
     setSave({ level: 'ok', text: '' });
     const result = await saveWithPermission(s);
     if (!result.ok) {
@@ -82,6 +97,7 @@ export function Options() {
     setJustSaved(true);
     clearTimeout(savedTimer.current);
     savedTimer.current = setTimeout(() => setJustSaved(false), SAVED_FLASH_MS);
+    messageTimer.current = setTimeout(clearSavedMessage, SAVED_MESSAGE_MS);
     return { saved };
   }
 
@@ -122,7 +138,7 @@ export function Options() {
           </div>
         </div>
       </header>
-      <form onSubmit={onSave}>
+      <form onSubmit={onSave} onInput={clearSavedMessage} onChange={clearSavedMessage}>
         <h2>Connection</h2>
         <div class="card connection">
           <div class="row stack">

@@ -209,6 +209,69 @@ describe('Options save acknowledgement', () => {
   });
 });
 
+describe('Options save message fades', () => {
+  const status = () => root.querySelector('.save-result') as HTMLElement;
+  const ready = async () => {
+    render(<Options />, root);
+    await vi.waitFor(() => expect((root.querySelector('input') as HTMLInputElement).value).toBe('http://192.168.1.5:3214'));
+  };
+  afterEach(() => vi.useRealTimers());
+
+  it('disappears about 4 s after the save', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
+    await ready();
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toBe('Settings saved.'));
+    vi.advanceTimersByTime(3500);
+    expect(status().textContent).toBe('Settings saved.');
+    vi.advanceTimersByTime(1000);
+    await vi.waitFor(() => expect(status().textContent).toBe(''));
+  });
+  it('disappears at once when a field is edited after the save', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
+    await ready();
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toBe('Settings saved.'));
+    const input = root.querySelector('input') as HTMLInputElement;
+    input.value = 'http://192.168.1.6:3214';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.waitFor(() => expect(status().textContent).toBe(''));
+  });
+  it('a failed save stays until the next action', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: '', token: 'tok' });
+    render(<Options />, root);
+    await vi.waitFor(() => expect(root.querySelector('input')).not.toBeNull());
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toBe('Enter a valid Manyfold URL.'));
+    vi.advanceTimersByTime(30000);
+    expect(status().textContent).toBe('Enter a valid Manyfold URL.');
+  });
+  it('a Test connection failure stays', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
+    await ready();
+    const testBtn = [...root.querySelectorAll('button')].find((b) => b.textContent?.includes('Test connection'))!;
+    testBtn.click();
+    await vi.waitFor(() => expect(root.querySelector('.test-result.error')).not.toBeNull());
+    const text = root.querySelector('.test-result')?.textContent;
+    vi.advanceTimersByTime(30000);
+    expect(root.querySelector('.test-result')?.textContent).toBe(text);
+  });
+  it('does not touch state after unmount', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
+    await ready();
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toBe('Settings saved.'));
+    render(null, root);
+    // The button-flash and message timers are both cancelled on unmount (effect cleanup runs a tick later).
+    await vi.waitFor(() => expect(vi.getTimerCount()).toBe(0));
+  });
+});
+
 describe('Options Test connection without a token', () => {
   it('asks for the token and sends no request', async () => {
     stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: '' });
