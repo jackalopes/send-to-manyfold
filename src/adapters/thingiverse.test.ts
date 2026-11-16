@@ -155,6 +155,37 @@ describe('thingiverse.extract', () => {
     expect(cube.licenseText).toBe('https://creativecommons.org/licenses/by-sa/4.0/');
   });
 
+  it('derives the license id from the deed link: the hydrated href, or the raw link before hydration; the text stays as it was', async () => {
+    const details = await thingiverse.extract(fixture('thingiverse-763622-benchy-details-live.html'), BENCHY);
+    expect(details.licenseText).toBe('Creative Commons - Public Domain Dedication');
+    expect(details.licenseId).toBe('CC0-1.0');
+    const cube = await thingiverse.extract(fixture('thingiverse-1278865-xyz-cube-files-live.html'), CUBE_FILES_TAB);
+    expect(cube.licenseText).toBe('Creative Commons - Attribution - Share Alike');
+    expect(cube.licenseId).toBe('CC-BY-SA-4.0');
+    const server = await thingiverse.extract(fixture('thingiverse-1278865-xyz-cube-server.html'), new URL('https://www.thingiverse.com/thing:1278865'));
+    expect(server.licenseText).toBe('https://creativecommons.org/licenses/by-sa/4.0/');
+    expect(server.licenseId).toBe('CC-BY-SA-4.0');
+    const zero = await thingiverse.extract(fixture('thingiverse-763622-benchy-server.html'), BENCHY);
+    expect(zero.licenseId).toBe('CC0-1.0');
+  });
+
+  it('reads the version from the link, whatever the scheme, www or trailing slash', async () => {
+    const doc = fixture('thingiverse-1278865-xyz-cube-files-live.html');
+    const a = [...doc.querySelectorAll('[class*="License__licenseText"] a[href]')].find((x) => x.getAttribute('href')?.includes('creativecommons'))!;
+    a.setAttribute('href', 'http://www.creativecommons.org/licenses/by-nc-nd/3.0');
+    const m = await thingiverse.extract(doc, CUBE_FILES_TAB);
+    expect(m.licenseId).toBe('CC-BY-NC-ND-3.0');
+  });
+
+  it('gives no id for a license link that is not a deed it knows, but keeps the text', async () => {
+    const doc = fixture('thingiverse-1278865-xyz-cube-files-live.html');
+    const a = [...doc.querySelectorAll('[class*="License__licenseText"] a[href]')].find((x) => x.getAttribute('href')?.includes('creativecommons'))!;
+    a.setAttribute('href', 'https://www.gnu.org/licenses/gpl-3.0.html');
+    const m = await thingiverse.extract(doc, CUBE_FILES_TAB);
+    expect(m.licenseText).toBe('Creative Commons - Attribution - Share Alike');
+    expect(m.licenseId).toBeUndefined();
+  });
+
   it('ignores JSON-LD that names another thing and falls back to the rendered title and creator', async () => {
     const doc = fixture('thingiverse-1278865-xyz-cube-files-live.html');
     const ld = doc.querySelector('script[type="application/ld+json"]');

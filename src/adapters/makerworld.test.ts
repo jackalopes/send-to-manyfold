@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { isValidLicenseId } from '../manyfold/licenses';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SourceFile } from '../types';
 import { extractWithFallback } from './fallback';
@@ -81,6 +82,31 @@ describe('makerworld.matches', () => {
 
   it('is the adapter adapterFor picks for a model page', () => {
     expect(adapterFor(CAD_URL)?.id).toBe('makerworld');
+  });
+});
+
+describe('makerworld license ids', () => {
+  it.each([
+    ['CC0', 'Creative Commons-Public Domain', 'CC0-1.0'],
+    ['BY', 'Creative Commons-Attribution', 'CC-BY-4.0'],
+    ['BY-SA', 'Creative Commons-Attribution-Share Alike', 'CC-BY-SA-4.0'],
+    ['BY-ND', 'Creative Commons-Attribution-NoDerivatives', 'CC-BY-ND-4.0'],
+    ['BY-NC', 'Creative Commons-Attribution-Noncommercial', 'CC-BY-NC-4.0'],
+    ['BY-NC-SA', 'Creative Commons-Attribution-Noncommercial-Share Alike', 'CC-BY-NC-SA-4.0'],
+    ['BY-NC-ND', 'Creative Commons-Attribution-Noncommercial-NoDerivatives', 'CC-BY-NC-ND-4.0'],
+    ['Standard Digital File License', 'Standard Digital File License', 'LicenseRef-MakerWorld-Standard-Digital-File'],
+    ['MakerWorld Exclusive License', 'MakerWorld Exclusive License', 'LicenseRef-MakerWorld-Exclusive'],
+  ])('design.license %j shows as %j and gets id %s', async (code, text, spdx) => {
+    const m = await makerworld.extract(editedDesign(CAD, (d) => (d.license = code)), CAD_URL);
+    expect(m.licenseText).toBe(text);
+    expect(m.licenseId).toBe(spdx);
+    expect(isValidLicenseId(spdx)).toBe(true);
+  });
+
+  it('gives no id for a license value it does not know, and keeps the text as the site gives it', async () => {
+    const m = await makerworld.extract(editedDesign(CAD, (d) => (d.license = 'Some New License')), CAD_URL);
+    expect(m.licenseText).toBe('Some New License');
+    expect(m.licenseId).toBeUndefined();
   });
 });
 

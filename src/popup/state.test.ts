@@ -120,6 +120,39 @@ describe('canSend', () => {
   });
 });
 
+describe('toSendRequest license id', () => {
+  const withId = () => model({ licenseText: 'Creative Commons — Attribution', licenseId: 'CC-BY-4.0' });
+  it('sends the adapter id while the license text is still the one the adapter supplied', () => {
+    const m = withId();
+    const req = toSendRequest(m, buildInitialForm(m, settings()));
+    expect(req.licenseId).toBe('CC-BY-4.0');
+    expect(req.source.licenseText).toBe('Creative Commons — Attribution');
+    expect(req.source.licenseId).toBeUndefined();
+  });
+  it('tolerates surrounding whitespace in the text', () => {
+    const m = withId();
+    const req = toSendRequest(m, { ...buildInitialForm(m, settings()), licenseText: '  Creative Commons — Attribution ' });
+    expect(req.licenseId).toBe('CC-BY-4.0');
+  });
+  it('drops the id when the user edits the text, so name mapping of the edit applies instead', () => {
+    const m = withId();
+    const req = toSendRequest(m, { ...buildInitialForm(m, settings()), licenseText: 'MIT' });
+    expect(req.licenseId).toBeUndefined();
+    expect(req.source.licenseId).toBeUndefined();
+    expect(req.source.licenseText).toBe('MIT');
+  });
+  it('sends no id when the text is cleared or the license prefill is off', () => {
+    const m = withId();
+    expect(toSendRequest(m, { ...buildInitialForm(m, settings()), licenseText: '' }).licenseId).toBeUndefined();
+    const off = settings({ prefill: { ...defaultSettings().prefill, license: false } });
+    expect(toSendRequest(m, buildInitialForm(m, off)).licenseId).toBeUndefined();
+  });
+  it('sends no id for a model without one', () => {
+    const m = model();
+    expect(toSendRequest(m, buildInitialForm(m, settings())).licenseId).toBeUndefined();
+  });
+});
+
 describe('toSendRequest', () => {
   it('builds the request from the edited form: selected files only, edited source fields', () => {
     const m = model();

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ManyfoldClient } from './client';
-import { mapLicense } from './licenses';
+import { isValidLicenseId, mapLicense, spdxFromLicenseUrl } from './licenses';
 import { applyMetadata, buildNotes, findOrCreateCreator, listCollections, metadataInputFromSource } from './metadata';
 import type { SourceModel } from '../types';
 
@@ -139,6 +139,50 @@ describe('mapLicense', () => {
 
   it('handles a missing license', () => {
     expect(mapLicense(undefined)).toEqual({ keepOriginalInNotes: true });
+  });
+});
+
+describe('spdxFromLicenseUrl', () => {
+  it.each([
+    ['https://creativecommons.org/licenses/by/4.0/', 'CC-BY-4.0'],
+    ['http://creativecommons.org/licenses/by-sa/4.0/', 'CC-BY-SA-4.0'],
+    ['https://www.creativecommons.org/licenses/by-nd/4.0', 'CC-BY-ND-4.0'],
+    ['HTTPS://CreativeCommons.org/licenses/by-nc/3.0/', 'CC-BY-NC-3.0'],
+    ['https://creativecommons.org/licenses/by-nc-sa/2.5/', 'CC-BY-NC-SA-2.5'],
+    ['https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode', 'CC-BY-NC-ND-4.0'],
+    ['https://creativecommons.org/licenses/by-sa/3.0/deed.en', 'CC-BY-SA-3.0'],
+    ['https://creativecommons.org/licenses/by/4.0/?ref=x#top', 'CC-BY-4.0'],
+    ['https://creativecommons.org/publicdomain/zero/1.0/', 'CC0-1.0'],
+    ['http://www.creativecommons.org/publicdomain/zero/1.0', 'CC0-1.0'],
+    ['  https://creativecommons.org/licenses/by/4.0/  ', 'CC-BY-4.0'],
+  ])('maps %j to %s', (url, spdx) => {
+    expect(spdxFromLicenseUrl(url)).toBe(spdx);
+  });
+
+  it.each([
+    undefined,
+    '',
+    'Creative Commons - Attribution',
+    'https://creativecommons.org/licenses/by/',
+    'https://creativecommons.org/licenses/by/9.9/',
+    'https://creativecommons.org/licenses/by-sa-nd/4.0/',
+    'https://creativecommons.org/licenses/by-xx/4.0/',
+    'https://creativecommons.org/licenses/by/4.0.1/',
+    'https://creativecommons.org.evil.example/licenses/by/4.0/',
+    'https://evil.example/creativecommons.org/licenses/by/4.0/',
+    'https://creativecommons.org/publicdomain/zero/2.0/',
+    'https://example.com/license',
+  ])('leaves %j unmapped', (url) => {
+    expect(spdxFromLicenseUrl(url)).toBeUndefined();
+  });
+});
+
+describe('isValidLicenseId', () => {
+  it.each(['MIT', 'CC-BY-4.0', 'LicenseRef-OCL-1.1-GAtt-1.0', 'LicenseRef-MakerWorld-Exclusive'])('accepts %s', (id) => {
+    expect(isValidLicenseId(id)).toBe(true);
+  });
+  it.each(['', 'LicenseRef-', 'LicenseRef-a b', 'LicenseRef-a_b', 'LicenseRef-Ä', 'Not Valid', 'LicenseRef-x+'])('rejects %j', (id) => {
+    expect(isValidLicenseId(id)).toBe(false);
   });
 });
 
@@ -322,6 +366,20 @@ describe('applyMetadata', () => {
     expect(srv.model.name).toBe('Title');
     expect(srv.model.caption).toBe('Cap');
     expect(srv.model.description).toBe('License: Nonsense-1.0');
+  });
+
+  it('sets the license field from the adapter id and keeps the license text, unchanged, in the notes', async () => {
+    const srv = modelServer();
+    const s = stub(srv.handler);
+    const input = metadataInputFromSource(
+      { site: 'printables', sourceUrl: 'https://www.printables.com/model/1-x', title: 'T', tags: [], files: [], licenseText: 'Open Community License v1.1' },
+      { name: 'T', sensitive: false, licenseId: 'LicenseRef-OCL-1.1' },
+    );
+    const result = await applyMetadata(client(s.fetch), { id: 'abc123' }, input);
+    expect(result.failed).toEqual([]);
+    expect(result.saved).toContain('license');
+    expect(srv.model['spdx:license']).toEqual({ '@type': 'spdx:License', licenseId: 'LicenseRef-OCL-1.1' });
+    expect(srv.model.description).toBe('License: Open Community License v1.1');
   });
 
   it('reports a field the server silently ignored (200 but unchanged) as failed', async () => {

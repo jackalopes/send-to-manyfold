@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DownloadAccessDenied, DownloadBlocked, DownloadError, DownloadFailed, DownloadLoginRequired } from './index';
+import { isValidLicenseId } from '../manyfold/licenses';
 import { createPrintables, GET_DOWNLOAD_LINK, printables } from './printables';
 
 function html(name: string): string {
@@ -51,6 +52,65 @@ describe('printables.matches', () => {
     'https://www.thingiverse.com/model/123-name',
   ])('rejects %s', (u) => {
     expect(printables.matches(new URL(u))).toBe(false);
+  });
+});
+
+describe('printables license ids', () => {
+  const url = new URL('https://www.printables.com/model/3161-3d-benchy/files');
+  /** The CC0 fixture with another license id in its server state (which holds the id as `\"license\":{\"id\":\"7\"`). */
+  const withLicense = (id: string): Document => {
+    const raw = html('printables-3161-benchy-files.html');
+    const marker = '\\"license\\":{\\"id\\":\\"7\\"';
+    expect(raw).toContain(marker);
+    return new DOMParser().parseFromString(raw.replace(marker, `\\"license\\":{\\"id\\":\\"${id}\\"`), 'text/html');
+  };
+
+  it.each([
+    ['7', 'Creative Commons — Public Domain', 'CC0-1.0'],
+    ['1', 'Creative Commons — Attribution', 'CC-BY-4.0'],
+    ['2', 'Creative Commons — Attribution — Share Alike', 'CC-BY-SA-4.0'],
+    ['8', 'Creative Commons — Attribution — NoDerivatives', 'CC-BY-ND-4.0'],
+    ['3', 'Creative Commons — Attribution — Noncommercial', 'CC-BY-NC-4.0'],
+    ['4', 'Creative Commons — Attribution — Noncommercial — Share Alike', 'CC-BY-NC-SA-4.0'],
+    ['6', 'Creative Commons — Attribution — Noncommercial — NoDerivatives', 'CC-BY-NC-ND-4.0'],
+    ['9', 'GNU General Public License v2.0', 'GPL-2.0-only'],
+    ['12', 'GNU General Public License v3.0', 'GPL-3.0-only'],
+    ['10', 'GNU Lesser General Public License', 'LGPL-3.0-only'],
+    ['11', 'BSD License', 'BSD-2-Clause'],
+    ['13', 'Standard Digital File License', 'LicenseRef-Printables-Standard-Digital-File'],
+    ['14', 'Commercial Use - No Derivative', 'LicenseRef-Printables-Commercial-Use-No-Derivative'],
+    ['15', 'Commercial Use', 'LicenseRef-Printables-Commercial-Use'],
+    ['16', 'Open Community License v1', 'LicenseRef-OCL-1.0'],
+    ['17', 'Open Community License v1.1', 'LicenseRef-OCL-1.1'],
+    ['19', 'Open Community License v1.1 + General Attribution v1', 'LicenseRef-OCL-1.1-GAtt-1.0'],
+    ['20', 'Open Community License v1.1 + Research & Development v1', 'LicenseRef-OCL-1.1-RnD-1.0'],
+    ['21', 'Open Community License v1.1 + Micro Business v1', 'LicenseRef-OCL-1.1-Micro-1.0'],
+    ['22', 'Open Community License v1.1 + GAtt v1 + Micro v1', 'LicenseRef-OCL-1.1-GAtt-1.0-Micro-1.0'],
+    ['23', 'Open Community License v1.1 + GAtt v1 + RnD v1', 'LicenseRef-OCL-1.1-GAtt-1.0-RnD-1.0'],
+    ['18', 'CERN Open Hardware Licence Version 2 - Strongly Reciprocal', 'CERN-OHL-S-2.0'],
+    ['24', 'Apache License 2.0', 'Apache-2.0'],
+  ])('license %s (%s) -> %s, text unchanged', async (id, name, spdx) => {
+    const m = await printables.extract(withLicense(id), url);
+    expect(m.licenseText).toBe(name);
+    expect(m.licenseId).toBe(spdx);
+    expect(isValidLicenseId(spdx)).toBe(true);
+  });
+
+  it('gives no id for an unknown license id (and no text)', async () => {
+    const m = await printables.extract(withLicense('99'), url);
+    expect(m.licenseText).toBeUndefined();
+    expect(m.licenseId).toBeUndefined();
+  });
+
+  it('maps the deed link of a hydrated page (no license id in the data) and leaves shared links unmapped', async () => {
+    const m = await printables.extract(fixture('printables-3161-benchy-live-dom.html'), new URL('https://www.printables.com/model/3161-3d-benchy'), noFetch);
+    expect(m.licenseText).toBe('Creative Commons — Public Domain');
+    expect(m.licenseId).toBe('CC0-1.0');
+    const doc = fixture('printables-3161-benchy-live-dom.html');
+    doc.querySelector('a[rel="license"]')!.setAttribute('href', 'https://github.com/OpenCommunityLicence/OpenCommunityLicence');
+    const shared = await printables.extract(doc, new URL('https://www.printables.com/model/3161-3d-benchy'), noFetch);
+    expect(shared.licenseText).toBeUndefined();
+    expect(shared.licenseId).toBeUndefined();
   });
 });
 

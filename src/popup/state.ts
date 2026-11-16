@@ -81,9 +81,12 @@ export function toSendRequest(model: SourceModel, form: ReviewForm): SendRequest
   const source: SourceModel = { ...model, tags: form.tags };
   delete source.creator;
   delete source.licenseText;
+  delete source.licenseId;
   delete source.description;
   if (creatorName) source.creator = { name: creatorName, ...(model.creator?.url && creatorName === model.creator.name.trim() ? { url: model.creator.url } : {}) };
   if (licenseText) source.licenseText = licenseText;
+  // The page's id belongs to the page's text: once the user edits the text, only name mapping of the edit applies.
+  const licenseId = licenseText && model.licenseId && licenseText === model.licenseText?.trim() ? model.licenseId : undefined;
   if (description) source.description = description;
   const collection = form.collectionId.trim();
   return {
@@ -91,6 +94,7 @@ export function toSendRequest(model: SourceModel, form: ReviewForm): SendRequest
     selectedFiles: form.files.filter((f) => f.selected && !f.disabledReason).map((f) => f.file),
     title: form.title.trim(),
     ...(description ? { description } : {}),
+    ...(licenseId ? { licenseId } : {}),
     collectionIds: collection ? [collection] : [],
     sensitive: form.sensitive,
     includeCover: form.includeCover,

@@ -50,6 +50,8 @@ export interface SourceModel {
   description?: string;
   creator?: { name: string; url?: string };
   licenseText?: string;
+  /** SPDX id (or `LicenseRef-*`) for `licenseText`, when the site tells which license it is. Valid only while the text is unchanged. */
+  licenseId?: string;
   tags: string[];
   files: SourceFile[];
   coverImageUrl?: string;

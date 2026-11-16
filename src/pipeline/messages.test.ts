@@ -26,6 +26,13 @@ describe('send request validation', () => {
     expect(parseBackgroundRequest({ ...ok, request: { ...req, omitSourceLink: 'yes' } })).toBeUndefined();
   });
 
+  it('accepts licenseId on the source and the request as a string only', () => {
+    const onSource = (licenseId: unknown) => ({ to: 'background', type: 'send', tabId: 1, request: { ...req, source: { ...req.source, licenseId } } });
+    expect(parseBackgroundRequest(onSource('CC-BY-4.0'))).toBeDefined();
+    expect(parseBackgroundRequest(onSource(5))).toBeUndefined();
+    expect(parseBackgroundRequest({ to: 'background', type: 'send', tabId: 1, request: { ...req, licenseId: 'LicenseRef-OCL-1.1' } })).toBeDefined();
+  });
+
   it('accepts stripTopFolder on a file as a boolean only', () => {
     const withFlag = (stripTopFolder: unknown) => ({ to: 'background', type: 'send', tabId: 1, request: { ...req, selectedFiles: [file('m.zip', { kind: 'archive', stripTopFolder: stripTopFolder as boolean })] } });
     expect(parseBackgroundRequest(withFlag(true))).toBeDefined();
