@@ -33,6 +33,19 @@ describe('sendModel: upload shape and order', () => {
     expect(h.recordSend.mock.calls[0]![0]).toEqual({ sourceUrl: req.source.sourceUrl, manyfoldUrl: `${BASE}/models/m1`, at: 0 });
   });
 
+  it('sends the final, de-duplicated tags with the create call, and omits them when there are none', async () => {
+    const h = harness();
+    const req = request([file('a.stl')]);
+    req.source = { ...req.source, tags: ['Tag One', 'tag one', ' ', 'two'] };
+    await sendModel(req, h.deps, noop);
+    expect(h.createModelFake.mock.calls[0]![2].tags).toEqual(['Tag One', 'two']);
+    const h2 = harness();
+    const req2 = request([file('a.stl')]);
+    req2.source = { ...req2.source, tags: [] };
+    await sendModel(req2, h2.deps, noop);
+    expect(h2.createModelFake.mock.calls[0]![2].tags ?? []).toEqual([]);
+  });
+
   it('one archive: uploads only the archive, waits for extraction with its name, then sets the popup title', async () => {
     const h = harness();
     const r = await sendModel(request([file('parts.zip', { kind: 'archive' })]), h.deps, noop);

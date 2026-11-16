@@ -107,6 +107,11 @@ export interface CreateModelOptions {
   collectionIds?: string[];
   sensitive: boolean;
   /**
+   * Final, de-duplicated tags. Sent as `keywords` so the first stored path already matches a `{tags}` path
+   * template. Omitted from the request when empty.
+   */
+  tags?: string[];
+  /**
    * Cancels the request. Note: an abort (like a timeout or network error) after the request was sent leaves it
    * unknown whether the server created the model.
    */
@@ -130,13 +135,26 @@ export async function createModel(client: ManyfoldClient, files: UploadedFile[],
   // Must be an array: the OpenAPI schema's single object makes the server answer 500.
   if (opts.collectionIds?.length) body.isPartOf = opts.collectionIds.map((id) => ({ '@id': collectionUrl(client, id) }));
 
-  const res = await client.request('/models', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/vnd.manyfold.v0+json' },
-    body: JSON.stringify(body),
-    ...(opts.signal ? { signal: opts.signal } : {}),
-  });
-  throwIfFatal(res, name);
+  const post = async (b: Record<string, unknown>) => {
+    const r = await client.request('/models', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/vnd.manyfold.v0+json' },
+      body: JSON.stringify(b),
+      ...(opts.signal ? { signal: opts.signal } : {}),
+    });
+    throwIfFatal(r, name);
+    return r;
+  };
+  let res: Response;
+  if (opts.tags?.length) {
+    res = await post({ ...body, keywords: opts.tags });
+    // A server that refuses the request itself (400, 422) may be refusing `keywords`. Nothing was created then, so
+    // one retry without them is safe; the tag PATCH after creation sets the tags. Not 5xx or a network error: the
+    // model may already exist.
+    if (res.status === 400 || res.status === 422) res = await post(body);
+  } else {
+    res = await post(body);
+  }
 
   const location = res.headers.get('Location');
   if (res.status === 201) {
