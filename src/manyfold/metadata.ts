@@ -1,6 +1,6 @@
 import { VENDOR_ACCEPT, type ManyfoldClient } from './client';
 import { FORBIDDEN_TEXT, ManyfoldError, RATE_LIMITED_TEXT, UNAUTHORIZED_TEXT } from './errors';
-import { mapLicense } from './licenses';
+import { isValidLicenseId, mapLicense } from './licenses';
 import { collectionPath, toPath } from './paths';
 import type { SiteId, SourceModel } from '../types';
 
@@ -165,7 +165,9 @@ export async function applyMetadata(client: ManyfoldClient, model: { id: string 
     }
   }
 
-  const spdx = input.licenseId?.trim() || mapLicense(input.licenseText).spdx;
+  // A supplied id wins over the name mapping, but only a well-formed one: anything else would be a 422 from Manyfold.
+  const supplied = input.licenseId?.trim();
+  const spdx = supplied && isValidLicenseId(supplied) ? supplied : mapLicense(input.licenseText).spdx;
   if (spdx) {
     add('license', { 'spdx:license': { '@type': 'spdx:License', licenseId: spdx } }, (r) => {
       const id = (r['spdx:license'] as Json | undefined)?.licenseId;

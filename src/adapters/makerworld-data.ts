@@ -27,6 +27,8 @@ export const LICENSE_IDS: Readonly<Record<string, string>> = {
   'BY-NC': 'CC-BY-NC-4.0',
   'BY-NC-SA': 'CC-BY-NC-SA-4.0',
   'BY-NC-ND': 'CC-BY-NC-ND-4.0',
+  // This exact string is unverified against a live MakerWorld page (only the Exclusive one is seen in a fixture);
+  // if the real value differs, the lookup misses and the license field is simply left empty.
   'Standard Digital File License': 'LicenseRef-MakerWorld-Standard-Digital-File',
   'MakerWorld Exclusive License': 'LicenseRef-MakerWorld-Exclusive',
 };

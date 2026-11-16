@@ -382,6 +382,20 @@ describe('applyMetadata', () => {
     expect(srv.model.description).toBe('License: Open Community License v1.1');
   });
 
+  it('prefers the supplied license id over the name mapping of the text', async () => {
+    const srv = modelServer();
+    const s = stub(srv.handler);
+    await applyMetadata(client(s.fetch), { id: 'abc123' }, { name: 'T', licenseText: 'MIT', licenseId: 'LicenseRef-OCL-1.1' });
+    expect(srv.model['spdx:license']).toEqual({ '@type': 'spdx:License', licenseId: 'LicenseRef-OCL-1.1' });
+  });
+
+  it.each(['Not Valid!', 'LicenseRef-', 'LicenseRef-a_b', '   '])('ignores the malformed license id %j and maps the text by name instead', async (licenseId) => {
+    const srv = modelServer();
+    const s = stub(srv.handler);
+    await applyMetadata(client(s.fetch), { id: 'abc123' }, { name: 'T', licenseText: 'MIT', licenseId });
+    expect(srv.model['spdx:license']).toEqual({ '@type': 'spdx:License', licenseId: 'MIT' });
+  });
+
   it('reports a field the server silently ignored (200 but unchanged) as failed', async () => {
     const srv = modelServer({ creators: [], files });
     const s = stub(srv.handler);

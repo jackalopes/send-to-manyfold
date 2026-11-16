@@ -60,6 +60,8 @@ export const thingiverse: SiteAdapter = {
     if (creator) result.creator = creator;
     const license = licenseOf(doc, ld);
     if (license) {
+      // Currently unused by the send: Thingiverse hands off to Manyfold's own importer (`delivery` above), which sets
+      // the license itself, before any metadata step. The id only takes effect if Thingiverse ever sends files directly.
       result.licenseText = license.text;
       const licenseId = spdxFromLicenseUrl(license.url);
       if (licenseId) result.licenseId = licenseId;

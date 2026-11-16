@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { isValidLicenseId } from '../manyfold/licenses';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isValidLicenseId } from '../manyfold/licenses';
 import type { SourceFile } from '../types';
 import { extractWithFallback } from './fallback';
 import { adapterFor, DownloadAccessDenied, DownloadBlocked, DownloadFailed, DownloadLoginRequired } from './index';
