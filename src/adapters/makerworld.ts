@@ -73,7 +73,7 @@ export function createMakerWorld(deps: MakerWorldDeps = {}): SiteAdapter {
         tags: Array.isArray(design.tags) ? design.tags.map(str).filter((t): t is string => !!t) : [],
         files: [],
       };
-      const description = htmlText(str(design.summaryTranslated) ?? str(design.summary));
+      const description = htmlText(str(design.summaryTranslated)) ?? htmlText(str(design.summary));
       if (description) result.description = description;
       const creatorName = str(design.designCreator?.name);
       const handle = str(design.designCreator?.handle);

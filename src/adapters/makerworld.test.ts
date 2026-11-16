@@ -263,6 +263,7 @@ describe('makerworld.extract', () => {
       expect(m.description).toBe(htmlText('<p>Translated <b>text</b></p>'));
       expect(m.description).toContain('Translated');
       expect(m.description).not.toContain('<');
+      expect(m.description).not.toBe((await makerworld.extract(fixture(CAD), CAD_URL)).description);
       expect(m.sourceUrl).toBe('https://makerworld.com/en/models/1272656-original-3dbenchy-public-domain-cad-step-file');
     });
 
@@ -277,6 +278,35 @@ describe('makerworld.extract', () => {
         expect(m.title).toBe(original.title);
         expect(m.description).toBe(original.description);
       }
+    });
+
+    it('falls back to the original description when the translated one has no text', async () => {
+      const original = await makerworld.extract(fixture(CAD), CAD_URL);
+      expect(original.description).toBeTruthy();
+      for (const empty of ['<p></p>', '<p>&nbsp;</p>', '<p> <br></p>']) {
+        const doc = editedDesign(CAD, (d) => {
+          d.summaryTranslated = empty;
+        });
+        expect((await makerworld.extract(doc, CAD_URL)).description).toBe(original.description);
+      }
+    });
+
+    it('decides each field on its own: translated title with a blank translated summary', async () => {
+      const original = await makerworld.extract(fixture(CAD), CAD_URL);
+      const doc = editedDesign(CAD, (d) => {
+        d.titleTranslated = 'Translated title';
+        d.summaryTranslated = '  ';
+      });
+      const m = await makerworld.extract(doc, CAD_URL);
+      expect(m.title).toBe('Translated title');
+      expect(m.description).toBe(original.description);
+      const doc2 = editedDesign(CAD, (d) => {
+        d.titleTranslated = '';
+        d.summaryTranslated = '<p>Only the text</p>';
+      });
+      const m2 = await makerworld.extract(doc2, CAD_URL);
+      expect(m2.title).toBe(original.title);
+      expect(m2.description).toBe('Only the text');
     });
 
     it('keeps the tags as they are, whatever tagsTranslated holds', async () => {
