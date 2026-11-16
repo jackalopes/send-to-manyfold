@@ -497,6 +497,16 @@ describe('sendModel: downloads', () => {
       expect(r).toMatchObject({ status: 'failed', error: { code: 'too-large', message: expect.stringContaining('Manyfold accepts (1 GiB)') } });
     });
 
+    it('hands the limit to the upload so it is not asked again per file (known limits only)', async () => {
+      const h = harness();
+      h.serverMax.value = 512 * MiB;
+      await sendModel(request([file('a.stl')]), h.deps, noop);
+      expect(h.uploadFileFake.mock.calls[0]![4]).toMatchObject({ maxSize: 512 * MiB });
+      const h2 = harness();
+      await sendModel(request([file('a.stl')]), h2.deps, noop);
+      expect(h2.uploadFileFake.mock.calls[0]![4]).not.toHaveProperty('maxSize');
+    });
+
     it('is asked once per run, after the connection check and with the cancel signal', async () => {
       const h = harness();
       const ctl = new AbortController();

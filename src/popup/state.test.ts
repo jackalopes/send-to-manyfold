@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSettings, type Settings, type TagMode } from '../settings';
 import type { SourceFile, SourceModel } from '../types';
-import { applyServerLimit, buildInitialForm, canSend, MAX_FILE_BYTES, parseTags, setSelected, tagOffer, toSendRequest } from './state';
+import { applyServerLimit, oversizeBundles, buildInitialForm, canSend, MAX_FILE_BYTES, parseTags, setSelected, tagOffer, toSendRequest } from './state';
 
 const f = (name: string, kind: SourceFile['kind'], size?: number): SourceFile => ({ name, kind, ...(size !== undefined ? { size } : {}) });
 
@@ -120,6 +120,16 @@ describe('buildInitialForm', () => {
       expect(form.files.map((x) => x.selected)).toEqual([true, true, false]);
       expect(form.files[2]!.disabledReason).toContain('1 GiB');
       expect(form.files[2]!.disabledReason).not.toContain('server');
+    });
+
+    it('oversizeBundles totals the ticked parts of each bundle against the limit (known sizes are a lower bound)', () => {
+      const part = (name: string, size: number | undefined, bundle = 'm.zip'): SourceFile => ({ name, path: name, url: `https://v/${name}`, kind: 'model', bundle, ...(size !== undefined ? { size } : {}) });
+      const m = model({ site: 'voron', files: [part('a.stl', 300 * MiB), part('b.stl', 300 * MiB), part('c.stl', undefined), part('d.stl', 10 * MiB, 'n.zip')] });
+      const form = buildInitialForm(m, settings(), 512 * MiB);
+      expect(oversizeBundles(form)).toEqual([{ bundle: 'm.zip', total: 600 * MiB }]);
+      const unticked = { ...form, files: setSelected(form.files, [1], false) };
+      expect(oversizeBundles(unticked)).toEqual([]);
+      expect(oversizeBundles(buildInitialForm(m, settings()))).toEqual([]);
     });
 
     it('applyServerLimit disables files over a limit learned later and unticks them, leaving the rest as the user set them', () => {

@@ -22,6 +22,8 @@ export interface UploadOptions {
   retryDelayMs?: number;
   /** Continue an earlier upload (from `ManyfoldError.uploadUrl`) instead of creating a new one. */
   resumeUrl?: string;
+  /** The server's limit when the caller already asked for it: skips the per-file `OPTIONS /upload`. */
+  maxSize?: number;
   /** Cancels the upload; rejects with the signal's reason (an `AbortError`), never retried. */
   signal?: AbortSignal;
 }
@@ -51,7 +53,8 @@ export async function uploadFile(
     });
   }
   if (offset === undefined) {
-    await checkMaxSize(client, name, total, signal);
+    if (opts.maxSize === undefined) await checkMaxSize(client, name, total, signal);
+    else if (total > opts.maxSize) throw tooLarge(name, total, opts.maxSize);
     uploadUrl = await createUpload(client, name, total, signal);
     offset = 0;
   }

@@ -162,7 +162,7 @@ async function uploadAll(state: SendState, groups: ModelGroup[], deps: SendDeps,
     const at = (sent: number): SendProgress => ({ stage: 'uploading', label: `Uploading ${name} (${pos + 1} of ${fileCount})`, fileIndex: pos, fileCount, sent, total: blob.size });
     emit(at(0));
     try {
-      entry.upload = await api.uploadFile(deps.client, blob, name, (sent) => emit(at(sent)), { signal, ...(entry.resumeUrl ? { resumeUrl: entry.resumeUrl } : {}) });
+      entry.upload = await api.uploadFile(deps.client, blob, name, (sent) => emit(at(sent)), { signal, ...(entry.resumeUrl ? { resumeUrl: entry.resumeUrl } : {}), ...(state.limit && state.limit.source !== 'default' ? { maxSize: state.limit.bytes } : {}) });
       entry.resumeUrl = undefined;
     } catch (e) {
       if (e instanceof ManyfoldError && e.uploadUrl) entry.resumeUrl = e.uploadUrl;

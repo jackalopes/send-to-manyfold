@@ -8,7 +8,7 @@ import { classifyFile, isArchiveExtension } from '../types';
  */
 export const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
 
-/** Where the limit in force comes from: the server's `Tus-Max-Size`, this extension's own cap, or the default while the server's is unknown. */
+/** Where the limit in force comes from: the server's `Tus-Max-Size` (up to and including 1 GiB), this extension's own cap (only when the server allows more), or the default while the server's is unknown. */
 export interface UploadLimit {
   bytes: number;
   source: 'server' | 'extension' | 'default';
@@ -17,7 +17,7 @@ export interface UploadLimit {
 /** The size limit for one file, given the server's `Tus-Max-Size` when it is known. Never above 1 GiB. */
 export function uploadLimit(serverMax?: number): UploadLimit {
   if (serverMax === undefined) return { bytes: MAX_UPLOAD_BYTES, source: 'default' };
-  return serverMax < MAX_UPLOAD_BYTES ? { bytes: serverMax, source: 'server' } : { bytes: MAX_UPLOAD_BYTES, source: 'extension' };
+  return serverMax <= MAX_UPLOAD_BYTES ? { bytes: serverMax, source: 'server' } : { bytes: MAX_UPLOAD_BYTES, source: 'extension' };
 }
 
 /** The popup's reason for a disabled file (it is already unticked, so the next step is about the file itself). */

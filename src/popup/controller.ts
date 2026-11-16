@@ -111,11 +111,13 @@ export function createController(deps: ControllerDeps) {
       const sourceUrl = out.model.sourceUrl;
       const limitKnown = learnLimit(sourceUrl);
       const { prior, problem } = await priorSend(sourceUrl);
-      await limitKnown;
+      // The warnings never wait for the limit: a slow server must not hold them back.
       const s = getState();
-      if (s.phase !== 'review' || s.model.sourceUrl !== sourceUrl) return;
-      if (problem) dispatch({ type: 'connectionProblem', problem });
-      if (prior) dispatch({ type: 'priorFound', prior });
+      if (s.phase === 'review' && s.model.sourceUrl === sourceUrl) {
+        if (problem) dispatch({ type: 'connectionProblem', problem });
+        if (prior) dispatch({ type: 'priorFound', prior });
+      }
+      await limitKnown;
     },
 
     changeForm(form: ReviewForm): void {

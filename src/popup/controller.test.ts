@@ -223,6 +223,33 @@ describe('popup controller', () => {
       expect(t.actions.filter((a) => a.type === 'formChanged')).toHaveLength(0);
     });
 
+    it('does not hold back the prior-send and connection warnings while the limit is pending', async () => {
+      const t = setup({ lookup: async () => ({ status: 'unknown', reason: 'unreachable' }), serverMaxBytes: () => new Promise(() => undefined) });
+      void t.c.init();
+      await vi.waitFor(() => expect(t.actions.some((a) => a.type === 'connectionProblem')).toBe(true));
+      expect(t.state().phase).toBe('review');
+    });
+
+    it('a failing limit request leaves the form as it was', async () => {
+      const t = setup({ api: { extract: vi.fn(async () => ({ ok: true as const, model: sized })) }, serverMaxBytes: () => Promise.reject(new Error('boom')) });
+      await t.c.init();
+      expect(reviewFiles(t).map((f) => f.selected)).toEqual([true, true]);
+      expect(t.actions.filter((a) => a.type === 'formChanged')).toHaveLength(0);
+    });
+
+    it('keeps an edit the user made before the answer, and still disables the files over the limit', async () => {
+      let answer: (n: number | undefined) => void = () => undefined;
+      const t = setup({ api: { extract: vi.fn(async () => ({ ok: true as const, model: sized })) }, serverMaxBytes: () => new Promise((r) => { answer = r; }) });
+      const init = t.c.init();
+      await vi.waitFor(() => expect(t.state().phase).toBe('review'));
+      const s = t.state() as { form: { files: { selected: boolean }[]; title: string } };
+      t.c.changeForm({ ...s.form, title: 'Edited', files: s.form.files.map((f, i) => (i === 1 ? { ...f, selected: false } : f)) } as never);
+      answer(512 * MiB);
+      await init;
+      expect((t.state() as { form: { title: string } }).form.title).toBe('Edited');
+      expect(reviewFiles(t).map((f) => [f.selected, !!f.disabledReason])).toEqual([[false, true], [false, false]]);
+    });
+
     it('ignores an answer that arrives after the send started', async () => {
       let answer: (n: number | undefined) => void = () => undefined;
       const t = setup({ serverMaxBytes: () => new Promise((r) => { answer = r; }) });

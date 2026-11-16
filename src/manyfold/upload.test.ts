@@ -569,6 +569,17 @@ describe('waitForExtraction with the uploaded archive names', () => {
   });
 });
 
+describe('uploadFile with a limit the caller already fetched', () => {
+  it('does not ask the server again, and still refuses a file over it', async () => {
+    const s = stub(tusServer({ maxSize: 100 * MB }).handler);
+    await uploadFile(client(s.fetch), new Blob([new Uint8Array(MB)]), 'p.stl', () => {}, { maxSize: 2 * MB });
+    expect(s.calls.some((c) => c.method === 'OPTIONS')).toBe(false);
+    const err = await uploadFile(client(s.fetch), new Blob([new Uint8Array(3 * MB)]), 'big.zip', () => {}, { maxSize: 2 * MB }).catch((e) => e);
+    expect(err).toMatchObject({ code: 'too-large', message: expect.stringMatching(/3 MiB.*2 MiB/) });
+    expect(s.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+  });
+});
+
 describe('fetchMaxUploadSize', () => {
   it('reads Tus-Max-Size from OPTIONS /upload, smaller or larger than 1 GiB', async () => {
     for (const max of [2 * MB, 5 * 1024 * 1024 * 1024]) {
@@ -582,6 +593,12 @@ describe('fetchMaxUploadSize', () => {
     expect(await fetchMaxUploadSize(client(stub(() => new Response(null, { status: 204 })).fetch))).toBeUndefined();
     expect(await fetchMaxUploadSize(client(stub(() => new Response(null, { status: 500, headers: { 'Tus-Max-Size': '5' } })).fetch))).toBeUndefined();
     expect(await fetchMaxUploadSize(client((() => Promise.reject(new TypeError('network'))) as unknown as typeof fetch))).toBeUndefined();
+  });
+
+  it('is undefined for a header of 0 or one that is not a number', async () => {
+    for (const v of ['0', 'abc', '-5', '']) {
+      expect(await fetchMaxUploadSize(client(stub(() => new Response(null, { status: 204, headers: { 'Tus-Max-Size': v } })).fetch))).toBeUndefined();
+    }
   });
 
   it('rethrows a cancel', async () => {

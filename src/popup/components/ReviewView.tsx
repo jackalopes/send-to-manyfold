@@ -1,7 +1,9 @@
 import type { NamedRef } from '../../manyfold/metadata';
 import { SITE_NAMES } from '../site-names';
 import type { ConnectionProblem, PriorSend } from '../machine';
-import { canSend, setSelected, type ReviewForm } from '../state';
+import { formatBytes } from '../../format';
+import { uploadLimit } from '../../pipeline/files';
+import { canSend, oversizeBundles, setSelected, type ReviewForm } from '../state';
 import { errorText } from '../labels';
 import type { SendError } from '../../pipeline/errors';
 import type { SourceModel } from '../../types';
@@ -68,6 +70,9 @@ function ConnectionNotice({ problem, openSettings }: { problem: ConnectionProble
 export function ReviewView(p: ReviewViewProps) {
   const patch = (x: Partial<ReviewForm>) => p.onChange({ ...p.form, ...x });
   const warn = p.prior && !p.duplicateDismissed;
+  const blocked = p.form.files.filter((f) => f.disabledReason);
+  const bundles = oversizeBundles(p.form);
+  const limit = p.form.limit ?? uploadLimit();
   return (
     <form
       onSubmit={(e) => {
@@ -83,6 +88,16 @@ export function ReviewView(p: ReviewViewProps) {
           <button type="button" onClick={p.onDismissDuplicate}>Send anyway</button>
         </div>
       ) : null}
+      {blocked.length ? (
+        <p class="warning" role="status" data-testid="over-limit">
+          {blocked.length === 1 ? '1 file is' : `${blocked.length} files are`} over the upload limit and will not be sent: {blocked.map((f) => f.file.path ?? f.file.name).join(', ')}.
+        </p>
+      ) : null}
+      {bundles.map((b) => (
+        <p class="warning" role="alert" data-testid="bundle-over-limit" key={b.bundle}>
+          The ticked files for "{b.bundle}" add up to {formatBytes(b.total)}, over the {formatBytes(limit.bytes)} limit{limit.source === 'server' ? ' of this Manyfold server' : ''}. Untick some files to send them.
+        </p>
+      ))}
       {p.model.loginRequired ? (
         <p class="warning">Sign in to {SITE_NAMES[p.model.site]} to download these files, or the send will fail.</p>
       ) : null}
@@ -104,7 +119,7 @@ export function ReviewView(p: ReviewViewProps) {
       ) : (
         <FileList files={p.form.files} onToggle={(i, selected) => patch({ files: p.form.files.map((f, j) => (j === i ? { ...f, selected } : f)) })} />
       )}
-      <button type="submit" disabled={!canSend(p.form) || !!warn}>Send to Manyfold</button>
+      <button type="submit" disabled={!canSend(p.form) || !!warn || bundles.length > 0}>Send to Manyfold</button>
     </form>
   );
 }

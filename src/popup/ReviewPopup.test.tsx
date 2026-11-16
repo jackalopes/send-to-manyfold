@@ -188,7 +188,7 @@ describe('ReviewPopup', () => {
       mount({ ...d, lookupModel: async () => ({ status: 'none' }), findPriorSend: async () => ({ sourceUrl: 'https://p/1', manyfoldUrl: 'http://m/models/z', at: 1 }) });
       await vi.waitFor(() => expect(root.querySelector('button[type=submit]')).toBeTruthy());
       await new Promise((r) => setTimeout(r, 20));
-      expect(root.querySelector('.warning')).toBeNull();
+      expect(root.querySelector('div.warning')).toBeNull();
     });
 
     it('unknown: falls back to this browser\'s history and says so', async () => {
@@ -202,10 +202,10 @@ describe('ReviewPopup', () => {
     it('"Send anyway" dismisses the warning and enables sending', async () => {
       const { d } = deps();
       mount({ ...d, lookupModel: async () => ({ status: 'found', models: [m('a')], listUrl: 'http://m/models?link=p' }) });
-      await vi.waitFor(() => expect(root.querySelector('.warning')).toBeTruthy());
+      await vi.waitFor(() => expect(root.querySelector('div.warning')).toBeTruthy());
       expect(root.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(true);
       [...root.querySelectorAll('button')].find((b) => b.textContent === 'Send anyway')!.click();
-      await vi.waitFor(() => expect(root.querySelector('.warning')).toBeNull());
+      await vi.waitFor(() => expect(root.querySelector('div.warning')).toBeNull());
       expect(root.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false);
     });
   });

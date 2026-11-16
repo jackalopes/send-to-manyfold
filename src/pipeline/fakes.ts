@@ -104,8 +104,7 @@ export function harness(opts: { hooks?: Partial<Record<'fetch' | 'resolve' | 'up
     signal?.throwIfAborted();
     return serverMax.value;
   });
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- recorded in mock.calls for assertions
-  const fetchFile = vi.fn(async (url: string, signal?: AbortSignal, _maxBytes?: number) => {
+  const fetchFile = vi.fn<SendDeps['fetchFile']>(async (url, signal) => {
     signal?.throwIfAborted();
     log.push(`fetch:${url}`);
     await hooks.fetch?.(url);

@@ -56,3 +56,35 @@ describe('ReviewView license hint', () => {
     expect(root.textContent).toContain(HINT);
   });
 });
+
+describe('ReviewView size-limit notes', () => {
+  const MiB = 1024 ** 2;
+  const part = (name: string, size: number, extra: Partial<ReviewForm['files'][number]> = {}) => ({
+    file: { name, path: `STLs/${name}`, url: `https://x/${name}`, kind: 'model' as const, bundle: 'm.zip', size },
+    selected: true,
+    ...extra,
+  });
+  const showForm = (form: ReviewForm) =>
+    render(<ReviewView model={model('m.zip')} form={form} duplicateDismissed={false} collections={[]} openSettings={() => {}} onChange={() => {}} onSend={() => {}} onDismissDuplicate={() => {}} openUrl={() => {}} />, root);
+
+  it('names files that cannot be sent even when they sit in a collapsed folder', () => {
+    const form = { ...formOf(model('m.zip')), files: [part('big.stl', 600 * MiB, { selected: false, disabledReason: 'Larger than 512 MiB' }), part('ok.stl', MiB)] };
+    showForm(form);
+    const note = root.querySelector('.warning[data-testid="over-limit"]')!;
+    expect(note.textContent).toMatch(/1 file is over the upload limit and will not be sent: STLs\/big\.stl/);
+  });
+
+  it('shows no such note when every file fits', () => {
+    showForm({ ...formOf(model('m.zip')), files: [part('ok.stl', MiB)] });
+    expect(root.querySelector('[data-testid="over-limit"]')).toBeNull();
+    expect(root.querySelector('[data-testid="bundle-over-limit"]')).toBeNull();
+  });
+
+  it('warns before sending when the ticked parts of a bundle add up to more than the limit, and blocks the send', () => {
+    const limit = { bytes: 512 * MiB, source: 'server' as const };
+    showForm({ ...formOf(model('m.zip')), limit, files: [part('a.stl', 300 * MiB), part('b.stl', 300 * MiB)] });
+    const note = root.querySelector('[data-testid="bundle-over-limit"]')!;
+    expect(note.textContent).toMatch(/"m\.zip".*600 MiB.*512 MiB.*Untick some files/);
+    expect(root.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(true);
+  });
+});

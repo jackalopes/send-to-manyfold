@@ -1,5 +1,5 @@
 import type { Settings, TagMode } from '../settings';
-import { tooLargeReason, uploadLimit } from '../pipeline/files';
+import { tooLargeReason, uploadLimit, type UploadLimit } from '../pipeline/files';
 import type { SendRequest } from '../pipeline/types';
 import type { SourceFile, SourceModel } from '../types';
 import { isValidLicenseId, mapLicense } from '../manyfold/licenses';
@@ -28,8 +28,9 @@ export interface ReviewForm {
   /** A Manyfold collection id, path or empty for none. */
   collectionId: string;
   sensitive: boolean;
+  /** The upload limit the files were checked against (the server's once known); the 1 GiB default when absent. */
+  limit?: UploadLimit;
 }
-
 
 /** Applies the per-field prefill toggles, the image settings, the default collection and the sensitive flag. */
 export function buildInitialForm(model: SourceModel, settings: Settings, serverMax?: number): ReviewForm {
@@ -52,15 +53,29 @@ export function buildInitialForm(model: SourceModel, settings: Settings, serverM
     includeCover: settings.includeImages && !!model.coverImageUrl && !offered.some((f) => f.bundle !== undefined),
     collectionId: settings.defaultCollectionId?.trim() ?? '',
     sensitive: settings.defaultSensitive,
+    limit,
   };
 }
 
-/** Applies a server limit learned after the form was built: files over it are unticked and disabled; nothing else changes. */
+/** Applies a server limit learned after the form was built: files over it are unticked and disabled (with the reason for this limit); nothing else changes. */
 export function applyServerLimit(form: ReviewForm, serverMax: number | undefined): ReviewForm {
+  if (serverMax === undefined) return form;
   const limit = uploadLimit(serverMax);
-  const over = (f: FormFile) => !f.disabledReason && f.file.size !== undefined && f.file.size > limit.bytes;
-  if (!form.files.some(over)) return form;
-  return { ...form, files: form.files.map((f) => (over(f) ? { ...f, selected: false, disabledReason: tooLargeReason(limit) } : f)) };
+  const reason = tooLargeReason(limit);
+  const over = (f: FormFile) => f.file.size !== undefined && f.file.size > limit.bytes;
+  const files = form.files.map((f) => (over(f) && (f.selected || f.disabledReason !== reason) ? { ...f, selected: false, disabledReason: reason } : f));
+  const same = form.limit?.bytes === limit.bytes && form.limit.source === limit.source && files.every((f, i) => f === form.files[i]);
+  return same ? form : { ...form, limit, files };
+}
+
+/** Bundles (one zip each) whose ticked parts already add up to more than the limit; unknown sizes count as 0, so the total is a lower bound. */
+export function oversizeBundles(form: ReviewForm): { bundle: string; total: number }[] {
+  const totals = new Map<string, number>();
+  for (const f of form.files) {
+    if (f.file.bundle !== undefined && f.selected && !f.disabledReason) totals.set(f.file.bundle, (totals.get(f.file.bundle) ?? 0) + (f.file.size ?? 0));
+  }
+  const max = (form.limit ?? uploadLimit()).bytes;
+  return [...totals].filter(([, total]) => total > max).map(([bundle, total]) => ({ bundle, total }));
 }
 
 export function parseTags(text: string): string[] {
