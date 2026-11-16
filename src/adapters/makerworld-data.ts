@@ -32,8 +32,10 @@ export const CLIENT_HEADERS: Readonly<Record<string, string>> = {
 export interface MwDesign {
   id?: unknown;
   title?: unknown;
+  titleTranslated?: unknown;
   slug?: unknown;
   summary?: unknown;
+  summaryTranslated?: unknown;
   coverUrl?: unknown;
   license?: unknown;
   tags?: unknown;
@@ -61,5 +63,6 @@ export interface MwModelFile {
 export interface MwInstance {
   id?: unknown;
   title?: unknown;
+  titleTranslated?: unknown;
   extention?: { modelInfo?: { f3mf?: { size?: unknown } | null; compatibility?: { devModelName?: unknown } | null } | null } | null;
 }

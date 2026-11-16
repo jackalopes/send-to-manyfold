@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SourceFile } from '../types';
 import { extractWithFallback } from './fallback';
 import { adapterFor, DownloadAccessDenied, DownloadBlocked, DownloadFailed, DownloadLoginRequired } from './index';
+import { htmlText } from './html-text';
 import { createMakerWorld, makerworld } from './makerworld';
 
 function fixtureHtml(name: string): string {
@@ -249,6 +250,56 @@ describe('makerworld.extract', () => {
         files: [],
       });
     }
+  });
+
+  describe('automatic translations', () => {
+    it('sends the translated title and description when the page shows a translation', async () => {
+      const doc = editedDesign(CAD, (d) => {
+        d.titleTranslated = 'Translated title';
+        d.summaryTranslated = '<p>Translated <b>text</b></p>';
+      });
+      const m = await makerworld.extract(doc, CAD_URL);
+      expect(m.title).toBe('Translated title');
+      expect(m.description).toBe(htmlText('<p>Translated <b>text</b></p>'));
+      expect(m.description).toContain('Translated');
+      expect(m.description).not.toContain('<');
+      expect(m.sourceUrl).toBe('https://makerworld.com/en/models/1272656-original-3dbenchy-public-domain-cad-step-file');
+    });
+
+    it('falls back to the original when the translation is empty or only whitespace', async () => {
+      const original = await makerworld.extract(fixture(CAD), CAD_URL);
+      for (const blank of ['', '  \n\t ', undefined, null]) {
+        const doc = editedDesign(CAD, (d) => {
+          d.titleTranslated = blank;
+          d.summaryTranslated = blank;
+        });
+        const m = await makerworld.extract(doc, CAD_URL);
+        expect(m.title).toBe(original.title);
+        expect(m.description).toBe(original.description);
+      }
+    });
+
+    it('keeps the tags as they are, whatever tagsTranslated holds', async () => {
+      const original = await makerworld.extract(fixture(CAD), CAD_URL);
+      const doc = editedDesign(CAD, (d) => {
+        d.titleTranslated = 'Translated title';
+        d.tagsTranslated = ['uebersetzt'];
+      });
+      expect((await makerworld.extract(doc, CAD_URL)).tags).toEqual(original.tags);
+    });
+
+    it('names a print profile file after its translated title when there is one', async () => {
+      const doc = editedDesign(CAD, (d) => {
+        const inst = (d.instances as Record<string, unknown>[]).find((i) => i.id === 2996144)!;
+        inst.titleTranslated = '0.4mm nozzle, miniature';
+        const blank = (d.instances as Record<string, unknown>[]).find((i) => i.id === 2996134)!;
+        blank.titleTranslated = '   ';
+      });
+      const names = (await makerworld.extract(doc, CAD_URL)).files.map((f) => f.name);
+      expect(names).toContain('0.4mm nozzle, miniature.3mf');
+      expect(names).not.toContain('0,4mm nozzle, miniature.3mf');
+      expect(names).toContain('0.2mm nozzle, miniature.3mf');
+    });
   });
 
   it('returns JSON-serializable results', async () => {
