@@ -217,13 +217,13 @@ describe('Options save message fades', () => {
   };
   afterEach(() => vi.useRealTimers());
 
-  it('disappears about 4 s after the save', async () => {
+  it('disappears about 5 s after the save', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
     await ready();
     submit();
     await vi.waitFor(() => expect(status().textContent).toBe('Settings saved.'));
-    vi.advanceTimersByTime(3500);
+    await vi.advanceTimersByTimeAsync(4500);
     expect(status().textContent).toBe('Settings saved.');
     vi.advanceTimersByTime(1000);
     await vi.waitFor(() => expect(status().textContent).toBe(''));
@@ -260,7 +260,36 @@ describe('Options save message fades', () => {
     vi.advanceTimersByTime(30000);
     expect(root.querySelector('.test-result')?.textContent).toBe(text);
   });
-  it('does not touch state after unmount', async () => {
+  it('overlapping saves: the newer message keeps its own full 5 s (an older save timer must not cut it short)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
+    await ready();
+    const set = chrome.storage.local.set as ReturnType<typeof vi.fn>;
+    set.mockImplementation(() => new Promise<void>((r) => setTimeout(r, 1500)));
+    submit(); // finishes at about +1.5 s
+    await vi.advanceTimersByTimeAsync(1000);
+    submit(); // finishes at about +2.5 s
+    await vi.advanceTimersByTimeAsync(1600); // +2.6 s: both done
+    await vi.waitFor(() => expect(status().textContent).toBe('Settings saved.'));
+    await vi.advanceTimersByTimeAsync(4000); // about +6.6 s: past the first save's 5 s, inside the second's
+    expect(status().textContent).toBe('Settings saved.');
+    await vi.advanceTimersByTimeAsync(1500);
+    await vi.waitFor(() => expect(status().textContent).toBe(''));
+  });
+  it('the no-token warning asks for an action, so it neither fades nor clears on edit', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: '' });
+    await ready();
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toContain('Add an API token before sending.'));
+    vi.advanceTimersByTime(30000);
+    expect(status().textContent).toContain('Add an API token before sending.');
+    const input = root.querySelector('input') as HTMLInputElement;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await Promise.resolve();
+    expect(status().textContent).toContain('Add an API token before sending.');
+  });
+  it('clears its timers on unmount', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
     await ready();
