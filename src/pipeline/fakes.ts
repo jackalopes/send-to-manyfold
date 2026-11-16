@@ -7,7 +7,7 @@ import { ManyfoldClient } from '../manyfold/client';
 import { ManyfoldError } from '../manyfold/errors';
 import type { applyMetadata, MetadataInput } from '../manyfold/metadata';
 import type { checkManyfold } from '../manyfold/preflight';
-import type { createModel, uploadFile, waitForExtraction } from '../manyfold/upload';
+import type { createModel, fetchMaxUploadSize, uploadFile, waitForExtraction } from '../manyfold/upload';
 import type { SourceFile, SourceModel } from '../types';
 import { CreateLimiter } from './rate';
 import { MemorySendStateStore } from './state';
@@ -98,7 +98,14 @@ export function harness(opts: { hooks?: Partial<Record<'fetch' | 'resolve' | 'up
     signal?.throwIfAborted();
     await hooks.check?.('');
   });
-  const fetchFile = vi.fn(async (url: string, signal?: AbortSignal) => {
+  /** The server's `Tus-Max-Size`: unknown unless a test sets `serverMax.value`. */
+  const serverMax: { value: number | undefined } = { value: undefined };
+  const maxUploadSizeFake = vi.fn<typeof fetchMaxUploadSize>(async (_c, signal) => {
+    signal?.throwIfAborted();
+    return serverMax.value;
+  });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- recorded in mock.calls for assertions
+  const fetchFile = vi.fn(async (url: string, signal?: AbortSignal, _maxBytes?: number) => {
     signal?.throwIfAborted();
     log.push(`fetch:${url}`);
     await hooks.fetch?.(url);
@@ -124,9 +131,9 @@ export function harness(opts: { hooks?: Partial<Record<'fetch' | 'resolve' | 'up
     clock,
     createLimiter: new CreateLimiter(1000, 1),
     newToken: () => `t${++tokenN}`,
-    api: { uploadFile: uploadFileFake, createModel: createModelFake, waitForExtraction: waitFake, applyMetadata: metadataFake, checkManyfold: checkManyfoldFake },
+    api: { uploadFile: uploadFileFake, createModel: createModelFake, waitForExtraction: waitFake, applyMetadata: metadataFake, checkManyfold: checkManyfoldFake, maxUploadSize: maxUploadSizeFake },
   };
-  return { deps, log, clock, store, metadataInputs, checkManyfoldFake, uploadFileFake, createModelFake, waitFake, metadataFake, fetchFile, resolveDownloadUrl, recordSend };
+  return { deps, log, clock, store, metadataInputs, serverMax, maxUploadSizeFake, checkManyfoldFake, uploadFileFake, createModelFake, waitFake, metadataFake, fetchFile, resolveDownloadUrl, recordSend };
 }
 
 export const rateLimited = () => new ManyfoldError('rate-limited', 'Manyfold is limiting requests. Wait a minute and try again.');

@@ -1,5 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { coverFileName, isHttps, sanitizeFileName, uniqueNames, uploadName } from './files';
+import { coverFileName, isHttps, sanitizeFileName, tooLargeMessage, uniqueNames, uploadLimit, uploadName } from './files';
+
+describe('uploadLimit', () => {
+  const GiB = 1024 ** 3;
+  it('uses the server limit when it is smaller than the 1 GiB the extension can handle', () => {
+    expect(uploadLimit(512 * 1024 ** 2)).toEqual({ bytes: 512 * 1024 ** 2, source: 'server' });
+  });
+  it('keeps the 1 GiB cap when the server allows more (files are held in memory, zips are not ZIP64)', () => {
+    expect(uploadLimit(4 * GiB)).toEqual({ bytes: GiB, source: 'extension' });
+    expect(uploadLimit(GiB)).toEqual({ bytes: GiB, source: 'extension' });
+  });
+  it('falls back to 1 GiB while the server limit is unknown', () => {
+    expect(uploadLimit(undefined)).toEqual({ bytes: GiB, source: 'default' });
+  });
+});
+
+describe('tooLargeMessage', () => {
+  it('names the server limit and what to do', () => {
+    const m = tooLargeMessage('"a.stl"', uploadLimit(512 * 1024 ** 2));
+    expect(m).toContain('"a.stl" is larger than this Manyfold server accepts (512 MiB)');
+    expect(m).toMatch(/Leave it out/);
+  });
+  it('does not blame the server when the extension is the limit', () => {
+    const m = tooLargeMessage('"a.stl"', uploadLimit(4 * 1024 ** 3));
+    expect(m).toContain('1 GiB');
+    expect(m).not.toContain('server accepts');
+    expect(m).toMatch(/Leave it out/);
+  });
+  it('keeps the default wording while the limit is unknown', () => {
+    expect(tooLargeMessage('The file', uploadLimit(undefined))).toContain('The file is larger than Manyfold accepts (1 GiB).');
+  });
+});
 
 describe('sanitizeFileName', () => {
   it.each([

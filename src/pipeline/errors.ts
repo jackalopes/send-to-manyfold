@@ -1,5 +1,6 @@
 import { downloadErrorCode, type DownloadErrorCode } from '../adapters/errors';
 import { ManyfoldError, UNAUTHORIZED_TEXT, UNREACHABLE_TEXT, type ManyfoldErrorCode } from '../manyfold/errors';
+import { tooLargeMessage, uploadLimit } from './files';
 import type { SendStage } from './types';
 
 export type SendErrorCode =
@@ -67,7 +68,7 @@ export const MESSAGES: Record<SendErrorCode, string> = {
   'download-not-https': 'The site gave a download link that is not https, so it was not used.',
   'source-archive-broken':
     'A file from Voron Mods could not be downloaded. Try again later, or download the files from the mod page by hand.',
-  'too-large': 'The file is larger than Manyfold accepts (1 GiB).',
+  'too-large': tooLargeMessage('The file', uploadLimit()),
   'manyfold-unreachable': UNREACHABLE_TEXT,
   'manyfold-unauthorized': UNAUTHORIZED_TEXT,
   'manyfold-forbidden': 'The API token lacks permission for this (it needs the read, write and upload scopes).',

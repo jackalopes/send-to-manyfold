@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSettings, type Settings, type TagMode } from '../settings';
 import type { SourceFile, SourceModel } from '../types';
-import { buildInitialForm, canSend, MAX_FILE_BYTES, parseTags, setSelected, tagOffer, toSendRequest } from './state';
+import { applyServerLimit, buildInitialForm, canSend, MAX_FILE_BYTES, parseTags, setSelected, tagOffer, toSendRequest } from './state';
 
 const f = (name: string, kind: SourceFile['kind'], size?: number): SourceFile => ({ name, kind, ...(size !== undefined ? { size } : {}) });
 
@@ -102,6 +102,33 @@ describe('buildInitialForm', () => {
     expect(form.files[0]).toMatchObject({ selected: false, disabledReason: expect.stringContaining('1 GiB') });
     expect(form.files[1]).toMatchObject({ selected: true });
     expect(form.files[1]!.disabledReason).toBeUndefined();
+  });
+
+  describe("the server's own limit", () => {
+    const MiB = 1024 ** 2;
+    const files = () => [f('big.stl', 'model', 600 * MiB), f('ok.stl', 'model', 100 * MiB), f('huge.stl', 'model', 2 * 1024 ** 3)];
+
+    it('a limit under 1 GiB disables the files over it and names the limit and what to do', () => {
+      const form = buildInitialForm(model({ files: files() }), settings(), 512 * MiB);
+      expect(form.files.map((x) => x.selected)).toEqual([false, true, false]);
+      expect(form.files[0]!.disabledReason).toMatch(/512 MiB.*this Manyfold server.*Leave it out/);
+      expect(form.files[1]!.disabledReason).toBeUndefined();
+    });
+
+    it('a limit over 1 GiB keeps the 1 GiB cap and does not blame the server', () => {
+      const form = buildInitialForm(model({ files: files() }), settings(), 5 * 1024 ** 3);
+      expect(form.files.map((x) => x.selected)).toEqual([true, true, false]);
+      expect(form.files[2]!.disabledReason).toContain('1 GiB');
+      expect(form.files[2]!.disabledReason).not.toContain('server');
+    });
+
+    it('applyServerLimit disables files over a limit learned later and unticks them, leaving the rest as the user set them', () => {
+      const form = buildInitialForm(model({ files: files() }), settings());
+      const edited = { ...form, files: setSelected(form.files, [1], false) };
+      const next = applyServerLimit(edited, 512 * MiB);
+      expect(next.files.map((x) => [x.selected, !!x.disabledReason])).toEqual([[false, true], [false, false], [false, true]]);
+      expect(applyServerLimit(next, undefined)).toBe(next);
+    });
   });
 });
 

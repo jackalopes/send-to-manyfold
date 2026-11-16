@@ -12,7 +12,7 @@ const model: SourceModel = { site: 'printables', sourceUrl: 'https://p/1', title
 const configured: Settings = { ...defaultSettings(), manyfoldUrl: 'http://m', token: 'tok' };
 const fail = (code: string) => ({ ok: false as const, error: { code, message: 'm', stage: 'downloading' } });
 
-function setup(over: { api?: Partial<PopupApi>; settings?: Settings; prior?: HistoryEntry; lookup?: (url: string) => Promise<LookupResult>; search?: string } = {}) {
+function setup(over: { api?: Partial<PopupApi>; settings?: Settings; prior?: HistoryEntry; lookup?: (url: string) => Promise<LookupResult>; search?: string; serverMaxBytes?: () => Promise<number | undefined> } = {}) {
   let state: PopupState = initialState;
   const actions: PopupAction[] = [];
   let listener: (e: SendEvent) => void = () => undefined;
@@ -38,6 +38,7 @@ function setup(over: { api?: Partial<PopupApi>; settings?: Settings; prior?: His
     findPriorSend: async () => over.prior,
     lookupModel: over.lookup ?? (async () => ({ status: 'unknown', reason: 'error' })),
     search: over.search ?? '',
+    ...(over.serverMaxBytes ? { serverMaxBytes: over.serverMaxBytes } : {}),
     dispatch: (a) => { actions.push(a); state = reduce(state, a); },
     getState: () => state,
     closePopup,
@@ -197,6 +198,41 @@ describe('popup controller', () => {
     await init;
     expect(t.state()).toMatchObject({ phase: 'sending' });
     expect(t.actions.some((a) => a.type === 'priorFound')).toBe(false);
+  });
+
+  describe("the server's upload limit", () => {
+    const MiB = 1024 ** 2;
+    const sized = { ...model, files: [{ name: 'big.stl', kind: 'model' as const, size: 600 * MiB }, { name: 'ok.stl', kind: 'model' as const, size: MiB }] };
+    const reviewFiles = (t: ReturnType<typeof setup>) => (t.state() as { form: { files: { selected: boolean; disabledReason?: string }[] } }).form.files;
+
+    it('disables files over the server limit once it is known, without waiting for it to show the form', async () => {
+      let answer: (n: number | undefined) => void = () => undefined;
+      const t = setup({ api: { extract: vi.fn(async () => ({ ok: true as const, model: sized })) }, serverMaxBytes: () => new Promise((r) => { answer = r; }) });
+      const init = t.c.init();
+      await vi.waitFor(() => expect(t.state().phase).toBe('review'));
+      expect(reviewFiles(t).map((f) => f.selected)).toEqual([true, true]);
+      answer(512 * MiB);
+      await init;
+      expect(reviewFiles(t).map((f) => [f.selected, f.disabledReason ? f.disabledReason.includes('512 MiB') : false])).toEqual([[false, true], [true, false]]);
+    });
+
+    it('keeps the 1 GiB default when the limit is unknown', async () => {
+      const t = setup({ api: { extract: vi.fn(async () => ({ ok: true as const, model: sized })) }, serverMaxBytes: async () => undefined });
+      await t.c.init();
+      expect(reviewFiles(t).map((f) => f.selected)).toEqual([true, true]);
+      expect(t.actions.filter((a) => a.type === 'formChanged')).toHaveLength(0);
+    });
+
+    it('ignores an answer that arrives after the send started', async () => {
+      let answer: (n: number | undefined) => void = () => undefined;
+      const t = setup({ serverMaxBytes: () => new Promise((r) => { answer = r; }) });
+      const init = t.c.init();
+      await vi.waitFor(() => expect(t.state().phase).toBe('review'));
+      await t.c.send();
+      answer(MiB);
+      await init;
+      expect(t.state()).toMatchObject({ phase: 'sending' });
+    });
   });
 
   it('reattaches to a running send remembered for this tab and does not extract', async () => {

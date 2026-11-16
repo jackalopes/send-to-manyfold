@@ -1,6 +1,6 @@
 import { render } from 'preact';
 import { findPriorSend } from '../../history';
-import { listCollectionsAt } from '../../manyfold/browser-client';
+import { listCollectionsAt, maxUploadBytesAt } from '../../manyfold/browser-client';
 import { createBrowserLookup } from '../../manyfold/browser-lookup';
 import { createPopupApi, isOffscreenSender } from '../../popup/api';
 import '../../popup/popup.css';
@@ -34,6 +34,10 @@ const deps: PopupDeps = {
   findPriorSend,
   lookupModel: createBrowserLookup(),
   search: location.search,
+  serverMaxBytes: async () => {
+    const s = await loadSettings();
+    return maxUploadBytesAt(s.manyfoldUrl, s.token);
+  },
   listCollections: async () => {
     const s = await loadSettings();
     return listCollectionsAt(s.manyfoldUrl, s.token);

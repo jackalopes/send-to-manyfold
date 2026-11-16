@@ -1,4 +1,5 @@
 import type { Settings, TagMode } from '../settings';
+import { tooLargeReason, uploadLimit } from '../pipeline/files';
 import type { SendRequest } from '../pipeline/types';
 import type { SourceFile, SourceModel } from '../types';
 import { isValidLicenseId, mapLicense } from '../manyfold/licenses';
@@ -29,10 +30,10 @@ export interface ReviewForm {
   sensitive: boolean;
 }
 
-const TOO_LARGE = 'Larger than 1 GiB, which Manyfold does not accept.';
 
 /** Applies the per-field prefill toggles, the image settings, the default collection and the sensitive flag. */
-export function buildInitialForm(model: SourceModel, settings: Settings): ReviewForm {
+export function buildInitialForm(model: SourceModel, settings: Settings, serverMax?: number): ReviewForm {
+  const limit = uploadLimit(serverMax);
   const on = settings.prefill;
   // Voron files are zipped together, so the image settings do not apply to them.
   const offered = model.files.filter((f) => f.bundle !== undefined || settings.includeImages || f.kind !== 'image');
@@ -44,7 +45,7 @@ export function buildInitialForm(model: SourceModel, settings: Settings): Review
     tags: model.site !== 'other' && settings.siteTags[model.site] === 'on' ? [...model.tags] : [],
     sourceLink: on.sourceUrl,
     files: offered.map((file) => {
-      if (file.size !== undefined && file.size > MAX_FILE_BYTES) return { file, selected: false, disabledReason: TOO_LARGE };
+      if (file.size !== undefined && file.size > limit.bytes) return { file, selected: false, disabledReason: tooLargeReason(limit) };
       return { file, selected: file.kind === 'image' && file.bundle === undefined ? on.images : true };
     }),
     // A Voron send is one zip of the ticked files, so there is no loose-file model to hold a cover image.
@@ -52,6 +53,14 @@ export function buildInitialForm(model: SourceModel, settings: Settings): Review
     collectionId: settings.defaultCollectionId?.trim() ?? '',
     sensitive: settings.defaultSensitive,
   };
+}
+
+/** Applies a server limit learned after the form was built: files over it are unticked and disabled; nothing else changes. */
+export function applyServerLimit(form: ReviewForm, serverMax: number | undefined): ReviewForm {
+  const limit = uploadLimit(serverMax);
+  const over = (f: FormFile) => !f.disabledReason && f.file.size !== undefined && f.file.size > limit.bytes;
+  if (!form.files.some(over)) return form;
+  return { ...form, files: form.files.map((f) => (over(f) ? { ...f, selected: false, disabledReason: tooLargeReason(limit) } : f)) };
 }
 
 export function parseTags(text: string): string[] {

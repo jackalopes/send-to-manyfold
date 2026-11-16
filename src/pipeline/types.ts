@@ -3,7 +3,7 @@ import type { HistoryEntry } from '../history';
 import type { ManyfoldClient } from '../manyfold/client';
 import type { applyMetadata, MetadataResult } from '../manyfold/metadata';
 import type { checkManyfold } from '../manyfold/preflight';
-import type { createModel, uploadFile, waitForExtraction } from '../manyfold/upload';
+import type { createModel, fetchMaxUploadSize, uploadFile, waitForExtraction } from '../manyfold/upload';
 import type { SourceFile, SourceModel } from '../types';
 import type { SendError } from './errors';
 import type { CreateLimiter } from './rate';
@@ -104,6 +104,8 @@ export interface ManyfoldApi {
   waitForExtraction: typeof waitForExtraction;
   applyMetadata: typeof applyMetadata;
   checkManyfold: typeof checkManyfold;
+  /** The server's per-file limit, or undefined when unknown; never rejects except for a cancel. */
+  maxUploadSize: typeof fetchMaxUploadSize;
 }
 
 /** Everything `sendModel` touches; 11b wires the real ones (content-script resolve, offscreen fetch, chrome storage). */
@@ -111,8 +113,8 @@ export interface SendDeps {
   client: ManyfoldClient;
   /** Turns a file's `ref` into a download link with the user's session (the site adapter, in the content script). */
   resolveDownloadUrl(file: SourceFile, signal?: AbortSignal): Promise<string | ResolvedDownload>;
-  /** Downloads an `https:` URL into memory. Never writes to disk. */
-  fetchFile(url: string, signal?: AbortSignal): Promise<Blob>;
+  /** Downloads an `https:` URL into memory. Never writes to disk. `maxBytes` replaces the default size cap. */
+  fetchFile(url: string, signal?: AbortSignal, maxBytes?: number): Promise<Blob>;
   recordSend(entry: HistoryEntry): Promise<void>;
   /** Holds downloads and upload ids between a failure and its retry. */
   store: SendStateStore;

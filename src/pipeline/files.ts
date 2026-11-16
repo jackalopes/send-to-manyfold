@@ -1,7 +1,40 @@
+import { formatBytes } from '../format';
 import { classifyFile, isArchiveExtension } from '../types';
 
-/** Manyfold's Tus server accepts at most 1 GiB per file (`Tus-Max-Size: 1073741824` on 0.153.0). */
+/**
+ * Manyfold's Tus server accepts at most 1 GiB per file by default (`Tus-Max-Size: 1073741824` on 0.153.0). This is
+ * also the most the extension itself sends, even to a server that allows more: a file is held in memory (twice
+ * over while a Blob is built from the read chunks), and the zip of a Voron bundle is plain ZIP (no ZIP64).
+ */
 export const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
+
+/** Where the limit in force comes from: the server's `Tus-Max-Size`, this extension's own cap, or the default while the server's is unknown. */
+export interface UploadLimit {
+  bytes: number;
+  source: 'server' | 'extension' | 'default';
+}
+
+/** The size limit for one file, given the server's `Tus-Max-Size` when it is known. Never above 1 GiB. */
+export function uploadLimit(serverMax?: number): UploadLimit {
+  if (serverMax === undefined) return { bytes: MAX_UPLOAD_BYTES, source: 'default' };
+  return serverMax < MAX_UPLOAD_BYTES ? { bytes: serverMax, source: 'server' } : { bytes: MAX_UPLOAD_BYTES, source: 'extension' };
+}
+
+/** The popup's reason for a disabled file (it is already unticked, so the next step is about the file itself). */
+export function tooLargeReason(limit: UploadLimit): string {
+  const size = formatBytes(limit.bytes);
+  if (limit.source === 'server') return `Larger than ${size}, which this Manyfold server does not accept. Leave it out, or raise the upload limit on the server.`;
+  if (limit.source === 'extension') return `Larger than ${size}, the most this extension can send. Leave it out, or add it in Manyfold directly.`;
+  return `Larger than ${size}, which Manyfold does not accept. Leave it out.`;
+}
+
+/** What happened and what to do, for something (`subject`: a quoted name or "The file") that is over the limit. */
+export function tooLargeMessage(subject: string, limit: UploadLimit): string {
+  const size = formatBytes(limit.bytes);
+  if (limit.source === 'server') return `${subject} is larger than this Manyfold server accepts (${size}). Leave it out and send the rest, or raise the upload limit on the server.`;
+  if (limit.source === 'extension') return `${subject} is larger than ${size}, the most this extension can send. Leave it out and send the rest, or add it in Manyfold directly.`;
+  return `${subject} is larger than Manyfold accepts (${size}). Leave it out and send the rest.`;
+}
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif']);
 

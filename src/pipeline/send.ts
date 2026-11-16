@@ -1,12 +1,13 @@
 import { ManyfoldError, type ManyfoldErrorCode } from '../manyfold/errors';
 import { applyMetadata, metadataInputFromSource, uniqueTags, type MetadataResult } from '../manyfold/metadata';
 import { checkManyfold } from '../manyfold/preflight';
-import { createModel, uploadFile, waitForExtraction } from '../manyfold/upload';
+import { createModel, fetchMaxUploadSize, uploadFile, waitForExtraction } from '../manyfold/upload';
 import { isAbort, MESSAGES, PipelineError, toSendError, type SendError } from './errors';
 import { bundleFiles } from './bundle';
 import { addCover, downloadAll, planGroups } from './download';
 import { handoffUrl } from './handoff';
 import { recordCreatedModels, recordModel } from './history-record';
+import { uploadLimit } from './files';
 import { monotonic } from './progress';
 import { DEFAULT_CREATE_RETRY_DELAYS_MS, realClock, sharedCreateLimiter, withCreateBackoff } from './rate';
 import type { ModelGroup, SendState } from './state';
@@ -58,7 +59,7 @@ export async function retrySend(token: string, deps: SendDeps, onProgress: (p: S
 async function run(state: SendState, deps: SendDeps, onProgress: (p: SendProgress) => void, opts: SendOptions): Promise<SendResult> {
   const signal = opts.signal;
   const emit = monotonic(onProgress);
-  const api: ManyfoldApi = { uploadFile, createModel, waitForExtraction, applyMetadata, checkManyfold, ...deps.api };
+  const api: ManyfoldApi = { uploadFile, createModel, waitForExtraction, applyMetadata, checkManyfold, maxUploadSize: fetchMaxUploadSize, ...deps.api };
   const clock = deps.clock ?? realClock;
   const ctx = { stage: 'downloading' as SendStage, group: undefined as ModelGroup | undefined, createInFlight: false };
   state.running = true;
@@ -70,6 +71,8 @@ async function run(state: SendState, deps: SendDeps, onProgress: (p: SendProgres
       // On a retry with every file already downloaded this is not a download problem; report where the send stands.
       if (state.groups && state.entries.every((e) => e.blob || e.upload)) ctx.stage = 'uploading';
       await api.checkManyfold(deps.client, signal);
+      // The server's own limit, when it states one, replaces the 1 GiB default for the rest of this run.
+      state.limit = uploadLimit(await api.maxUploadSize(deps.client, signal));
       ctx.stage = 'downloading';
     }
     await downloadAll(state, deps, emit, signal);
