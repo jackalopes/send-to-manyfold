@@ -34,3 +34,25 @@ describe('ReviewView preview checkbox', () => {
     expect(root.textContent).not.toContain('Use the page image as the preview');
   });
 });
+
+describe('ReviewView license hint', () => {
+  const HINT = 'saved in the notes only';
+  const showLicense = (licenseText: string, m: SourceModel = model()) =>
+    render(<ReviewView model={m} form={{ ...formOf(m), licenseText }} duplicateDismissed={false} collections={[]} openSettings={() => {}} onChange={() => {}} onSend={() => {}} onDismissDuplicate={() => {}} openUrl={() => {}} />, root);
+  it('shows for text Manyfold cannot map', () => {
+    showLicense('Test License Text');
+    expect(root.textContent).toContain(HINT);
+  });
+  it.each(['CC BY 4.0', 'MIT', '', '   '])('is hidden for %j', (t) => {
+    showLicense(t);
+    expect(root.textContent).not.toContain(HINT);
+  });
+  it('is hidden for the untouched page text that has a license id', () => {
+    showLicense('Some Odd Name', { ...model(), licenseText: 'Some Odd Name', licenseId: 'CC-BY-4.0' });
+    expect(root.textContent).not.toContain(HINT);
+  });
+  it('shows once that text is edited to something unmapped', () => {
+    showLicense('Other Odd Name', { ...model(), licenseText: 'Some Odd Name', licenseId: 'CC-BY-4.0' });
+    expect(root.textContent).toContain(HINT);
+  });
+});

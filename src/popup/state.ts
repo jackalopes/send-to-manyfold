@@ -1,6 +1,7 @@
 import type { Settings, TagMode } from '../settings';
 import type { SendRequest } from '../pipeline/types';
 import type { SourceFile, SourceModel } from '../types';
+import { isValidLicenseId, mapLicense } from '../manyfold/licenses';
 
 /** Manyfold's upload limit; larger files cannot be sent. */
 export const MAX_FILE_BYTES = 1024 ** 3;
@@ -86,7 +87,7 @@ export function toSendRequest(model: SourceModel, form: ReviewForm): SendRequest
   if (creatorName) source.creator = { name: creatorName, ...(model.creator?.url && creatorName === model.creator.name.trim() ? { url: model.creator.url } : {}) };
   if (licenseText) source.licenseText = licenseText;
   // The page's id belongs to the page's text: once the user edits the text, only name mapping of the edit applies.
-  const licenseId = licenseText && model.licenseId && licenseText === model.licenseText?.trim() ? model.licenseId : undefined;
+  const licenseId = pageLicenseId(model, licenseText);
   if (description) source.description = description;
   const collection = form.collectionId.trim();
   return {
@@ -100,4 +101,19 @@ export function toSendRequest(model: SourceModel, form: ReviewForm): SendRequest
     includeCover: form.includeCover,
     ...(form.sourceLink ? {} : { omitSourceLink: true }),
   };
+}
+
+/** The page's license id, but only while the text is still the page's own text. Editing the text drops it. */
+export function pageLicenseId(model: SourceModel, licenseText: string): string | undefined {
+  const text = licenseText.trim();
+  return text && model.licenseId && text === model.licenseText?.trim() ? model.licenseId : undefined;
+}
+
+/** True when the text is non-empty but will not set Manyfold's license field (same rule as the send), so it is saved in the notes only. */
+export function licenseNotesOnly(model: SourceModel, licenseText: string): boolean {
+  const text = licenseText.trim();
+  if (!text) return false;
+  const id = pageLicenseId(model, text)?.trim();
+  if (id && isValidLicenseId(id)) return false;
+  return !mapLicense(text).spdx;
 }
