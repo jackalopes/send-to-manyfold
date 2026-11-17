@@ -86,7 +86,7 @@ export function ReviewView(p: ReviewViewProps) {
       {p.model.loginRequired ? (
         <p class="warning">Sign in to {SITE_NAMES[p.model.site]} to download these files, or the send will fail.</p>
       ) : null}
-      <DetailsFields form={p.form} onPatch={patch} {...(p.tagsKey !== undefined ? { tagsKey: p.tagsKey } : {})} {...(p.tagSuggestion ? { suggestion: p.tagSuggestion } : {})} />
+      <DetailsFields form={p.form} model={p.model} onPatch={patch} {...(p.tagsKey !== undefined ? { tagsKey: p.tagsKey } : {})} {...(p.tagSuggestion ? { suggestion: p.tagSuggestion } : {})} />
       <CollectionPicker value={p.form.collectionId} options={p.collections} failure={p.collectionsFailure} onChange={(collectionId) => patch({ collectionId })} />
       <label class="inline">
         <input type="checkbox" checked={p.form.sensitive} onChange={(e) => patch({ sensitive: e.currentTarget.checked })} /> Mark as sensitive

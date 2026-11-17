@@ -3,7 +3,7 @@ import { makerworldAnchor } from './anchors';
 import { DownloadAccessDenied, DownloadBlocked, DownloadFailed, DownloadLoginRequired } from './errors';
 import type { ExtractOptions, ResolvedDownload, SiteAdapter } from './index';
 import { htmlText } from './html-text';
-import { CLIENT_HEADERS, LICENSE_LABELS, type MwDesign, type MwInstance, type MwModelFile } from './makerworld-data';
+import { CLIENT_HEADERS, LICENSE_IDS, LICENSE_LABELS, type MwDesign, type MwInstance, type MwModelFile } from './makerworld-data';
 
 /**
  * MakerWorld (Next.js pages router behind Cloudflare). Checked against live pages, logged out, on 2026-10-26:
@@ -80,6 +80,7 @@ export function createMakerWorld(deps: MakerWorldDeps = {}): SiteAdapter {
       if (creatorName) result.creator = handle ? { name: creatorName, url: `${ORIGIN}/en/@${encodeURIComponent(handle)}` } : { name: creatorName };
       const license = str(design.license);
       if (license) result.licenseText = LICENSE_LABELS[license] ?? license;
+      if (license && LICENSE_IDS[license]) result.licenseId = LICENSE_IDS[license];
       const cover = str(design.coverUrl);
       if (cover) result.coverImageUrl = cover;
 

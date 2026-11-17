@@ -11,6 +11,26 @@ export function mapLicense(text: string | undefined): { spdx?: string; keepOrigi
   return spdx ? { spdx, keepOriginalInNotes: true } : { keepOriginalInNotes: true };
 }
 
+/** An SPDX id or a `LicenseRef-` id: letters, digits, `.` and `-` only (the SPDX idstring), with something after `LicenseRef-`. */
+export function isValidLicenseId(id: string): boolean {
+  return /^(?!LicenseRef-$)[A-Za-z0-9][A-Za-z0-9.-]*$/.test(id);
+}
+
+/**
+ * SPDX id for a Creative Commons deed link (`creativecommons.org/licenses/<by...>/<version>/`, also `/legalcode`
+ * and `/deed.xx`, or `/publicdomain/zero/1.0/`). Scheme, case, `www.`, trailing slash, query and fragment do not
+ * matter; the version is read from the link. Anything else stays unmapped.
+ */
+export function spdxFromLicenseUrl(url: string | undefined): string | undefined {
+  const m = /^https?:\/\/(?:www\.)?creativecommons\.org\/(.*?)\/?(?:[?#].*)?$/i.exec(url?.trim() ?? '');
+  const path = m?.[1]?.toLowerCase();
+  if (!path) return undefined;
+  if (/^publicdomain\/zero\/1\.0(?:\/.*)?$/.test(path)) return 'CC0-1.0';
+  const lic = /^licenses\/(by(?:-nc)?(?:-sa|-nd)?)\/(\d\.\d)(?:\/(?:legalcode|deed(?:\.[\w-]+)?)?)?$/.exec(path);
+  if (!lic || !CC_VERSIONS.has(lic[2]!)) return undefined;
+  return `CC-${lic[1]!.toUpperCase()}-${lic[2]}`;
+}
+
 const CC_VERSIONS = new Set(['1.0', '2.0', '2.5', '3.0', '4.0']);
 const CC_FILLER = new Set(['creative', 'commons', 'cc', 'international', 'universal', 'unported', 'generic', 'license', 'licence', 'deed', 'version', 'v']);
 

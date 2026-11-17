@@ -1,3 +1,4 @@
+import { spdxFromLicenseUrl } from '../manyfold/licenses';
 import { thingiverseAnchor } from './anchors';
 import { classifyFile, type SourceFile, type SourceModel } from '../types';
 import { DownloadFailed } from './errors';
@@ -58,7 +59,13 @@ export const thingiverse: SiteAdapter = {
     const creator = creatorOf(doc, ld);
     if (creator) result.creator = creator;
     const license = licenseOf(doc, ld);
-    if (license) result.licenseText = license;
+    if (license) {
+      // Currently unused by the send: Thingiverse hands off to Manyfold's own importer (`delivery` above), which sets
+      // the license itself, before any metadata step. The id only takes effect if Thingiverse ever sends files directly.
+      result.licenseText = license.text;
+      const licenseId = spdxFromLicenseUrl(license.url);
+      if (licenseId) result.licenseId = licenseId;
+    }
     const cover = coverOf(doc, ld);
     if (cover) result.coverImageUrl = cover;
     if (memberGated(doc)) result.loginRequired = true;
@@ -120,15 +127,18 @@ function creatorOf(doc: Document, ld: JsonLdProduct | undefined): SourceModel['c
  * The license name as the page writes it ("... is licensed under the <a href=deed>Creative Commons - Attribution
  * - Share Alike</a> license."); before hydration only the deed link from JSON-LD is available.
  */
-function licenseOf(doc: Document, ld: JsonLdProduct | undefined): string | undefined {
+function licenseOf(doc: Document, ld: JsonLdProduct | undefined): { text: string; url: string } | undefined {
   const links = doc.querySelectorAll('[class*="License__licenseText"] a[href]');
   for (const a of [...links].reverse()) {
-    if (/^https?:\/\//.test(a.getAttribute('href') ?? '')) {
+    const href = a.getAttribute('href') ?? '';
+    if (/^https?:\/\//.test(href)) {
       const name = text(a);
-      if (name) return name;
+      if (name) return { text: name, url: href };
     }
   }
-  return str(ld?.mainEntityOfPage?.license);
+  // Before hydration the deed link is all there is: it is both the text and the url.
+  const link = str(ld?.mainEntityOfPage?.license);
+  return link ? { text: link, url: link } : undefined;
 }
 
 /** Tags as the details tab lists them (`/tag:<name>` buttons in the tag list); other tabs show none. */

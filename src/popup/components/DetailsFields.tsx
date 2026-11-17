@@ -1,4 +1,5 @@
-import { parseTags, type ReviewForm } from '../state';
+import type { SourceModel } from '../../types';
+import { licenseNotesOnly, parseTags, type ReviewForm } from '../state';
 
 type Patch = (patch: Partial<ReviewForm>) => void;
 
@@ -16,6 +17,7 @@ export function DetailsFields({
   readOnly = false,
   tagsKey = 0,
   suggestion,
+  model,
 }: {
   form: ReviewForm;
   onPatch: Patch;
@@ -23,6 +25,8 @@ export function DetailsFields({
   /** Changes when a button replaces the tags, so the uncontrolled input remounts with the new value. */
   tagsKey?: number;
   suggestion?: TagSuggestion;
+  /** The page's data, so the license hint follows the same rule as the send. */
+  model?: SourceModel;
 }) {
   return (
     <>
@@ -42,6 +46,7 @@ export function DetailsFields({
         License
         <input type="text" value={form.licenseText} readOnly={readOnly} onInput={(e) => onPatch({ licenseText: e.currentTarget.value })} />
       </label>
+      {model && !readOnly && licenseNotesOnly(model, form.licenseText) ? <p class="meta">Not a licence Manyfold recognises, so it is saved in the notes only.</p> : null}
       <label>
         Tags (comma separated)
         <input key={tagsKey} type="text" defaultValue={form.tags.join(', ')} readOnly={readOnly} onInput={(e) => onPatch({ tags: parseTags(e.currentTarget.value) })} />

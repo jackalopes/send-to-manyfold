@@ -16,6 +16,24 @@ export const LICENSE_LABELS: Readonly<Record<string, string>> = {
 };
 
 /**
+ * The id sent to Manyfold's license field for each `design.license` value. The CC codes are the 4.0 licenses (owner
+ * decision; the page data carries no version). MakerWorld's own licenses have no SPDX id, so they get `LicenseRef-*`.
+ */
+export const LICENSE_IDS: Readonly<Record<string, string>> = {
+  CC0: 'CC0-1.0',
+  BY: 'CC-BY-4.0',
+  'BY-SA': 'CC-BY-SA-4.0',
+  'BY-ND': 'CC-BY-ND-4.0',
+  'BY-NC': 'CC-BY-NC-4.0',
+  'BY-NC-SA': 'CC-BY-NC-SA-4.0',
+  'BY-NC-ND': 'CC-BY-NC-ND-4.0',
+  // This exact string is unverified against a live MakerWorld page (only the Exclusive one is seen in a fixture);
+  // if the real value differs, the lookup misses and the license field is simply left empty.
+  'Standard Digital File License': 'LicenseRef-MakerWorld-Standard-Digital-File',
+  'MakerWorld Exclusive License': 'LicenseRef-MakerWorld-Exclusive',
+};
+
+/**
  * Headers the site's API client adds to every design-service call (module 16951 of the same `_app` bundle:
  * `{"X-BBL-Client-Type":"web","X-BBL-Client-Version":"00.00.00.01","X-BBL-App-Source":"makerworld","X-BBL-Client-Name":"MakerWorld"}`),
  * plus axios' default `Accept`. Seen exactly so on the page's own `/api/v1/comment-service/...` request.

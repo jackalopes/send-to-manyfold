@@ -127,6 +127,7 @@ export function isSourceModel(v: unknown): v is SourceModel {
       title: isString,
       description: optString,
       licenseText: optString,
+      licenseId: optString,
       coverImageUrl: optString,
       extraLinks: optional(isLinkList),
       tags: isStringArray,

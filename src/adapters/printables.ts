@@ -20,40 +20,43 @@ const HOSTS = new Set(['www.printables.com', 'printables.com']);
 const MODEL_PATH = /^\/model\/(\d+)(-[^/]*)?(?:\/|$)/;
 const ORIGIN = 'https://www.printables.com';
 
-/** Printables license ids and names (from its `Licenses` query), with the deed link the site shows. */
-const LICENSES: Record<string, { name: string; href?: string }> = {
-  '7': { name: 'Creative Commons — Public Domain', href: 'https://creativecommons.org/publicdomain/zero/1.0/' },
-  '1': { name: 'Creative Commons — Attribution', href: 'http://creativecommons.org/licenses/by/4.0/' },
-  '2': { name: 'Creative Commons — Attribution — Share Alike', href: 'http://creativecommons.org/licenses/by-sa/4.0/' },
-  '8': { name: 'Creative Commons — Attribution — NoDerivatives', href: 'http://creativecommons.org/licenses/by-nd/4.0/' },
-  '3': { name: 'Creative Commons — Attribution — Noncommercial', href: 'http://creativecommons.org/licenses/by-nc/4.0/' },
-  '4': { name: 'Creative Commons — Attribution — Noncommercial — Share Alike', href: 'http://creativecommons.org/licenses/by-nc-sa/4.0/' },
-  '6': { name: 'Creative Commons — Attribution — Noncommercial — NoDerivatives', href: 'http://creativecommons.org/licenses/by-nc-nd/4.0/' },
-  '9': { name: 'GNU General Public License v2.0', href: 'http://www.gnu.org/licenses/old-licenses/gpl-2.0.html' },
-  '12': { name: 'GNU General Public License v3.0', href: 'https://www.gnu.org/licenses/gpl-3.0.html' },
-  '10': { name: 'GNU Lesser General Public License', href: 'https://www.gnu.org/licenses/lgpl-3.0.html' },
-  '11': { name: 'BSD License', href: 'https://opensource.org/licenses/BSD-2-Clause' },
-  '13': { name: 'Standard Digital File License' },
-  '14': { name: 'Commercial Use - No Derivative' },
-  '15': { name: 'Commercial Use' },
-  '16': { name: 'Open Community License v1', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence/tree/main' },
-  '17': { name: 'Open Community License v1.1', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence' },
-  '19': { name: 'Open Community License v1.1 + General Attribution v1', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence' },
-  '20': { name: 'Open Community License v1.1 + Research & Development v1', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence' },
-  '21': { name: 'Open Community License v1.1 + Micro Business v1', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence' },
-  '22': { name: 'Open Community License v1.1 + GAtt v1 + Micro v1', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence' },
-  '23': { name: 'Open Community License v1.1 + GAtt v1 + RnD v1', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence' },
-  '18': { name: 'CERN Open Hardware Licence Version 2 - Strongly Reciprocal', href: 'https://ohwr.org/cern_ohl_s_v2.txt' },
-  '24': { name: 'Apache License 2.0', href: 'https://www.apache.org/licenses/LICENSE-2.0' },
+/**
+ * Printables license ids and names (from its `Licenses` query), with the deed link the site shows and the id sent to
+ * Manyfold's license field: SPDX where the license is one, else `LicenseRef-*`. Keyed by the site's id, since the OCL links are shared.
+ */
+const LICENSES: Record<string, { name: string; spdx: string; href?: string }> = {
+  '7': { name: 'Creative Commons — Public Domain', spdx: 'CC0-1.0', href: 'https://creativecommons.org/publicdomain/zero/1.0/' },
+  '1': { name: 'Creative Commons — Attribution', spdx: 'CC-BY-4.0', href: 'http://creativecommons.org/licenses/by/4.0/' },
+  '2': { name: 'Creative Commons — Attribution — Share Alike', spdx: 'CC-BY-SA-4.0', href: 'http://creativecommons.org/licenses/by-sa/4.0/' },
+  '8': { name: 'Creative Commons — Attribution — NoDerivatives', spdx: 'CC-BY-ND-4.0', href: 'http://creativecommons.org/licenses/by-nd/4.0/' },
+  '3': { name: 'Creative Commons — Attribution — Noncommercial', spdx: 'CC-BY-NC-4.0', href: 'http://creativecommons.org/licenses/by-nc/4.0/' },
+  '4': { name: 'Creative Commons — Attribution — Noncommercial — Share Alike', spdx: 'CC-BY-NC-SA-4.0', href: 'http://creativecommons.org/licenses/by-nc-sa/4.0/' },
+  '6': { name: 'Creative Commons — Attribution — Noncommercial — NoDerivatives', spdx: 'CC-BY-NC-ND-4.0', href: 'http://creativecommons.org/licenses/by-nc-nd/4.0/' },
+  '9': { name: 'GNU General Public License v2.0', spdx: 'GPL-2.0-only', href: 'http://www.gnu.org/licenses/old-licenses/gpl-2.0.html' },
+  '12': { name: 'GNU General Public License v3.0', spdx: 'GPL-3.0-only', href: 'https://www.gnu.org/licenses/gpl-3.0.html' },
+  '10': { name: 'GNU Lesser General Public License', spdx: 'LGPL-3.0-only', href: 'https://www.gnu.org/licenses/lgpl-3.0.html' },
+  '11': { name: 'BSD License', spdx: 'BSD-2-Clause', href: 'https://opensource.org/licenses/BSD-2-Clause' },
+  '13': { name: 'Standard Digital File License', spdx: 'LicenseRef-Printables-Standard-Digital-File' },
+  '14': { name: 'Commercial Use - No Derivative', spdx: 'LicenseRef-Printables-Commercial-Use-No-Derivative' },
+  '15': { name: 'Commercial Use', spdx: 'LicenseRef-Printables-Commercial-Use' },
+  '16': { name: 'Open Community License v1', spdx: 'LicenseRef-OCL-1.0', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence/tree/main' },
+  '17': { name: 'Open Community License v1.1', spdx: 'LicenseRef-OCL-1.1', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence' },
+  '19': { name: 'Open Community License v1.1 + General Attribution v1', spdx: 'LicenseRef-OCL-1.1-GAtt-1.0', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence' },
+  '20': { name: 'Open Community License v1.1 + Research & Development v1', spdx: 'LicenseRef-OCL-1.1-RnD-1.0', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence' },
+  '21': { name: 'Open Community License v1.1 + Micro Business v1', spdx: 'LicenseRef-OCL-1.1-Micro-1.0', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence' },
+  '22': { name: 'Open Community License v1.1 + GAtt v1 + Micro v1', spdx: 'LicenseRef-OCL-1.1-GAtt-1.0-Micro-1.0', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence' },
+  '23': { name: 'Open Community License v1.1 + GAtt v1 + RnD v1', spdx: 'LicenseRef-OCL-1.1-GAtt-1.0-RnD-1.0', href: 'https://github.com/OpenCommunityLicence/OpenCommunityLicence' },
+  '18': { name: 'CERN Open Hardware Licence Version 2 - Strongly Reciprocal', spdx: 'CERN-OHL-S-2.0', href: 'https://ohwr.org/cern_ohl_s_v2.txt' },
+  '24': { name: 'Apache License 2.0', spdx: 'Apache-2.0', href: 'https://www.apache.org/licenses/LICENSE-2.0' },
 };
 
-/** Deed link -> license name, for the hydrated page; links shared by several licenses are left out. */
+/** Deed link -> license, for the hydrated page; links shared by several licenses are left out. */
 const LICENSE_BY_HREF = (() => {
-  const map = new Map<string, string | null>();
-  for (const { name, href } of Object.values(LICENSES)) {
-    if (!href) continue;
-    const key = hrefKey(href);
-    map.set(key, map.has(key) ? null : name);
+  const map = new Map<string, { name: string; spdx: string } | null>();
+  for (const license of Object.values(LICENSES)) {
+    if (!license.href) continue;
+    const key = hrefKey(license.href);
+    map.set(key, map.has(key) ? null : license);
   }
   return map;
 })();
@@ -167,7 +170,10 @@ export function createPrintables(deps: PrintablesDeps = {}): SiteAdapter {
       const creator = creatorOf(doc, model);
       if (creator) result.creator = creator;
       const license = licenseOf(doc, model);
-      if (license) result.licenseText = license;
+      if (license) {
+        result.licenseText = license.name;
+        result.licenseId = license.spdx;
+      }
       const cover = coverOf(doc, ld);
       if (cover) result.coverImageUrl = cover;
       return result;
@@ -327,9 +333,9 @@ function creatorOf(doc: Document, model: PrintablesModel): SourceModel['creator'
   return href?.startsWith('/@') ? { name: cardName, url: `${ORIGIN}${href}` } : { name: cardName };
 }
 
-function licenseOf(doc: Document, model: PrintablesModel): string | undefined {
+function licenseOf(doc: Document, model: PrintablesModel): { name: string; spdx: string } | undefined {
   const id = model.license?.id;
-  if (id !== undefined && id !== null) return LICENSES[String(id)]?.name;
+  if (id !== undefined && id !== null) return LICENSES[String(id)];
   const href = doc.querySelector('a[rel="license"]')?.getAttribute('href');
   return href ? (LICENSE_BY_HREF.get(hrefKey(href)) ?? undefined) : undefined;
 }
