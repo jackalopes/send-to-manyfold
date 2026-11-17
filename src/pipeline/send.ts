@@ -1,5 +1,5 @@
 import { ManyfoldError, type ManyfoldErrorCode } from '../manyfold/errors';
-import { applyMetadata, metadataInputFromSource, type MetadataResult } from '../manyfold/metadata';
+import { applyMetadata, metadataInputFromSource, uniqueTags, type MetadataResult } from '../manyfold/metadata';
 import { checkManyfold } from '../manyfold/preflight';
 import { createModel, uploadFile, waitForExtraction } from '../manyfold/upload';
 import { isAbort, MESSAGES, PipelineError, toSendError, type SendError } from './errors';
@@ -201,7 +201,7 @@ async function createOnce(state: SendState, g: ModelGroup, deps: SendDeps, api: 
   ctx.createInFlight = true;
   let created;
   try {
-    created = await api.createModel(deps.client, files, { name: g.name, collectionIds: state.req.collectionIds, sensitive: state.req.sensitive, signal });
+    created = await api.createModel(deps.client, files, { name: g.name, collectionIds: state.req.collectionIds, sensitive: state.req.sensitive, tags: uniqueTags(state.req.source.tags), signal });
   } catch (e) {
     if (e instanceof ManyfoldError && CREATE_REFUSED.has(e.code)) ctx.createInFlight = false;
     throw e;

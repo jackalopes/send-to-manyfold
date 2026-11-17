@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DownloadLoginRequired, DownloadNotFound } from '../adapters/errors';
+import { ManyfoldClient } from '../manyfold/client';
+import { createModel } from '../manyfold/upload';
 import { ManyfoldError, UNAUTHORIZED_TEXT } from '../manyfold/errors';
 import { stl, zip } from '../manyfold/live-fixtures';
 import { MESSAGES, PipelineError } from './errors';
@@ -31,6 +33,36 @@ describe('sendModel: upload shape and order', () => {
     expect(h.createModelFake.mock.calls[0]![2]).toMatchObject({ name: 'Popup Title', collectionIds: ['c1'], sensitive: false });
     expect(h.waitFake.mock.calls[0]![3]).toMatchObject({ minFiles: 2 });
     expect(h.recordSend.mock.calls[0]![0]).toEqual({ sourceUrl: req.source.sourceUrl, manyfoldUrl: `${BASE}/models/m1`, at: 0 });
+  });
+
+  it('sends the final, de-duplicated tags with the create call, and omits them when there are none', async () => {
+    const h = harness();
+    const req = request([file('a.stl')]);
+    req.source = { ...req.source, tags: ['Tag One', 'tag one', ' ', 'two'] };
+    await sendModel(req, h.deps, noop);
+    expect(h.createModelFake.mock.calls[0]![2].tags).toEqual(['Tag One', 'two']);
+    const h2 = harness();
+    const req2 = request([file('a.stl')]);
+    req2.source = { ...req2.source, tags: [] };
+    await sendModel(req2, h2.deps, noop);
+    expect(h2.createModelFake.mock.calls[0]![2].tags ?? []).toEqual([]);
+  });
+
+  it('a 422 then a network error on the retry of the create is reported as "may already exist", with no blind re-send', async () => {
+    const h = harness();
+    let n = 0;
+    const fetchImpl = (async () => {
+      if (++n === 1) return new Response('{}', { status: 422 });
+      throw new TypeError('Failed to fetch');
+    }) as unknown as typeof fetch;
+    const deps = { ...h.deps, client: new ManyfoldClient(BASE, TOKEN, fetchImpl, async () => true), api: { ...h.deps.api, createModel } };
+    const r = await sendModel(request([file('a.stl')]), deps, noop);
+    expect(n).toBe(2);
+    expect(r).toMatchObject({ status: 'failed', stage: 'creating', ambiguous: true, error: { code: 'create-ambiguous' } });
+    expect(r.status === 'failed' && r.error.message).toMatch(/may already exist/i);
+    const blind = await retrySend('t1', deps, noop);
+    expect(blind).toMatchObject({ status: 'failed', ambiguous: true, error: { code: 'create-ambiguous' } });
+    expect(n).toBe(2);
   });
 
   it('one archive: uploads only the archive, waits for extraction with its name, then sets the popup title', async () => {

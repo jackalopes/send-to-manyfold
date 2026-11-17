@@ -279,6 +279,97 @@ describe('createModel', () => {
     });
   });
 
+  it('sends the tags as a keywords array, and omits the key when there are none', async () => {
+    const srv = modelsServer(() => new Response(null, { status: 201, headers: { Location: '/models/x1' } }));
+    await createModel(client(srv.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: ['tag-a', 'tag-b'] });
+    expect(srv.body().keywords).toEqual(['tag-a', 'tag-b']);
+    const none = modelsServer(() => new Response(null, { status: 201, headers: { Location: '/models/x1' } }));
+    await createModel(client(none.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: [] });
+    expect(none.body()).not.toHaveProperty('keywords');
+    const absent = modelsServer(() => new Response(null, { status: 201, headers: { Location: '/models/x1' } }));
+    await createModel(client(absent.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false });
+    expect(absent.body()).not.toHaveProperty('keywords');
+  });
+
+  it.each([400, 422])('a %i for a create with keywords is retried once without them', async (status) => {
+    let n = 0;
+    const srv = modelsServer(() => (++n === 1 ? new Response('{}', { status }) : new Response(null, { status: 201, headers: { Location: '/models/x1' } })));
+    const r = await createModel(client(srv.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, collectionIds: ['c1'], tags: ['t'] });
+    expect(r).toMatchObject({ status: 'created', id: 'x1' });
+    const posts = srv.calls.filter((c) => c.method === 'POST').map((c) => JSON.parse(String(c.body)));
+    expect(posts).toHaveLength(2);
+    expect(posts[0].keywords).toEqual(['t']);
+    expect(posts[1]).not.toHaveProperty('keywords');
+    expect(posts[1]).toMatchObject({ name: 'A', isPartOf: expect.any(Array) });
+  });
+
+  it('a 422 retry that fails again reports the failure (one retry only)', async () => {
+    const srv = modelsServer(() => new Response('{}', { status: 422 }));
+    await expect(createModel(client(srv.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: ['t'] })).rejects.toMatchObject({ code: 'create-failed' });
+    expect(srv.calls).toHaveLength(2);
+  });
+
+  it('a 422 without keywords is not retried', async () => {
+    const srv = modelsServer(() => new Response('{}', { status: 422 }));
+    await expect(createModel(client(srv.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false })).rejects.toMatchObject({ code: 'create-failed' });
+    expect(srv.calls).toHaveLength(1);
+  });
+
+  it.each([401, 403, 404, 409, 413, 429, 500, 502, 504])('a %i for a create with keywords is not retried', async (status) => {
+    const srv = modelsServer(() => new Response('x', { status }));
+    await createModel(client(srv.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: ['t'] }).catch(() => undefined);
+    expect(srv.calls).toHaveLength(1);
+  });
+
+  it('a network failure for a create with keywords is not retried (the model may exist)', async () => {
+    const s = stub(() => {
+      throw new TypeError('network down');
+    });
+    await createModel(client(s.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: ['t'] }).catch(() => undefined);
+    expect(s.calls).toHaveLength(1);
+  });
+
+  it('an abort during the retry is passed on and nothing is posted again', async () => {
+    const ctl = new AbortController();
+    let n = 0;
+    const s = stub(() => {
+      if (++n === 1) return new Response('{}', { status: 422 });
+      ctl.abort();
+      throw new DOMException('Aborted', 'AbortError');
+    });
+    await expect(createModel(client(s.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: ['t'], signal: ctl.signal })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(s.calls).toHaveLength(2);
+  });
+
+  it('an already aborted signal sends nothing more than the first attempt and is not retried', async () => {
+    const ctl = new AbortController();
+    const s = stub(() => {
+      ctl.abort();
+      throw new DOMException('Aborted', 'AbortError');
+    });
+    await createModel(client(s.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: ['t'], signal: ctl.signal }).catch(() => undefined);
+    expect(s.calls).toHaveLength(1);
+  });
+
+  it('leaves tags over 255 bytes out of keywords, and omits the key when none are left', async () => {
+    const long = 'x'.repeat(256);
+    const wide = 'é'.repeat(128); // 128 characters but 256 bytes in UTF-8
+    const srv = modelsServer(() => new Response(null, { status: 201, headers: { Location: '/models/x1' } }));
+    await createModel(client(srv.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: ['ok', long, wide, 'x'.repeat(255)] });
+    expect(srv.body().keywords).toEqual(['ok', 'x'.repeat(255)]);
+    const only = modelsServer(() => new Response(null, { status: 201, headers: { Location: '/models/x1' } }));
+    await createModel(client(only.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, tags: [long] });
+    expect(only.body()).not.toHaveProperty('keywords');
+  });
+
+  it('several archives answer 202 without Location; the keywords went out in that one request', async () => {
+    const srv = modelsServer(() => new Response(null, { status: 202 }));
+    const r = await createModel(client(srv.fetch), [uploaded('b.zip', 1), uploaded('c.zip', 2)], { name: 'Two', sensitive: false, tags: ['t'] });
+    expect(r).toEqual({ status: 'accepted-no-location' });
+    expect(srv.body().keywords).toEqual(['t']);
+    expect(srv.calls).toHaveLength(1);
+  });
+
   it('treats a leading slash as a server path (what the popup picker sends), not as a bare id', async () => {
     const srv = modelsServer(() => new Response(null, { status: 201, headers: { Location: '/models/x1' } }));
     await createModel(client(srv.fetch), [uploaded('a.stl')], { name: 'A', sensitive: false, collectionIds: ['/collections/abc'] });

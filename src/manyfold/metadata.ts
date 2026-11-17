@@ -432,7 +432,7 @@ function httpUrl(raw: string | undefined): string | undefined {
 }
 
 /** Trimmed, non-empty, first spelling wins for case-insensitive duplicates (the server dedupes the same way). */
-function uniqueTags(tags: string[]): string[] {
+export function uniqueTags(tags: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const t of tags) {
