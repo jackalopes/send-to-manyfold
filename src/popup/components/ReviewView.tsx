@@ -1,7 +1,9 @@
 import type { NamedRef } from '../../manyfold/metadata';
 import { SITE_NAMES } from '../site-names';
 import type { ConnectionProblem, PriorSend } from '../machine';
-import { canSend, setSelected, type ReviewForm } from '../state';
+import { formatBytes } from '../../format';
+import { uploadLimit, type UploadLimit } from '../../pipeline/files';
+import { canSend, oversizeBundles, setSelected, type FormFile, type ReviewForm } from '../state';
 import { errorText } from '../labels';
 import type { SendError } from '../../pipeline/errors';
 import type { SourceModel } from '../../types';
@@ -65,9 +67,23 @@ function ConnectionNotice({ problem, openSettings }: { problem: ConnectionProble
   );
 }
 
+/** Says which files are over the limit, where the limit comes from, whether the rest still goes, and what to do. */
+function overLimitText(blocked: FormFile[], total: number, limit: UploadLimit): string {
+  const one = blocked.length === 1;
+  const names = blocked.slice(0, 3).map((f) => f.file.path ?? f.file.name).join(', ') + (blocked.length > 3 ? ` and ${blocked.length - 3} more` : '');
+  const size = formatBytes(limit.bytes);
+  const server = limit.source === 'server';
+  const rest = blocked.length === total ? 'Nothing can be sent.' : 'The other files will still be sent.';
+  const advice = server ? ` To include ${one ? 'it' : 'them'}, raise the server's limit (MAX_FILE_UPLOAD_SIZE) and reopen this popup.` : '';
+  return `${one ? '1 file is' : `${blocked.length} files are`} larger than ${server ? `this Manyfold server's ${size} upload limit` : `the ${size} the extension can send`}, so ${one ? 'it' : 'they'} will be left out: ${names}. ${rest}${advice}`;
+}
+
 export function ReviewView(p: ReviewViewProps) {
   const patch = (x: Partial<ReviewForm>) => p.onChange({ ...p.form, ...x });
   const warn = p.prior && !p.duplicateDismissed;
+  const blocked = p.form.files.filter((f) => f.disabledReason);
+  const bundles = oversizeBundles(p.form);
+  const limit = p.form.limit ?? uploadLimit();
   return (
     <form
       onSubmit={(e) => {
@@ -78,11 +94,19 @@ export function ReviewView(p: ReviewViewProps) {
       {p.sendError ? <p role="alert" class="error">{errorText(p.sendError.code, p.sendError.message)}</p> : null}
       {p.connectionProblem ? <ConnectionNotice problem={p.connectionProblem} openSettings={p.openSettings} /> : null}
       {warn ? (
-        <div role="alert" class="warning">
+        <div role="alert" class="warning" data-testid="duplicate-warning">
           <PriorSendNotice prior={p.prior!} openUrl={p.openUrl} />
           <button type="button" onClick={p.onDismissDuplicate}>Send anyway</button>
         </div>
       ) : null}
+      {blocked.length ? (
+        <p class="warning" role="status" data-testid="over-limit">{overLimitText(blocked, p.form.files.length, limit)}</p>
+      ) : null}
+      {bundles.map((b) => (
+        <p class="warning" role="alert" data-testid="bundle-over-limit" key={b.bundle}>
+          The ticked files for "{b.bundle}" add up to {formatBytes(b.total)}, over the {formatBytes(limit.bytes)} limit{limit.source === 'server' ? ' of this Manyfold server' : ''}. Untick some files to send them.
+        </p>
+      ))}
       {p.model.loginRequired ? (
         <p class="warning">Sign in to {SITE_NAMES[p.model.site]} to download these files, or the send will fail.</p>
       ) : null}
@@ -104,7 +128,7 @@ export function ReviewView(p: ReviewViewProps) {
       ) : (
         <FileList files={p.form.files} onToggle={(i, selected) => patch({ files: p.form.files.map((f, j) => (j === i ? { ...f, selected } : f)) })} />
       )}
-      <button type="submit" disabled={!canSend(p.form) || !!warn}>Send to Manyfold</button>
+      <button type="submit" disabled={!canSend(p.form) || !!warn || bundles.length > 0}>Send to Manyfold</button>
     </form>
   );
 }

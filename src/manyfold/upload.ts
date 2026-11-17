@@ -22,6 +22,8 @@ export interface UploadOptions {
   retryDelayMs?: number;
   /** Continue an earlier upload (from `ManyfoldError.uploadUrl`) instead of creating a new one. */
   resumeUrl?: string;
+  /** The server's limit when the caller already asked for it: skips the per-file `OPTIONS /upload`. */
+  maxSize?: number;
   /** Cancels the upload; rejects with the signal's reason (an `AbortError`), never retried. */
   signal?: AbortSignal;
 }
@@ -51,7 +53,8 @@ export async function uploadFile(
     });
   }
   if (offset === undefined) {
-    await checkMaxSize(client, name, total, signal);
+    if (opts.maxSize === undefined) await checkMaxSize(client, name, total, signal);
+    else if (total > opts.maxSize) throw tooLarge(name, total, opts.maxSize);
     uploadUrl = await createUpload(client, name, total, signal);
     offset = 0;
   }
@@ -263,13 +266,33 @@ class RetryableError extends Error {
   }
 }
 
+/** The `Tus-Max-Size` of a successful OPTIONS answer, if it states a usable one. */
+function tusMaxSize(res: Response): number | undefined {
+  const raw = Number(res.headers.get('Tus-Max-Size'));
+  return res.ok && Number.isFinite(raw) && raw > 0 ? raw : undefined;
+}
+
+/**
+ * The server's per-file upload limit (`OPTIONS /upload`), or undefined when it does not say or cannot be asked
+ * (nothing else is reported: the real requests find out). Only a cancel rethrows.
+ */
+export async function fetchMaxUploadSize(client: ManyfoldClient, signal?: AbortSignal): Promise<number | undefined> {
+  signal?.throwIfAborted();
+  try {
+    const res = await client.request('/upload', { method: 'OPTIONS', headers: { 'Tus-Resumable': TUS_VERSION }, ...(signal ? { signal } : {}) });
+    return tusMaxSize(res);
+  } catch {
+    signal?.throwIfAborted();
+    return undefined;
+  }
+}
+
 async function checkMaxSize(client: ManyfoldClient, name: string, size: number, signal?: AbortSignal): Promise<void> {
   let max: number | undefined;
   try {
     const res = await client.request('/upload', { method: 'OPTIONS', headers: { 'Tus-Resumable': TUS_VERSION }, signal });
     throwIfFatal(res, name);
-    const raw = Number(res.headers.get('Tus-Max-Size'));
-    if (res.ok && raw > 0) max = raw;
+    max = tusMaxSize(res);
   } catch (e) {
     if (e instanceof ManyfoldError) throw e;
     signal?.throwIfAborted();

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ManyfoldClient } from './client';
-import { createModel, uploadFile, waitForExtraction } from './upload';
+import { createModel, fetchMaxUploadSize, uploadFile, waitForExtraction } from './upload';
 import { ManyfoldError } from './errors';
 import type { UploadedFile } from './types';
 
@@ -566,6 +566,45 @@ describe('waitForExtraction with the uploaded archive names', () => {
     const s = stub(() => new Response(modelJson([STL, nested]), { status: 200 }));
     const r = await waitForExtraction(client(s.fetch), { id: 'm1' }, 5_000, { intervalMs: 1, expectedArchiveNames: ['alpha_model.zip'] });
     expect(r.files.map((f) => f.id)).toEqual([STL.id, nested.id]);
+  });
+});
+
+describe('uploadFile with a limit the caller already fetched', () => {
+  it('does not ask the server again, and still refuses a file over it', async () => {
+    const s = stub(tusServer({ maxSize: 100 * MB }).handler);
+    await uploadFile(client(s.fetch), new Blob([new Uint8Array(MB)]), 'p.stl', () => {}, { maxSize: 2 * MB });
+    expect(s.calls.some((c) => c.method === 'OPTIONS')).toBe(false);
+    const err = await uploadFile(client(s.fetch), new Blob([new Uint8Array(3 * MB)]), 'big.zip', () => {}, { maxSize: 2 * MB }).catch((e) => e);
+    expect(err).toMatchObject({ code: 'too-large', message: expect.stringMatching(/3 MiB.*2 MiB/) });
+    expect(s.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+  });
+});
+
+describe('fetchMaxUploadSize', () => {
+  it('reads Tus-Max-Size from OPTIONS /upload, smaller or larger than 1 GiB', async () => {
+    for (const max of [2 * MB, 5 * 1024 * 1024 * 1024]) {
+      const s = stub(tusServer({ maxSize: max }).handler);
+      expect(await fetchMaxUploadSize(client(s.fetch))).toBe(max);
+      expect(s.calls.map((c) => `${c.method} ${c.url.slice(BASE.length)}`)).toEqual(['OPTIONS /upload']);
+    }
+  });
+
+  it('is undefined when the header is missing, the answer is an error, or the server cannot be reached', async () => {
+    expect(await fetchMaxUploadSize(client(stub(() => new Response(null, { status: 204 })).fetch))).toBeUndefined();
+    expect(await fetchMaxUploadSize(client(stub(() => new Response(null, { status: 500, headers: { 'Tus-Max-Size': '5' } })).fetch))).toBeUndefined();
+    expect(await fetchMaxUploadSize(client((() => Promise.reject(new TypeError('network'))) as unknown as typeof fetch))).toBeUndefined();
+  });
+
+  it('is undefined for a header of 0 or one that is not a number', async () => {
+    for (const v of ['0', 'abc', '-5', '']) {
+      expect(await fetchMaxUploadSize(client(stub(() => new Response(null, { status: 204, headers: { 'Tus-Max-Size': v } })).fetch))).toBeUndefined();
+    }
+  });
+
+  it('rethrows a cancel', async () => {
+    const ctl = new AbortController();
+    ctl.abort();
+    await expect(fetchMaxUploadSize(client(stub(() => new Response(null, { status: 204 })).fetch), ctl.signal)).rejects.toBeDefined();
   });
 });
 

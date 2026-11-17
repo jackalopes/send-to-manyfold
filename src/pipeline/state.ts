@@ -1,6 +1,7 @@
 import type { MetadataResult } from '../manyfold/metadata';
 import type { UploadedFile } from '../manyfold/upload';
 import type { SourceFile } from '../types';
+import type { UploadLimit } from './files';
 import type { SendRequest } from './types';
 
 /** One file of a send: a selected file, or the page cover image. Held in memory only. */
@@ -42,6 +43,8 @@ export interface SendState {
   /** Why the cover image could not be used, reported as a `preview` failure of the loose-file model. */
   coverNote?: string;
   running?: boolean;
+  /** The per-file size limit of the current run (the server's, when it stated one); the 1 GiB default until known. */
+  limit?: UploadLimit;
 }
 
 export interface SendStateStore {

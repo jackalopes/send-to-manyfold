@@ -5,7 +5,7 @@ import type { SendEvent } from '../pipeline/messages';
 import type { Settings } from '../settings';
 import type { PopupApi } from './api';
 import type { ConnectionProblem, PopupAction, PopupState, PriorSend } from './machine';
-import { buildInitialForm, toSendRequest, type ReviewForm } from './state';
+import { applyServerLimit, buildInitialForm, toSendRequest, type ReviewForm } from './state';
 
 export interface ControllerDeps {
   api: PopupApi;
@@ -14,6 +14,8 @@ export interface ControllerDeps {
   findPriorSend(sourceUrl: string): Promise<HistoryEntry | undefined>;
   /** Asks the user's Manyfold whether it already has the page; never rejects. */
   lookupModel(pageUrl: string): Promise<LookupResult>;
+  /** The server's per-file upload limit (`Tus-Max-Size`), or undefined when unknown; never rejects. Optional: the 1 GiB default stays without it. */
+  serverMaxBytes?(): Promise<number | undefined>;
   /** `location.search` of the popup page (`?tabId=` when it runs in a window). */
   search: string;
   dispatch(action: PopupAction): void;
@@ -76,6 +78,15 @@ export function createController(deps: ControllerDeps) {
     return { ...(entry ? { prior: { source: 'history' as const, entry } } : {}), ...(problem ? { problem } : {}) };
   }
 
+  /** Asks for the server's upload limit; when it arrives (and the popup still shows this page) files over it are disabled. */
+  async function learnLimit(sourceUrl: string): Promise<void> {
+    const max = await deps.serverMaxBytes?.().catch(() => undefined);
+    const s = getState();
+    if (max === undefined || s.phase !== 'review' || s.model.sourceUrl !== sourceUrl) return;
+    const form = applyServerLimit(s.form, max);
+    if (form !== s.form) dispatch({ type: 'formChanged', form });
+  }
+
   return {
     async init(): Promise<void> {
       api.subscribe(onEvent);
@@ -98,11 +109,15 @@ export function createController(deps: ControllerDeps) {
       dispatch({ type: 'extracted', model: out.model, form: buildInitialForm(out.model, settings), baseUrl: settings.manyfoldUrl });
       // The form is already showing; the warning joins it when the answer arrives, unless the popup has moved on.
       const sourceUrl = out.model.sourceUrl;
+      const limitKnown = learnLimit(sourceUrl);
       const { prior, problem } = await priorSend(sourceUrl);
+      // The warnings never wait for the limit: a slow server must not hold them back.
       const s = getState();
-      if (s.phase !== 'review' || s.model.sourceUrl !== sourceUrl) return;
-      if (problem) dispatch({ type: 'connectionProblem', problem });
-      if (prior) dispatch({ type: 'priorFound', prior });
+      if (s.phase === 'review' && s.model.sourceUrl === sourceUrl) {
+        if (problem) dispatch({ type: 'connectionProblem', problem });
+        if (prior) dispatch({ type: 'priorFound', prior });
+      }
+      await limitKnown;
     },
 
     changeForm(form: ReviewForm): void {

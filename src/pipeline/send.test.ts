@@ -453,6 +453,70 @@ describe('sendModel: downloads', () => {
     expect(h2.uploadFileFake).not.toHaveBeenCalled();
   });
 
+  describe("the server's own upload limit", () => {
+    const MiB = 1024 * 1024;
+    const GiB = 1024 * MiB;
+
+    it('a server limit under 1 GiB rejects a listed size over it before downloading, and the message states it', async () => {
+      const h = harness();
+      h.serverMax.value = 512 * MiB;
+      const r = await sendModel(request([file('big.stl', { size: 600 * MiB })]), h.deps, noop);
+      expect(r).toMatchObject({ status: 'failed', stage: 'downloading', error: { code: 'too-large', message: expect.stringContaining('this Manyfold server accepts (512 MiB)') } });
+      expect(h.fetchFile).not.toHaveBeenCalled();
+    });
+
+    it('a server limit under 1 GiB still lets a smaller file through, and the download is capped at that limit', async () => {
+      const h = harness();
+      h.serverMax.value = 512 * MiB;
+      const r = await sendModel(request([file('ok.stl', { size: 100 * MiB })]), h.deps, noop);
+      expect(r.status).toBe('done');
+      expect(h.fetchFile.mock.calls[0]![2]).toBe(512 * MiB);
+    });
+
+    it('rejects a downloaded blob over the server limit', async () => {
+      const h = harness();
+      h.serverMax.value = 512 * MiB;
+      h.fetchFile.mockResolvedValueOnce({ size: 513 * MiB } as Blob);
+      const r = await sendModel(request([file('a.stl')]), h.deps, noop);
+      expect(r).toMatchObject({ status: 'failed', error: { code: 'too-large', message: expect.stringContaining('512 MiB') } });
+      expect(h.uploadFileFake).not.toHaveBeenCalled();
+    });
+
+    it('a server limit over 1 GiB does not raise the cap (files live in memory, zips are not ZIP64) and does not claim the server refuses', async () => {
+      const h = harness();
+      h.serverMax.value = 5 * GiB;
+      const r = await sendModel(request([file('huge.stl', { size: 2 * GiB })]), h.deps, noop);
+      expect(r).toMatchObject({ status: 'failed', error: { code: 'too-large', message: expect.stringContaining('1 GiB') } });
+      expect(r.status === 'failed' && r.error.message).not.toContain('server accepts');
+      expect(h.fetchFile).not.toHaveBeenCalled();
+    });
+
+    it('an unknown limit keeps the 1 GiB default', async () => {
+      const h = harness();
+      const r = await sendModel(request([file('huge.stl', { size: GiB + 1 })]), h.deps, noop);
+      expect(r).toMatchObject({ status: 'failed', error: { code: 'too-large', message: expect.stringContaining('Manyfold accepts (1 GiB)') } });
+    });
+
+    it('hands the limit to the upload so it is not asked again per file (known limits only)', async () => {
+      const h = harness();
+      h.serverMax.value = 512 * MiB;
+      await sendModel(request([file('a.stl')]), h.deps, noop);
+      expect(h.uploadFileFake.mock.calls[0]![4]).toMatchObject({ maxSize: 512 * MiB });
+      const h2 = harness();
+      await sendModel(request([file('a.stl')]), h2.deps, noop);
+      expect(h2.uploadFileFake.mock.calls[0]![4]).not.toHaveProperty('maxSize');
+    });
+
+    it('is asked once per run, after the connection check and with the cancel signal', async () => {
+      const h = harness();
+      const ctl = new AbortController();
+      await sendModel(request([file('a.stl')]), h.deps, noop, { signal: ctl.signal });
+      expect(h.maxUploadSizeFake).toHaveBeenCalledTimes(1);
+      expect(h.maxUploadSizeFake.mock.calls[0]![0]).toBe(h.deps.client);
+      expect(h.maxUploadSizeFake.mock.calls[0]![1]).toBe(ctl.signal);
+    });
+  });
+
   it('fails with no-files when nothing is selected', async () => {
     const h = harness();
     const r = await sendModel(request([]), h.deps, noop);

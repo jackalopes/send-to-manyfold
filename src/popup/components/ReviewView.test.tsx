@@ -56,3 +56,63 @@ describe('ReviewView license hint', () => {
     expect(root.textContent).toContain(HINT);
   });
 });
+
+describe('ReviewView size-limit notes', () => {
+  const MiB = 1024 ** 2;
+  const part = (name: string, size: number, extra: Partial<ReviewForm['files'][number]> = {}) => ({
+    file: { name, path: `STLs/${name}`, url: `https://x/${name}`, kind: 'model' as const, bundle: 'm.zip', size },
+    selected: true,
+    ...extra,
+  });
+  const showForm = (form: ReviewForm) =>
+    render(<ReviewView model={model('m.zip')} form={form} duplicateDismissed={false} collections={[]} openSettings={() => {}} onChange={() => {}} onSend={() => {}} onDismissDuplicate={() => {}} openUrl={() => {}} />, root);
+
+  const over = (n: number, extra: Partial<ReviewForm['files'][number]> = {}) =>
+    Array.from({ length: n }, (_, i) => part(`f${i + 1}.stl`, 600 * MiB, { selected: false, disabledReason: 'too big', ...extra }));
+  const server5 = { bytes: 5 * MiB, source: 'server' as const };
+  const noteText = () => root.querySelector('.warning[data-testid="over-limit"]')!.textContent;
+
+  it('names files that cannot be sent even when they sit in a collapsed folder, and says the rest still goes', () => {
+    showForm({ ...formOf(model('m.zip')), limit: server5, files: [...over(1), part('ok.stl', MiB)] });
+    expect(noteText()).toBe(
+      "1 file is larger than this Manyfold server's 5 MiB upload limit, so it will be left out: STLs/f1.stl. The other files will still be sent. To include it, raise the server's limit (MAX_FILE_UPLOAD_SIZE) and reopen this popup.",
+    );
+  });
+
+  it.each([
+    [3, 'STLs/f1.stl, STLs/f2.stl, STLs/f3.stl'],
+    [4, 'STLs/f1.stl, STLs/f2.stl, STLs/f3.stl and 1 more'],
+    [12, 'STLs/f1.stl, STLs/f2.stl, STLs/f3.stl and 9 more'],
+  ])('lists at most three names, then "and N more", in the plural (%i over)', (n, names) => {
+    showForm({ ...formOf(model('m.zip')), limit: server5, files: [...over(n), part('ok.stl', MiB)] });
+    expect(noteText()).toBe(
+      `${n} files are larger than this Manyfold server's 5 MiB upload limit, so they will be left out: ${names}. The other files will still be sent. To include them, raise the server's limit (MAX_FILE_UPLOAD_SIZE) and reopen this popup.`,
+    );
+  });
+
+  it('gives no server advice when the limit is the extension default', () => {
+    showForm({ ...formOf(model('m.zip')), files: [...over(2), part('ok.stl', MiB)] });
+    expect(noteText()).toBe('2 files are larger than the 1 GiB the extension can send, so they will be left out: STLs/f1.stl, STLs/f2.stl. The other files will still be sent.');
+  });
+
+  it('says nothing can be sent, and keeps the advice, when every file is over the limit', () => {
+    showForm({ ...formOf(model('m.zip')), limit: server5, files: over(2) });
+    expect(noteText()).toBe(
+      "2 files are larger than this Manyfold server's 5 MiB upload limit, so they will be left out: STLs/f1.stl, STLs/f2.stl. Nothing can be sent. To include them, raise the server's limit (MAX_FILE_UPLOAD_SIZE) and reopen this popup.",
+    );
+  });
+
+  it('shows no such note when every file fits', () => {
+    showForm({ ...formOf(model('m.zip')), files: [part('ok.stl', MiB)] });
+    expect(root.querySelector('[data-testid="over-limit"]')).toBeNull();
+    expect(root.querySelector('[data-testid="bundle-over-limit"]')).toBeNull();
+  });
+
+  it('warns before sending when the ticked parts of a bundle add up to more than the limit, and blocks the send', () => {
+    const limit = { bytes: 512 * MiB, source: 'server' as const };
+    showForm({ ...formOf(model('m.zip')), limit, files: [part('a.stl', 300 * MiB), part('b.stl', 300 * MiB)] });
+    const note = root.querySelector('[data-testid="bundle-over-limit"]')!;
+    expect(note.textContent).toMatch(/"m\.zip".*600 MiB.*512 MiB.*Untick some files/);
+    expect(root.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(true);
+  });
+});

@@ -93,6 +93,14 @@ describe('fetchFile', () => {
     expect(cancelled).toBe(true);
   });
 
+  it('a per-call limit (the server\'s) replaces the default and shows in the message', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => response(streamOf([new Uint8Array(1)]), { headers: { 'content-length': String(3 * MiB) } }));
+    const err = await createFetchFile(fetchImpl)('https://cdn.example.com/a.stl', undefined, 2 * MiB).catch((e: unknown) => e);
+    expect(toSendError(err, 'downloading')).toMatchObject({ code: 'too-large', message: expect.stringContaining('2 MiB') });
+    const ok = vi.fn<typeof fetch>(async () => response(streamOf([new Uint8Array(1)]), { headers: { 'content-length': String(3 * MiB) } }));
+    await expect(createFetchFile(ok)('https://cdn.example.com/a.stl')).resolves.toBeInstanceOf(Blob);
+  });
+
   it('a cancel aborts the fetch and the read', async () => {
     const ctl = new AbortController();
     const fetchImpl = vi.fn<typeof fetch>(async (_u, init) => {

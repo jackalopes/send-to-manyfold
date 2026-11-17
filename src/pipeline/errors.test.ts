@@ -95,6 +95,9 @@ describe('clearer messages', () => {
     expect(MESSAGES['upload-failed']).toMatch(/Try again/);
     expect(MESSAGES['upload-failed']).not.toMatch(/resume/i);
   });
+  it('the plain too-large text keeps the 1 GiB default and says what to do', () => {
+    expect(MESSAGES['too-large']).toMatch(/Manyfold accepts \(1 GiB\).*Leave it out/);
+  });
   it('a failed model creation points at Manyfold\'s logs', () => {
     expect(MESSAGES['create-failed']).toMatch(/Manyfold's logs/);
   });

@@ -1,4 +1,5 @@
 import type { Settings, TagMode } from '../settings';
+import { tooLargeReason, uploadLimit, type UploadLimit } from '../pipeline/files';
 import type { SendRequest } from '../pipeline/types';
 import type { SourceFile, SourceModel } from '../types';
 import { isValidLicenseId, mapLicense } from '../manyfold/licenses';
@@ -27,12 +28,13 @@ export interface ReviewForm {
   /** A Manyfold collection id, path or empty for none. */
   collectionId: string;
   sensitive: boolean;
+  /** The upload limit the files were checked against (the server's once known); the 1 GiB default when absent. */
+  limit?: UploadLimit;
 }
 
-const TOO_LARGE = 'Larger than 1 GiB, which Manyfold does not accept.';
-
 /** Applies the per-field prefill toggles, the image settings, the default collection and the sensitive flag. */
-export function buildInitialForm(model: SourceModel, settings: Settings): ReviewForm {
+export function buildInitialForm(model: SourceModel, settings: Settings, serverMax?: number): ReviewForm {
+  const limit = uploadLimit(serverMax);
   const on = settings.prefill;
   // Voron files are zipped together, so the image settings do not apply to them.
   const offered = model.files.filter((f) => f.bundle !== undefined || settings.includeImages || f.kind !== 'image');
@@ -44,14 +46,36 @@ export function buildInitialForm(model: SourceModel, settings: Settings): Review
     tags: model.site !== 'other' && settings.siteTags[model.site] === 'on' ? [...model.tags] : [],
     sourceLink: on.sourceUrl,
     files: offered.map((file) => {
-      if (file.size !== undefined && file.size > MAX_FILE_BYTES) return { file, selected: false, disabledReason: TOO_LARGE };
+      if (file.size !== undefined && file.size > limit.bytes) return { file, selected: false, disabledReason: tooLargeReason(limit) };
       return { file, selected: file.kind === 'image' && file.bundle === undefined ? on.images : true };
     }),
     // A Voron send is one zip of the ticked files, so there is no loose-file model to hold a cover image.
     includeCover: settings.includeImages && !!model.coverImageUrl && !offered.some((f) => f.bundle !== undefined),
     collectionId: settings.defaultCollectionId?.trim() ?? '',
     sensitive: settings.defaultSensitive,
+    limit,
   };
+}
+
+/** Applies a server limit learned after the form was built: files over it are unticked and disabled (with the reason for this limit); nothing else changes. */
+export function applyServerLimit(form: ReviewForm, serverMax: number | undefined): ReviewForm {
+  if (serverMax === undefined) return form;
+  const limit = uploadLimit(serverMax);
+  const reason = tooLargeReason(limit);
+  const over = (f: FormFile) => f.file.size !== undefined && f.file.size > limit.bytes;
+  const files = form.files.map((f) => (over(f) && (f.selected || f.disabledReason !== reason) ? { ...f, selected: false, disabledReason: reason } : f));
+  const same = form.limit?.bytes === limit.bytes && form.limit.source === limit.source && files.every((f, i) => f === form.files[i]);
+  return same ? form : { ...form, limit, files };
+}
+
+/** Bundles (one zip each) whose ticked parts already add up to more than the limit; unknown sizes count as 0, so the total is a lower bound. */
+export function oversizeBundles(form: ReviewForm): { bundle: string; total: number }[] {
+  const totals = new Map<string, number>();
+  for (const f of form.files) {
+    if (f.file.bundle !== undefined && f.selected && !f.disabledReason) totals.set(f.file.bundle, (totals.get(f.file.bundle) ?? 0) + (f.file.size ?? 0));
+  }
+  const max = (form.limit ?? uploadLimit()).bytes;
+  return [...totals].filter(([, total]) => total > max).map(([bundle, total]) => ({ bundle, total }));
 }
 
 export function parseTags(text: string): string[] {
