@@ -1,0 +1,16 @@
+/* Design tokens shared by the options page and the popup. */
+:root {
+  color-scheme: light dark;
+  --bg: #f8f9fa; --card: #fff; --text: #1f1f1f; --muted: #5f6368; --line: #e3e3e3;
+  --teal: #08566a; --orange: #fa7417; --btn-text: #fff; --field: #fff; --field-line: #c4c7c5;
+  --ok: #1e7e34; --warn: #8a5a00; --danger: #b00020; --knob: #fff;
+  /* Focus ring: teal, not orange (orange is 2.6-2.8:1 on the light surfaces; teal is above 3:1 in both themes). */
+  --focus: var(--teal);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f1f1f; --card: #2a2b2d; --text: #e3e3e3; --muted: #a8abaf; --line: #3c3d3f;
+    --teal: #5fb3c7; --btn-text: #0b2a33; --field: #202124; --field-line: #5f6368;
+    --ok: #81c995; --warn: #ffc861; --danger: #ff8a9b;
+  }
+}

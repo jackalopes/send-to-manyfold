@@ -12,6 +12,8 @@ const model: SourceModel = {
   files: [{ name: 'a.stl', kind: 'model', size: 10 }, { name: 'big.stl', kind: 'model', size: 1024 ** 3 + 1 }],
 };
 
+let listener: ((e: unknown) => void) | undefined;
+
 function deps(over: { api?: Partial<PopupApi>; delivery?: SourceModel['delivery']; files?: SourceModel['files'] } = {}) {
   const sent: unknown[] = [];
   const opened: string[] = [];
@@ -28,7 +30,7 @@ function deps(over: { api?: Partial<PopupApi>; delivery?: SourceModel['delivery'
     remember: async () => undefined,
     recall: async () => undefined,
     forget: async () => undefined,
-    subscribe: () => () => undefined,
+    subscribe: (l: (e: unknown) => void) => { listener = l; return () => undefined; },
     importOpened: async (tabId: number, url: string) => { watched.push({ tabId, url }); order.push('watched'); return { ok: true as const }; },
     ...over.api,
   } as unknown as PopupApi;
@@ -297,5 +299,114 @@ describe('ReviewPopup printer tags', () => {
     setup('on', voron, true);
     await vi.waitFor(() => expect(root.textContent).toContain('Tags'));
     expect(button('Not this time') ?? button('Add printer tags')).toBeUndefined();
+  });
+});
+
+
+describe('ReviewPopup header and Close button', () => {
+  const header = () => root.querySelector('header');
+  const closeButtons = () => [...root.querySelectorAll('button')].filter((b) => b.textContent === 'Close');
+  const submit = () => root.querySelector('button[type=submit]');
+
+  it('review: shows the header with the site name and a Close button that calls closePopup', async () => {
+    const { d, order } = deps();
+    mount(d);
+    await vi.waitFor(() => expect(submit()).toBeTruthy());
+    expect(header()?.querySelector('img')).toBeTruthy();
+    expect(header()?.textContent).toContain('Send To Manyfold');
+    expect(header()?.textContent).toContain('Printables');
+    const [close, ...extra] = closeButtons();
+    expect(extra).toHaveLength(0);
+    expect(close!.type).toBe('button');
+    expect(close!.compareDocumentPosition(submit()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(order).toEqual([]);
+    close!.click();
+    expect(order).toEqual(['closed']);
+  });
+
+  it('unsupported: header, no Close', async () => {
+    mount(deps({ api: { extract: async () => ({ ok: false as const, code: 'source-tab-changed' }) } }).d);
+    await vi.waitFor(() => expect(root.textContent).toContain("This page isn't supported yet"));
+    expect(header()?.textContent).toContain('Send To Manyfold');
+    expect(closeButtons()).toHaveLength(0);
+  });
+
+  it('error: header, no Close', async () => {
+    mount({ ...deps().d, loadSettings: async () => defaultSettings() });
+    await vi.waitFor(() => expect(root.textContent).toContain('Open settings'));
+    expect(header()?.textContent).toContain('Send To Manyfold');
+    expect(header()?.textContent).not.toMatch(/Printables|Thingiverse|MakerWorld|Voron/);
+    expect(closeButtons()).toHaveLength(0);
+  });
+
+  it('hand-off: header with the site and a Close button that calls closePopup', async () => {
+    const { d, order } = deps({ delivery: 'manyfold-import', files: [] });
+    mount(d);
+    await vi.waitFor(() => expect(root.textContent).toContain('Open in Manyfold importer'));
+    expect(header()?.textContent).toContain('Printables');
+    const [close, ...extra] = closeButtons();
+    expect(extra).toHaveLength(0);
+    close!.click();
+    expect(order).toEqual(['closed']);
+  });
+
+  it('sending, done and failed: header on each, no Close', async () => {
+    mount(deps().d);
+    await vi.waitFor(() => expect(submit()).toBeTruthy());
+    root.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    await vi.waitFor(() => expect(root.querySelector('[aria-live=polite]')).toBeTruthy());
+    expect(header()?.textContent).toContain('Send To Manyfold');
+    expect(header()?.textContent).toContain('Printables');
+    expect(closeButtons()).toHaveLength(0);
+    listener!({ event: 'result', sendId: 's1', result: { status: 'failed', stage: 'uploading', retryToken: 't', error: { code: 'upload-failed', message: 'm', stage: 'uploading' }, models: [] } });
+    await vi.waitFor(() => expect(root.textContent).toContain('Retry'));
+    expect(header()?.textContent).toContain('Send To Manyfold');
+    expect(header()?.textContent).toContain('Printables');
+    expect(closeButtons()).toHaveLength(0);
+  });
+
+  it('done: header, no Close', async () => {
+    mount(deps().d);
+    await vi.waitFor(() => expect(submit()).toBeTruthy());
+    root.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    await vi.waitFor(() => expect(root.querySelector('[aria-live=polite]')).toBeTruthy());
+    listener!({ event: 'result', sendId: 's1', result: { status: 'done', modelUrl: 'http://m/models/1', metadata: { saved: [], failed: [] }, models: [], historySaved: true } });
+    await vi.waitFor(() => expect(root.textContent).toContain('Sent to Manyfold.'));
+    expect(header()?.textContent).toContain('Send To Manyfold');
+    expect(header()?.textContent).toContain('Printables');
+    expect(closeButtons()).toHaveLength(0);
+  });
+
+  it('idle: the header is already there while the page is read, with no site yet', () => {
+    mount(deps({ api: { extract: () => new Promise(() => undefined) } }).d);
+    expect(header()?.textContent).toContain('Send To Manyfold');
+    expect(header()?.textContent).not.toContain('Printables');
+  });
+
+  it('error: title only, no site', async () => {
+    mount({ ...deps().d, loadSettings: async () => defaultSettings() });
+    await vi.waitFor(() => expect(root.textContent).toContain('Open settings'));
+    expect(header()?.querySelector('p')).toBeNull();
+  });
+
+  it('Enter in a field submits the form, which sends', async () => {
+    const { d, sent } = deps();
+    mount(d);
+    await vi.waitFor(() => expect(submit()).toBeTruthy());
+    root.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+  });
+
+  it('clicking Close closes the popup and does not send', async () => {
+    const { d, order, sent } = deps();
+    mount(d);
+    await vi.waitFor(() => expect(submit()).toBeTruthy());
+    let submitted = false;
+    root.querySelector('form')!.addEventListener('submit', () => { submitted = true; });
+    closeButtons()[0]!.click();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(order).toEqual(['closed']);
+    expect(submitted).toBe(false);
+    expect(sent).toHaveLength(0);
   });
 });

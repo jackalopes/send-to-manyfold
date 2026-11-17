@@ -1,3 +1,5 @@
+import '../ui/tokens.css';
+import '../ui/components.css';
 import './options.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { CONNECTED_WORD, runConnectionCheck, type ConnectionLevel } from '../connection-test';

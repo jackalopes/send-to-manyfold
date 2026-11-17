@@ -39,4 +39,14 @@ describe('HandoffView', () => {
     link?.click();
     expect(opened).toEqual(['https://www.thingiverse.com/developers/my-apps']);
   });
+
+  it('with onClose, shows a Close button left of the importer button in the footer, and it calls onClose', () => {
+    let closed = 0;
+    render(<HandoffView url="http://m/models?q=x" openUrl={() => undefined} onClose={() => { closed++; }} />, root);
+    const buttons = [...root.querySelectorAll('.actions button')] as HTMLButtonElement[];
+    expect(buttons.map((b) => b.textContent)).toEqual(['Close', 'Open in Manyfold importer']);
+    expect(buttons[0]!.type).toBe('button');
+    buttons[0]!.click();
+    expect(closed).toBe(1);
+  });
 });

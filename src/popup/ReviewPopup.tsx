@@ -9,6 +9,7 @@ import { tagOffer } from './state';
 import type { SiteId } from '../types';
 import { ASK_SITES, type TagMode } from '../settings';
 import { initialState, reduce } from './machine';
+import { SITE_NAMES } from './site-names';
 import { collectionsFailureText } from '../ui/collections-failure';
 
 export interface PopupDeps extends Omit<ControllerDeps, 'dispatch' | 'getState'> {
@@ -51,88 +52,114 @@ export function ReviewPopup({ deps }: { deps: PopupDeps }) {
     }
   }, [inReview]);
 
-  switch (state.phase) {
-    case 'idle':
-    case 'extracting':
-      return <p role="status">Reading the page…</p>;
-    case 'unsupported':
-      return <UnsupportedView />;
-    case 'error':
-      return <ErrorView code={state.code} onOpenSettings={deps.openSettings} />;
-    case 'review': {
-      const { model, form } = state;
-      const site = model.site === 'other' ? undefined : model.site;
-      const mode = site ? tagModes?.[site] : undefined;
-      const offer = mode && site && ASK_SITES.includes(site) ? tagOffer(model, mode, form) : undefined;
-      const replaceTags = (tags: string[]) => {
-        controller.changeForm({ ...form, tags });
-        setTagsKey((k) => k + 1);
-      };
-      const tagSuggestion =
-        offer && site
-          ? {
-              kind: offer,
-              tags: model.tags,
-              onAccept: () => {
-                if (offer === 'remove') return replaceTags(form.tags.filter((t) => !model.tags.includes(t)));
-                replaceTags([...new Set([...form.tags, ...model.tags])]);
-                if (mode === 'ask') {
-                  setTagModes({ ...tagModes, [site]: 'on' });
-                  deps.setSiteTagMode(site, 'on').catch(() => {});
-                }
-              },
-            }
-          : undefined;
-      return (
-        <ReviewView
-          model={state.model}
-          form={state.form}
-          {...(state.prior ? { prior: state.prior } : {})}
-          duplicateDismissed={state.duplicateDismissed}
-          {...(state.sendError ? { sendError: state.sendError } : {})}
-          collections={collections}
-          collectionsFailure={collectionsFailure}
-          {...(state.connectionProblem ? { connectionProblem: state.connectionProblem } : {})}
-          openSettings={deps.openSettings}
-          onChange={controller.changeForm}
-          onSend={() => void controller.send()}
-          onDismissDuplicate={controller.dismissDuplicate}
-          openUrl={deps.openUrl}
-          tagSuggestion={tagSuggestion}
-          tagsKey={tagsKey}
-        />
-      );
+  const view = () => {
+    switch (state.phase) {
+      case 'idle':
+      case 'extracting':
+        return <p role="status">Reading the page…</p>;
+      case 'unsupported':
+        return <UnsupportedView />;
+      case 'error':
+        return <ErrorView code={state.code} onOpenSettings={deps.openSettings} />;
+      case 'review': {
+        const { model, form } = state;
+        const site = model.site === 'other' ? undefined : model.site;
+        const mode = site ? tagModes?.[site] : undefined;
+        const offer = mode && site && ASK_SITES.includes(site) ? tagOffer(model, mode, form) : undefined;
+        const replaceTags = (tags: string[]) => {
+          controller.changeForm({ ...form, tags });
+          setTagsKey((k) => k + 1);
+        };
+        const tagSuggestion =
+          offer && site
+            ? {
+                kind: offer,
+                tags: model.tags,
+                onAccept: () => {
+                  if (offer === 'remove') return replaceTags(form.tags.filter((t) => !model.tags.includes(t)));
+                  replaceTags([...new Set([...form.tags, ...model.tags])]);
+                  if (mode === 'ask') {
+                    setTagModes({ ...tagModes, [site]: 'on' });
+                    deps.setSiteTagMode(site, 'on').catch(() => {});
+                  }
+                },
+              }
+            : undefined;
+        return (
+          <ReviewView
+            model={state.model}
+            form={state.form}
+            {...(state.prior ? { prior: state.prior } : {})}
+            duplicateDismissed={state.duplicateDismissed}
+            {...(state.sendError ? { sendError: state.sendError } : {})}
+            collections={collections}
+            collectionsFailure={collectionsFailure}
+            {...(state.connectionProblem ? { connectionProblem: state.connectionProblem } : {})}
+            openSettings={deps.openSettings}
+            onChange={controller.changeForm}
+            onSend={() => void controller.send()}
+            onClose={deps.closePopup}
+            onDismissDuplicate={controller.dismissDuplicate}
+            openUrl={deps.openUrl}
+            tagSuggestion={tagSuggestion}
+            tagsKey={tagsKey}
+          />
+        );
+      }
+      case 'sending':
+        return <SendingView {...(state.progress ? { progress: state.progress } : {})} {...(state.cancelling ? { cancelling: true } : {})} onCancel={() => void controller.cancel()} />;
+      case 'done':
+        return <DoneView result={state.result} openUrl={deps.openUrl} />;
+      case 'failed':
+      case 'ambiguous':
+        return (
+          <FailedView
+            error={state.error}
+            stage={state.stage}
+            models={state.models}
+            canRetry={state.canRetry}
+            ambiguous={state.phase === 'ambiguous'}
+            onRetry={() => void controller.retry(false)}
+            onSendAnyway={() => void controller.retry(true)}
+            onDiscard={() => void controller.discard()}
+            openUrl={deps.openUrl}
+          />
+        );
+      case 'handoff':
+        return (
+          <HandoffView
+            {...(state.model ? { model: state.model } : {})}
+            {...(state.form ? { form: state.form } : {})}
+            url={state.url}
+            openUrl={deps.openUrl}
+            onImporterOpened={() => void controller.importerOpened()}
+            onClose={deps.closePopup}
+          />
+        );
+      case 'discarded':
+        return <DiscardedView />;
     }
-    case 'sending':
-      return <SendingView {...(state.progress ? { progress: state.progress } : {})} {...(state.cancelling ? { cancelling: true } : {})} onCancel={() => void controller.cancel()} />;
-    case 'done':
-      return <DoneView result={state.result} openUrl={deps.openUrl} />;
-    case 'failed':
-    case 'ambiguous':
-      return (
-        <FailedView
-          error={state.error}
-          stage={state.stage}
-          models={state.models}
-          canRetry={state.canRetry}
-          ambiguous={state.phase === 'ambiguous'}
-          onRetry={() => void controller.retry(false)}
-          onSendAnyway={() => void controller.retry(true)}
-          onDiscard={() => void controller.discard()}
-          openUrl={deps.openUrl}
-        />
-      );
-    case 'handoff':
-      return (
-        <HandoffView
-          {...(state.model ? { model: state.model } : {})}
-          {...(state.form ? { form: state.form } : {})}
-          url={state.url}
-          openUrl={deps.openUrl}
-          onImporterOpened={() => void controller.importerOpened()}
-        />
-      );
-    case 'discarded':
-      return <DiscardedView />;
-  }
+  };
+  const site = 'model' in state && state.model && state.model.site !== 'other' ? SITE_NAMES[state.model.site] : undefined;
+  return (
+    <>
+      <PopupHeader {...(site ? { site } : {})} />
+      {state.phase === 'review' || state.phase === 'handoff' ? view() : <main>{view()}</main>}
+    </>
+  );
+}
+
+/** The compact header shown in every state; the site name appears once the page has been read. */
+function PopupHeader({ site }: { site?: string }) {
+  return (
+    <header>
+      <div class="head">
+        <img src="/icon/128.png" alt="" />
+        <div class="txt">
+          <h1>Send To Manyfold</h1>
+          {site ? <p>{site}</p> : null}
+        </div>
+      </div>
+    </header>
+  );
 }

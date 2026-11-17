@@ -6,13 +6,19 @@ export function SendingView({ progress, cancelling, onCancel }: { progress?: Sen
   const showBar = progress?.total !== undefined && progress.sent !== undefined && progress.total > 0;
   return (
     <section>
-      <div role="status" aria-live="polite">
-        <p>{progress ? stageLabel(progress.stage) : 'Starting…'}</p>
-        {progress ? <p class="meta">{progress.label}</p> : null}
-        {progress?.modelCount && progress.modelCount > 1 ? <p class="meta">Model {(progress.modelIndex ?? 0) + 1} of {progress.modelCount}</p> : null}
-        {showBar ? <progress value={progress!.sent} max={progress!.total} aria-label="Upload progress" /> : null}
+      <div class="card">
+        <div class="row stack">
+          <div role="status" aria-live="polite">
+            <p>{progress ? stageLabel(progress.stage) : 'Starting…'}</p>
+            {progress ? <p class="meta">{progress.label}</p> : null}
+            {progress?.modelCount && progress.modelCount > 1 ? <p class="meta">Model {(progress.modelIndex ?? 0) + 1} of {progress.modelCount}</p> : null}
+            {showBar ? <progress value={progress!.sent} max={progress!.total} aria-label="Upload progress" /> : null}
+          </div>
+        </div>
       </div>
-      <button type="button" onClick={onCancel} disabled={cancelling}>{cancelling ? 'Cancelling…' : 'Cancel'}</button>
+      <div class="btns">
+        <button type="button" class="btn ghost" onClick={onCancel} disabled={cancelling}>{cancelling ? 'Cancelling…' : 'Cancel'}</button>
+      </div>
     </section>
   );
 }

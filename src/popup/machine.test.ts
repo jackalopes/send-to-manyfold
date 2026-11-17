@@ -77,6 +77,7 @@ describe('popup state machine', () => {
   it('done keeps the models and metadata for the report', () => {
     const result: SendResult = { status: 'done', modelUrl: 'http://m/models/1', metadata: { saved: ['name'], failed: [{ field: 'tags', error: 'x' }] }, models: [], historySaved: true };
     expect(reduce(sending(), { type: 'result', sendId: 's1', result })).toMatchObject({ phase: 'done', result });
+    expect(reduce(sending(), { type: 'result', sendId: 's1', result })).toHaveProperty('model');
   });
 
   it('failed -> failed view with the retry token; retry goes back to sending', () => {

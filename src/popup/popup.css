@@ -1,21 +1,73 @@
-:root { color-scheme: light dark; font-family: system-ui, sans-serif; font-size: 14px; }
-body { margin: 0; width: 26rem; max-width: 100%; }
-#app { padding: 0.75rem; }
-label { display: block; margin-bottom: 0.5rem; }
-label.inline { display: flex; gap: 0.4rem; align-items: center; }
-input[type='text'], textarea, select { display: block; width: 100%; box-sizing: border-box; margin-top: 0.2rem; font: inherit; }
-fieldset.files { margin: 0.5rem 0; }
-fieldset.files ul { list-style: none; padding: 0; margin: 0; max-height: 14rem; overflow: auto; }
-fieldset.files ul.tree ul.tree { padding-left: 1.1rem; max-height: none; overflow: visible; }
-.tree-row { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.25rem; }
-.tree-name { cursor: pointer; }
-.tree-toggle { margin: 0; padding: 0 0.3rem; background: none; border: 0; cursor: pointer; font-size: 1em; color: inherit; }
-label.tree-file { margin-bottom: 0.25rem; padding-left: 1.2rem; }
-.meta { opacity: 0.7; font-size: 0.9em; }
-.reason, .warning { color: #8a5a00; }
-.error { color: #b00020; }
-button { font: inherit; margin-right: 0.5rem; padding: 0.35rem 0.8rem; }
-:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
-progress { width: 100%; }
-@media (prefers-color-scheme: dark) { .reason, .warning { color: #ffc861; } .error { color: #ff8a9b; } }
-.meta button.link { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
+/* Popup-only styles; tokens and shared components live in src/ui/tokens.css and src/ui/components.css. */
+/* The root stays at 14px so 26rem is 364px, the popup's width. */
+:root { font-size: 14px; }
+body { width: 26rem; max-width: 100%; }
+header { background: var(--card); border-bottom: 1px solid var(--line); }
+.head { padding: 12px 16px; display: flex; gap: 12px; align-items: center; }
+.head img { width: 32px; height: 32px; flex: none; }
+.head h1 { margin: 0; font-size: 16px; font-weight: 600; }
+.head p { margin: 0; color: var(--muted); font-size: 12.5px; }
+.head .txt { flex: 1; min-width: 0; }
+main { padding: 4px 12px 16px; }
+h2, legend { font-size: 15px; font-weight: 600; margin: 16px 4px 8px; padding: 0; display: flex; align-items: center; gap: 8px; }
+legend::before { content: ''; width: 4px; height: 16px; border-radius: 2px; background: var(--orange); }
+.card { margin: 12px 0 0; }
+main .card:first-child, section > .card:first-child { margin-top: 8px; }
+.row { gap: 12px; padding: 12px 16px; }
+.row.stack label { font-weight: 500; }
+textarea { resize: vertical; font-weight: 400; }
+input[type='text'] { font-weight: 400; }
+input[readonly], textarea[readonly] { background: transparent; }
+.switch:disabled { opacity: 0.5; cursor: default; }
+.btn.sm { padding: 5px 14px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+p { margin: 0 0 8px; }
+p:last-child { margin-bottom: 0; }
+.meta { color: var(--muted); font-size: 12.5px; }
+button.link { background: none; border: 0; padding: 0; font: inherit; color: var(--teal); text-decoration: underline; cursor: pointer; }
+.actions { position: sticky; bottom: 0; margin: 0; padding: 12px 16px; background: var(--bg); border-top: 1px solid var(--line); }
+.actions .primary { flex: 1; }
+.btns { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+
+/* A notice is a card with a status bar on its leading edge; the text keeps the normal text colour. */
+.notice { border-left: 4px solid var(--warn); }
+.notice.danger { border-left-color: var(--danger); }
+.notice .row > :first-child { flex: 1; min-width: 0; }
+.notice p:last-child { margin-bottom: 0; }
+.reason { flex-basis: 100%; color: var(--warn); font-size: 12.5px; padding-left: 28px; }
+
+/* File list. */
+fieldset.files { border: 0; margin: 12px 0 0; padding: 0; min-width: 0; }
+fieldset.files ul { list-style: none; padding: 0; margin: 0; }
+fieldset.files > .card > ul { max-height: 14rem; overflow: auto; }
+li.row { flex-wrap: wrap; justify-content: flex-start; gap: 4px 8px; }
+li.row label { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; cursor: pointer; }
+li.row .meta { margin-left: auto; white-space: nowrap; }
+input[type='checkbox']:not(.switch) { width: 16px; height: 16px; margin: 0; accent-color: var(--teal); flex: none; }
+li.row.disabled label { color: var(--muted); cursor: default; }
+
+/* Folder tree (Voron). Each level steps 32px (toggle width + gap) right of its parent's row. */
+ul.tree ul.tree { margin-left: 32px; max-height: none; overflow: visible; }
+.tree li { border-top: 1px solid var(--line); }
+.tree ul.tree li { border-top: 0; }
+.tree > li:first-child { border-top: 0; }
+.tree-row { display: flex; align-items: center; gap: 8px; padding: 6px 16px; }
+.tree-name { cursor: pointer; font-weight: 500; overflow-wrap: anywhere; }
+.tree-toggle { margin: 0; width: 24px; height: 24px; padding: 0; background: none; border: 0; border-radius: 6px; cursor: pointer; color: var(--muted); font: inherit; flex: none; }
+/* A file sits one toggle (24px) plus a gap (8px) in, so its checkbox lines up with a folder's checkbox at the same level. */
+label.tree-file { display: flex; gap: 8px; align-items: center; padding: 6px 16px 6px 48px; margin: 0; flex-wrap: wrap; cursor: pointer; overflow-wrap: anywhere; }
+.tree-row .meta, label.tree-file .meta { margin-left: auto; white-space: nowrap; }
+.tree li > .reason { padding: 0 16px 6px 72px; }
+
+/* Progress and the success mark. */
+progress { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border: 0; border-radius: 4px; background: var(--line); overflow: hidden; display: block; margin-top: 8px; }
+progress::-webkit-progress-bar { background: var(--line); }
+progress::-webkit-progress-value { background: var(--teal); }
+progress::-moz-progress-bar { background: var(--teal); }
+.done-line { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.done-line::before { content: '\2713'; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--ok); color: var(--card); font-size: 13px; line-height: 1; flex: none; }
+.models { list-style: none; margin: 8px 0 0; padding: 0; }
+.stopped { margin-top: 4px; }
+@media (prefers-reduced-motion: reduce) { .switch, .switch::after { transition: none; } }
+.btn.block { width: 100%; }
+.after-btn { margin-top: 12px; }
