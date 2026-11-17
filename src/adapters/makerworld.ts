@@ -61,7 +61,8 @@ export function createMakerWorld(deps: MakerWorldDeps = {}): SiteAdapter {
         state = pageState(new DOMParser().parseFromString(html, 'text/html'), id);
       }
       const design = state?.design;
-      const title = str(design?.title);
+      // The page shows an automatic translation when the text is in another language; send that, else the original.
+      const title = str(design?.titleTranslated) ?? str(design?.title);
       if (!state || !design || !title) throw new Error('No MakerWorld model data on this page.');
 
       const slug = str(design.slug);
@@ -72,7 +73,7 @@ export function createMakerWorld(deps: MakerWorldDeps = {}): SiteAdapter {
         tags: Array.isArray(design.tags) ? design.tags.map(str).filter((t): t is string => !!t) : [],
         files: [],
       };
-      const description = htmlText(str(design.summary));
+      const description = htmlText(str(design.summaryTranslated)) ?? htmlText(str(design.summary));
       if (description) result.description = description;
       const creatorName = str(design.designCreator?.name);
       const handle = str(design.designCreator?.handle);
@@ -187,7 +188,7 @@ function profileFiles(design: MwDesign, origin: string): SourceFile[] {
   for (const inst of design.instances ?? []) {
     const instanceId = typeof inst.id === 'number' || typeof inst.id === 'string' ? String(inst.id) : '';
     if (!/^\d+$/.test(instanceId)) continue;
-    const base = safeName(str(inst.title) ?? `Profile ${instanceId}`);
+    const base = safeName(str(inst.titleTranslated) ?? str(inst.title) ?? `Profile ${instanceId}`);
     let name = `${base}.3mf`;
     if (used.has(name)) name = `${base} (${instanceId}).3mf`;
     used.add(name);
