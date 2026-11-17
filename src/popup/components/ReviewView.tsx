@@ -2,8 +2,8 @@ import type { NamedRef } from '../../manyfold/metadata';
 import { SITE_NAMES } from '../site-names';
 import type { ConnectionProblem, PriorSend } from '../machine';
 import { formatBytes } from '../../format';
-import { uploadLimit } from '../../pipeline/files';
-import { canSend, oversizeBundles, setSelected, type ReviewForm } from '../state';
+import { uploadLimit, type UploadLimit } from '../../pipeline/files';
+import { canSend, oversizeBundles, setSelected, type FormFile, type ReviewForm } from '../state';
 import { errorText } from '../labels';
 import type { SendError } from '../../pipeline/errors';
 import type { SourceModel } from '../../types';
@@ -67,6 +67,17 @@ function ConnectionNotice({ problem, openSettings }: { problem: ConnectionProble
   );
 }
 
+/** Says which files are over the limit, where the limit comes from, whether the rest still goes, and what to do. */
+function overLimitText(blocked: FormFile[], total: number, limit: UploadLimit): string {
+  const one = blocked.length === 1;
+  const names = blocked.slice(0, 3).map((f) => f.file.path ?? f.file.name).join(', ') + (blocked.length > 3 ? ` and ${blocked.length - 3} more` : '');
+  const size = formatBytes(limit.bytes);
+  const server = limit.source === 'server';
+  const rest = blocked.length === total ? 'Nothing can be sent.' : 'The other files will still be sent.';
+  const advice = server ? ` To include ${one ? 'it' : 'them'}, raise the server's limit (MAX_FILE_UPLOAD_SIZE) and reopen this popup.` : '';
+  return `${one ? '1 file is' : `${blocked.length} files are`} larger than ${server ? `this Manyfold server's ${size} upload limit` : `the ${size} the extension can send`}, so ${one ? 'it' : 'they'} will be left out: ${names}. ${rest}${advice}`;
+}
+
 export function ReviewView(p: ReviewViewProps) {
   const patch = (x: Partial<ReviewForm>) => p.onChange({ ...p.form, ...x });
   const warn = p.prior && !p.duplicateDismissed;
@@ -89,9 +100,7 @@ export function ReviewView(p: ReviewViewProps) {
         </div>
       ) : null}
       {blocked.length ? (
-        <p class="warning" role="status" data-testid="over-limit">
-          {blocked.length === 1 ? '1 file is' : `${blocked.length} files are`} over the upload limit and will not be sent: {blocked.slice(0, 3).map((f) => f.file.path ?? f.file.name).join(', ')}{blocked.length > 3 ? ` and ${blocked.length - 3} more` : ''}.
-        </p>
+        <p class="warning" role="status" data-testid="over-limit">{overLimitText(blocked, p.form.files.length, limit)}</p>
       ) : null}
       {bundles.map((b) => (
         <p class="warning" role="alert" data-testid="bundle-over-limit" key={b.bundle}>
