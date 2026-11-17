@@ -25,7 +25,7 @@ export type PopupState =
   | { phase: 'error'; code: string }
   | { phase: 'review'; model: SourceModel; form: ReviewForm; prior?: PriorSend; connectionProblem?: ConnectionProblem; duplicateDismissed: boolean; sendError?: SendError }
   | { phase: 'sending'; model?: SourceModel; form?: ReviewForm; sendId?: string; progress?: SendProgress; cancelling?: boolean }
-  | { phase: 'done'; result: Extract<SendResult, { status: 'done' }> }
+  | { phase: 'done'; model?: SourceModel; result: Extract<SendResult, { status: 'done' }> }
   | FailedLike<'failed'>
   | FailedLike<'ambiguous'>
   /** Manyfold's own importer fetches the model: show the details and the link. */
@@ -79,7 +79,7 @@ function carry(s: PopupState): { model?: SourceModel; form?: ReviewForm } {
 function fromResult(s: PopupState, sendId: string, r: SendResult): PopupState {
   switch (r.status) {
     case 'done':
-      return { phase: 'done', result: r };
+      return { phase: 'done', result: r, ...(carry(s).model ? { model: carry(s).model! } : {}) };
     case 'handoff':
       return { phase: 'handoff', url: r.url, ...carry(s) };
     case 'unsupported':

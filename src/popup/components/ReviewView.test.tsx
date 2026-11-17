@@ -22,7 +22,7 @@ const formOf = (m: SourceModel): ReviewForm => ({
   files: m.files.map((file) => ({ file, selected: true })), includeCover: true, collectionId: '', sensitive: false,
 });
 const show = (m: SourceModel) =>
-  render(<ReviewView model={m} form={formOf(m)} duplicateDismissed={false} collections={[]} openSettings={() => {}} onChange={() => {}} onSend={() => {}} onDismissDuplicate={() => {}} openUrl={() => {}} />, root);
+  render(<ReviewView model={m} form={formOf(m)} duplicateDismissed={false} collections={[]} openSettings={() => {}} onChange={() => {}} onSend={() => {}} onClose={() => {}} onDismissDuplicate={() => {}} openUrl={() => {}} />, root);
 
 describe('ReviewView preview checkbox', () => {
   it('is shown for other sites', () => {
@@ -38,7 +38,7 @@ describe('ReviewView preview checkbox', () => {
 describe('ReviewView license hint', () => {
   const HINT = 'saved in the notes only';
   const showLicense = (licenseText: string, m: SourceModel = model()) =>
-    render(<ReviewView model={m} form={{ ...formOf(m), licenseText }} duplicateDismissed={false} collections={[]} openSettings={() => {}} onChange={() => {}} onSend={() => {}} onDismissDuplicate={() => {}} openUrl={() => {}} />, root);
+    render(<ReviewView model={m} form={{ ...formOf(m), licenseText }} duplicateDismissed={false} collections={[]} openSettings={() => {}} onChange={() => {}} onSend={() => {}} onClose={() => {}} onDismissDuplicate={() => {}} openUrl={() => {}} />, root);
   it('shows for text Manyfold cannot map', () => {
     showLicense('Test License Text');
     expect(root.textContent).toContain(HINT);
@@ -65,7 +65,7 @@ describe('ReviewView size-limit notes', () => {
     ...extra,
   });
   const showForm = (form: ReviewForm) =>
-    render(<ReviewView model={model('m.zip')} form={form} duplicateDismissed={false} collections={[]} openSettings={() => {}} onChange={() => {}} onSend={() => {}} onDismissDuplicate={() => {}} openUrl={() => {}} />, root);
+    render(<ReviewView model={model('m.zip')} form={form} duplicateDismissed={false} collections={[]} openSettings={() => {}} onChange={() => {}} onSend={() => {}} onClose={() => {}} onDismissDuplicate={() => {}} openUrl={() => {}} />, root);
 
   const over = (n: number, extra: Partial<ReviewForm['files'][number]> = {}) =>
     Array.from({ length: n }, (_, i) => part(`f${i + 1}.stl`, 600 * MiB, { selected: false, disabledReason: 'too big', ...extra }));
@@ -114,5 +114,20 @@ describe('ReviewView size-limit notes', () => {
     const note = root.querySelector('[data-testid="bundle-over-limit"]')!;
     expect(note.textContent).toMatch(/"m\.zip".*600 MiB.*512 MiB.*Untick some files/);
     expect(root.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(true);
+  });
+});
+
+describe('ReviewView Close button', () => {
+  it('is a plain button before the submit, labelled Close, and calls onClose', () => {
+    let closed = 0;
+    const m = model();
+    render(<ReviewView model={m} form={formOf(m)} duplicateDismissed={false} collections={[]} openSettings={() => {}} onChange={() => {}} onSend={() => {}} onClose={() => { closed++; }} onDismissDuplicate={() => {}} openUrl={() => {}} />, root);
+    const buttons = [...root.querySelectorAll('form button')];
+    const close = buttons.find((b) => b.textContent === 'Close') as HTMLButtonElement;
+    const submit = root.querySelector('button[type=submit]')!;
+    expect(close.type).toBe('button');
+    expect(buttons.indexOf(close)).toBeLessThan(buttons.indexOf(submit));
+    close.click();
+    expect(closed).toBe(1);
   });
 });

@@ -82,11 +82,17 @@ export function FileTree({ files, onSet }: Props) {
     </ul>
   );
 
-  if (!files.length) return <p>No files were found on this page.</p>;
+  if (!files.length) {
+    return (
+      <div class="card">
+        <div class="row stack"><p>No files were found on this page.</p></div>
+      </div>
+    );
+  }
   return (
     <fieldset class="files">
       <legend>Files to send</legend>
-      {renderChildren(buildTree(files))}
+      <div class="card">{renderChildren(buildTree(files))}</div>
     </fieldset>
   );
 }

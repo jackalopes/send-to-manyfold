@@ -3,6 +3,8 @@ import { findPriorSend } from '../../history';
 import { listCollectionsAt, maxUploadBytesAt } from '../../manyfold/browser-client';
 import { createBrowserLookup } from '../../manyfold/browser-lookup';
 import { createPopupApi, isOffscreenSender } from '../../popup/api';
+import '../../ui/tokens.css';
+import '../../ui/components.css';
 import '../../popup/popup.css';
 import { ReviewPopup, type PopupDeps } from '../../popup/ReviewPopup';
 import { loadSettings, setSiteTagMode } from '../../settings';

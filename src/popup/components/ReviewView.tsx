@@ -8,7 +8,7 @@ import { errorText } from '../labels';
 import type { SendError } from '../../pipeline/errors';
 import type { SourceModel } from '../../types';
 import { CollectionPicker } from '../../ui/CollectionPicker';
-import { DetailsFields, type TagSuggestion } from './DetailsFields';
+import { DetailsFields, SwitchRow, type TagSuggestion } from './DetailsFields';
 import { FileList } from './FileList';
 import { FileTree } from './FileTree';
 import { ExternalLink } from './Link';
@@ -29,6 +29,8 @@ export interface ReviewViewProps {
   openSettings(): void;
   onChange(form: ReviewForm): void;
   onSend(): void;
+  /** Closes the popup without sending. */
+  onClose(): void;
   onDismissDuplicate(): void;
   openUrl(url: string): void;
 }
@@ -60,9 +62,11 @@ const CONNECTION_CODES = { unreachable: 'manyfold-unreachable', unauthorized: 'm
 /** Found when the popup opened; it never blocks the form, since the problem may be temporary. */
 function ConnectionNotice({ problem, openSettings }: { problem: ConnectionProblem; openSettings(): void }) {
   return (
-    <div role="alert" class="warning" data-testid="connection-warning">
-      <p>{errorText(CONNECTION_CODES[problem])}</p>
-      {problem === 'unreachable' ? null : <button type="button" onClick={openSettings}>Open settings</button>}
+    <div role="alert" class="card notice warning" data-testid="connection-warning">
+      <div class="row">
+        <p>{errorText(CONNECTION_CODES[problem])}</p>
+        {problem === 'unreachable' ? null : <button type="button" class="btn ghost sm" onClick={openSettings}>Open settings</button>}
+      </div>
     </div>
   );
 }
@@ -91,44 +95,72 @@ export function ReviewView(p: ReviewViewProps) {
         if (canSend(p.form)) p.onSend();
       }}
     >
-      {p.sendError ? <p role="alert" class="error">{errorText(p.sendError.code, p.sendError.message)}</p> : null}
-      {p.connectionProblem ? <ConnectionNotice problem={p.connectionProblem} openSettings={p.openSettings} /> : null}
-      {warn ? (
-        <div role="alert" class="warning" data-testid="duplicate-warning">
-          <PriorSendNotice prior={p.prior!} openUrl={p.openUrl} />
-          <button type="button" onClick={p.onDismissDuplicate}>Send anyway</button>
+      <main>
+        {p.sendError ? (
+          <div class="card notice danger">
+            <div class="row"><p role="alert" class="msg error">{errorText(p.sendError.code, p.sendError.message)}</p></div>
+          </div>
+        ) : null}
+        {p.connectionProblem ? <ConnectionNotice problem={p.connectionProblem} openSettings={p.openSettings} /> : null}
+        {warn ? (
+          <div role="alert" class="card notice warning" data-testid="duplicate-warning">
+            <div class="row">
+              <div>
+                <PriorSendNotice prior={p.prior!} openUrl={p.openUrl} />
+              </div>
+              <button type="button" class="btn ghost sm" onClick={p.onDismissDuplicate}>Send anyway</button>
+            </div>
+          </div>
+        ) : null}
+        {blocked.length ? (
+          <div class="card notice">
+            <div class="row">
+              <p class="warning" role="status" data-testid="over-limit">
+                {overLimitText(blocked, p.form.files.length, limit)}
+              </p>
+            </div>
+          </div>
+        ) : null}
+        {bundles.map((b) => (
+          <div class="card notice" key={b.bundle}>
+            <div class="row">
+              <p class="warning" role="alert" data-testid="bundle-over-limit">
+                The ticked files for "{b.bundle}" add up to {formatBytes(b.total)}, over the {formatBytes(limit.bytes)} limit{limit.source === 'server' ? ' of this Manyfold server' : ''}. Untick some files to send them.
+              </p>
+            </div>
+          </div>
+        ))}
+        {p.model.loginRequired ? (
+          <div class="card notice">
+            <div class="row"><p class="warning">Sign in to {SITE_NAMES[p.model.site]} to download these files, or the send will fail.</p></div>
+          </div>
+        ) : null}
+        <DetailsFields form={p.form} model={p.model} onPatch={patch} {...(p.tagsKey !== undefined ? { tagsKey: p.tagsKey } : {})} {...(p.tagSuggestion ? { suggestion: p.tagSuggestion } : {})} />
+        <div class="card">
+          <div class="row stack">
+            <CollectionPicker value={p.form.collectionId} options={p.collections} failure={p.collectionsFailure} onChange={(collectionId) => patch({ collectionId })} />
+          </div>
         </div>
-      ) : null}
-      {blocked.length ? (
-        <p class="warning" role="status" data-testid="over-limit">{overLimitText(blocked, p.form.files.length, limit)}</p>
-      ) : null}
-      {bundles.map((b) => (
-        <p class="warning" role="alert" data-testid="bundle-over-limit" key={b.bundle}>
-          The ticked files for "{b.bundle}" add up to {formatBytes(b.total)}, over the {formatBytes(limit.bytes)} limit{limit.source === 'server' ? ' of this Manyfold server' : ''}. Untick some files to send them.
-        </p>
-      ))}
-      {p.model.loginRequired ? (
-        <p class="warning">Sign in to {SITE_NAMES[p.model.site]} to download these files, or the send will fail.</p>
-      ) : null}
-      <DetailsFields form={p.form} model={p.model} onPatch={patch} {...(p.tagsKey !== undefined ? { tagsKey: p.tagsKey } : {})} {...(p.tagSuggestion ? { suggestion: p.tagSuggestion } : {})} />
-      <CollectionPicker value={p.form.collectionId} options={p.collections} failure={p.collectionsFailure} onChange={(collectionId) => patch({ collectionId })} />
-      <label class="inline">
-        <input type="checkbox" checked={p.form.sensitive} onChange={(e) => patch({ sensitive: e.currentTarget.checked })} /> Mark as sensitive
-      </label>
-      {p.model.coverImageUrl && !p.form.files.some((f) => f.file.bundle !== undefined) ? (
-        <label class="inline">
-          <input type="checkbox" checked={p.form.includeCover} onChange={(e) => patch({ includeCover: e.currentTarget.checked })} /> Use the page image as the preview
-        </label>
-      ) : null}
-      {p.form.files.some((f) => f.file.bundle !== undefined) ? (
-        <FileTree
-          files={p.form.files}
-          onSet={(indexes, selected) => patch({ files: setSelected(p.form.files, indexes, selected) })}
-        />
-      ) : (
-        <FileList files={p.form.files} onToggle={(i, selected) => patch({ files: p.form.files.map((f, j) => (j === i ? { ...f, selected } : f)) })} />
-      )}
-      <button type="submit" disabled={!canSend(p.form) || !!warn || bundles.length > 0}>Send to Manyfold</button>
+        <div class="card">
+          <SwitchRow label="Mark as sensitive" checked={p.form.sensitive} onChange={(sensitive) => patch({ sensitive })} />
+          {p.model.coverImageUrl && !p.form.files.some((f) => f.file.bundle !== undefined) ? (
+            <SwitchRow label="Use the page image as the preview" checked={p.form.includeCover} onChange={(includeCover) => patch({ includeCover })} />
+          ) : null}
+          <SwitchRow label="Save the source URL as a link" checked={p.form.sourceLink} onChange={(sourceLink) => patch({ sourceLink })} />
+        </div>
+        {p.form.files.some((f) => f.file.bundle !== undefined) ? (
+          <FileTree
+            files={p.form.files}
+            onSet={(indexes, selected) => patch({ files: setSelected(p.form.files, indexes, selected) })}
+          />
+        ) : (
+          <FileList files={p.form.files} onToggle={(i, selected) => patch({ files: p.form.files.map((f, j) => (j === i ? { ...f, selected } : f)) })} />
+        )}
+      </main>
+      <div class="actions">
+        <button type="button" class="btn ghost" onClick={p.onClose}>Close</button>
+        <button type="submit" class="btn primary" disabled={!canSend(p.form) || !!warn || bundles.length > 0}>Send to Manyfold</button>
+      </div>
     </form>
   );
 }

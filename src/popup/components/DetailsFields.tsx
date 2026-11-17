@@ -10,7 +10,7 @@ export interface TagSuggestion {
   onAccept(): void;
 }
 
-/** Title, description, creator, license, tags and source link: read-only in the handoff view. */
+/** Title, description, creator, license and tags: read-only in the handoff view. */
 export function DetailsFields({
   form,
   onPatch,
@@ -29,39 +29,57 @@ export function DetailsFields({
   model?: SourceModel;
 }) {
   return (
-    <>
-      <label>
-        Title
-        <input type="text" value={form.title} readOnly={readOnly} required onInput={(e) => onPatch({ title: e.currentTarget.value })} />
-      </label>
-      <label>
-        Description
-        <textarea rows={6} value={form.description} readOnly={readOnly} onInput={(e) => onPatch({ description: e.currentTarget.value })} />
-      </label>
-      <label>
-        Creator
-        <input type="text" value={form.creatorName} readOnly={readOnly} onInput={(e) => onPatch({ creatorName: e.currentTarget.value })} />
-      </label>
-      <label>
-        License
-        <input type="text" value={form.licenseText} readOnly={readOnly} onInput={(e) => onPatch({ licenseText: e.currentTarget.value })} />
-      </label>
-      {model && !readOnly && licenseNotesOnly(model, form.licenseText) ? <p class="meta">Not a licence Manyfold recognises, so it is saved in the notes only.</p> : null}
-      <label>
-        Tags (comma separated)
-        <input key={tagsKey} type="text" defaultValue={form.tags.join(', ')} readOnly={readOnly} onInput={(e) => onPatch({ tags: parseTags(e.currentTarget.value) })} />
-      </label>
+    <div class="card">
+      <div class="row stack">
+        <label>
+          Title
+          <input type="text" value={form.title} readOnly={readOnly} required onInput={(e) => onPatch({ title: e.currentTarget.value })} />
+        </label>
+      </div>
+      <div class="row stack">
+        <label>
+          Description
+          <textarea rows={6} value={form.description} readOnly={readOnly} onInput={(e) => onPatch({ description: e.currentTarget.value })} />
+        </label>
+      </div>
+      <div class="row stack">
+        <label>
+          Creator
+          <input type="text" value={form.creatorName} readOnly={readOnly} onInput={(e) => onPatch({ creatorName: e.currentTarget.value })} />
+        </label>
+      </div>
+      <div class="row stack">
+        <label>
+          License
+          <input type="text" value={form.licenseText} readOnly={readOnly} onInput={(e) => onPatch({ licenseText: e.currentTarget.value })} />
+        </label>
+        {model && !readOnly && licenseNotesOnly(model, form.licenseText) ? <p class="meta">Not a licence Manyfold recognises, so it is saved in the notes only.</p> : null}
+      </div>
+      <div class="row stack">
+        <label>
+          Tags (comma separated)
+          <input key={tagsKey} type="text" defaultValue={form.tags.join(', ')} readOnly={readOnly} onInput={(e) => onPatch({ tags: parseTags(e.currentTarget.value) })} />
+        </label>
+      </div>
       {suggestion && !readOnly ? (
-        <p class="meta">
-          <button type="button" class="link" onClick={suggestion.onAccept}>
-            {suggestion.kind === 'add' ? `Add printer tags: ${suggestion.tags.join(', ')}` : 'Not this time'}
-          </button>
-        </p>
+        <div class="row">
+          <p class="meta">
+            <button type="button" class="link" onClick={suggestion.onAccept}>
+              {suggestion.kind === 'add' ? `Add printer tags: ${suggestion.tags.join(', ')}` : 'Not this time'}
+            </button>
+          </p>
+        </div>
       ) : null}
-      <label class="inline">
-        <input type="checkbox" checked={form.sourceLink} disabled={readOnly} onChange={(e) => onPatch({ sourceLink: e.currentTarget.checked })} /> Save the
-        source URL as a link
-      </label>
-    </>
+    </div>
+  );
+}
+
+/** A switch row, like the options page's: label text first, the switch at the end. */
+export function SwitchRow({ label, checked, disabled = false, onChange }: { label: string; checked: boolean; disabled?: boolean; onChange?(checked: boolean): void }) {
+  return (
+    <label class="row">
+      <span>{label}</span>
+      <input type="checkbox" role="switch" class="switch" checked={checked} disabled={disabled} onChange={(e) => onChange?.(e.currentTarget.checked)} />
+    </label>
   );
 }
