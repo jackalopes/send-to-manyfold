@@ -209,6 +209,98 @@ describe('Options save acknowledgement', () => {
   });
 });
 
+describe('Options save message fades', () => {
+  const status = () => root.querySelector('.save-result') as HTMLElement;
+  const ready = async () => {
+    render(<Options />, root);
+    await vi.waitFor(() => expect((root.querySelector('input') as HTMLInputElement).value).toBe('http://192.168.1.5:3214'));
+  };
+  afterEach(() => vi.useRealTimers());
+
+  it('disappears about 5 s after the save', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
+    await ready();
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toBe('Settings saved.'));
+    await vi.advanceTimersByTimeAsync(4500);
+    expect(status().textContent).toBe('Settings saved.');
+    vi.advanceTimersByTime(1000);
+    await vi.waitFor(() => expect(status().textContent).toBe(''));
+  });
+  it('disappears at once when a field is edited after the save', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
+    await ready();
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toBe('Settings saved.'));
+    const input = root.querySelector('input') as HTMLInputElement;
+    input.value = 'http://192.168.1.6:3214';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.waitFor(() => expect(status().textContent).toBe(''));
+  });
+  it('a failed save stays until the next action', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: '', token: 'tok' });
+    render(<Options />, root);
+    await vi.waitFor(() => expect(root.querySelector('input')).not.toBeNull());
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toBe('Enter a valid Manyfold URL.'));
+    vi.advanceTimersByTime(30000);
+    expect(status().textContent).toBe('Enter a valid Manyfold URL.');
+  });
+  it('a Test connection failure stays', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
+    await ready();
+    const testBtn = [...root.querySelectorAll('button')].find((b) => b.textContent?.includes('Test connection'))!;
+    testBtn.click();
+    await vi.waitFor(() => expect(root.querySelector('.test-result.error')).not.toBeNull());
+    const text = root.querySelector('.test-result')?.textContent;
+    vi.advanceTimersByTime(30000);
+    expect(root.querySelector('.test-result')?.textContent).toBe(text);
+  });
+  it('overlapping saves: the newer message keeps its own full 5 s (an older save timer must not cut it short)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
+    await ready();
+    const set = chrome.storage.local.set as ReturnType<typeof vi.fn>;
+    set.mockImplementation(() => new Promise<void>((r) => setTimeout(r, 1500)));
+    submit(); // finishes at about +1.5 s
+    await vi.advanceTimersByTimeAsync(1000);
+    submit(); // finishes at about +2.5 s
+    await vi.advanceTimersByTimeAsync(1600); // +2.6 s: both done
+    await vi.waitFor(() => expect(status().textContent).toBe('Settings saved.'));
+    await vi.advanceTimersByTimeAsync(4000); // about +6.6 s: past the first save's 5 s, inside the second's
+    expect(status().textContent).toBe('Settings saved.');
+    await vi.advanceTimersByTimeAsync(1500);
+    await vi.waitFor(() => expect(status().textContent).toBe(''));
+  });
+  it('the no-token warning asks for an action, so it neither fades nor clears on edit', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: '' });
+    await ready();
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toContain('Add an API token before sending.'));
+    vi.advanceTimersByTime(30000);
+    expect(status().textContent).toContain('Add an API token before sending.');
+    const input = root.querySelector('input') as HTMLInputElement;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await Promise.resolve();
+    expect(status().textContent).toContain('Add an API token before sending.');
+  });
+  it('clears its timers on unmount', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: 'tok' });
+    await ready();
+    submit();
+    await vi.waitFor(() => expect(status().textContent).toBe('Settings saved.'));
+    render(null, root);
+    // The button-flash and message timers are both cancelled on unmount (effect cleanup runs a tick later).
+    await vi.waitFor(() => expect(vi.getTimerCount()).toBe(0));
+  });
+});
+
 describe('Options Test connection without a token', () => {
   it('asks for the token and sends no request', async () => {
     stubFull({ manyfoldUrl: 'http://192.168.1.5:3214', token: '' });
