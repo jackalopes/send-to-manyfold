@@ -10,7 +10,7 @@ Not affiliated with or endorsed by Manyfold, Printables, Thingiverse, MakerWorld
 
 ## What it does
 
-Open a model page, click the toolbar icon (or the green "Send to Manyfold" button where the page has one), check the prefilled details, pick the files and a collection, and press Send. Apart from a read-only check of whether the page is already in your Manyfold, nothing is sent until you press Send.
+Open a model page, click the toolbar icon (or the green "Send to Manyfold" button where the page has one), check the prefilled details, pick the files and a collection, and press Send. Apart from read-only checks to your own Manyfold (whether the page is already saved, and, when you open the popup, your collections and upload limit), nothing is sent until you press Send.
 
 | Site | Pages | What happens |
 |---|---|---|
@@ -93,7 +93,7 @@ The full policy is at <https://jackalopes.github.io/send-to-manyfold/privacy/>.
 - No analytics, no tracking, no other servers.
 - Your Manyfold address and token are stored in the browser's local extension storage (`chrome.storage.local`, also used by Firefox) on your computer.
 - The extension never reads or copies the login tokens of the source sites.
-- The only automatic request is a read-only check, sent to your own Manyfold, of whether the model page you're on is already saved (a search by the page's link, so it can show a check). Nothing else is sent until you press Send. On the supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
+- On a model page, the extension makes one read-only check, sent to your own Manyfold, of whether the page is already saved (a search by the page's link, so it can show a check). When you open the popup it also reads your collections and your server's upload limit. Nothing else is sent until you press Send. On the supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
 
 ## Site terms and model licenses
 
