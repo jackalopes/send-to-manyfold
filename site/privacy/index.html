@@ -27,7 +27,7 @@ li { margin: .3rem 0; }
 <main id="content">
   <p><a href="../">Send To Manyfold</a></p>
   <h1>Privacy policy</h1>
-  <p class="meta">Send To Manyfold. Last updated 2026-11-10.</p>
+  <p class="meta">Send To Manyfold. Last updated 2026-11-18.</p>
   <p>Send To Manyfold is an unofficial browser extension, for Chrome and Firefox, that sends 3D models from Printables, Thingiverse, MakerWorld and Voron Mods to your own Manyfold server. It is not affiliated with, made by or endorsed by Manyfold, Printables, Thingiverse, MakerWorld or Voron Mods. It is open source (MIT) at <a href="https://github.com/jackalopes/send-to-manyfold">github.com/jackalopes/send-to-manyfold</a>.</p>
   <p>In short: the extension has no server of its own. The developer receives no data from it. Everything it sends goes to the model site you are using or to your own Manyfold server.</p>
 
@@ -44,7 +44,8 @@ li { margin: .3rem 0; }
     <li><strong>To the model site you are on</strong> (and its download and image hosts): the requests needed to get the model's details and download links, using your own logged-in session in the page. The files are then downloaded without your cookies.</li>
     <li><strong>To your own Manyfold server</strong>, only the address you typed in the options page:
       <ul>
-        <li>Automatically, on a model page: a read-only search for the page's URL, to show a check mark ("In Manyfold") when the model is already saved. This is the only automatic request. It sends the URL of the model page you are viewing to your server.</li>
+        <li>Automatically, on a model page: a read-only search for the page's URL, to show a check mark ("In Manyfold") when the model is already saved. It sends the URL of the model page you are viewing to your server.</li>
+        <li>When you open the popup: read-only requests for your collections (to fill the collection list) and your server's upload limit (to flag files that are too large). They send nothing about the page.</li>
         <li>When you press Send: the model's files, title, description, creator, license, tags, source link and images that you reviewed, and the folder or collection you chose.</li>
         <li>When you press "Test connection": a request that checks the address and token.</li>
       </ul>

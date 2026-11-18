@@ -4,13 +4,13 @@ A Chrome and Firefox extension that sends 3D models from Printables, Thingiverse
 
 Not affiliated with or endorsed by Manyfold, Printables, Thingiverse, MakerWorld or Voron Mods. Those names are trademarks of their respective owners and are used here only to say which services this works with.
 
-> Status: version 0.3.0, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Firefox: submission to addons.mozilla.org is pending; until it is listed, install from source. The Firefox build is newer and has had less real-world use than the Chrome one. Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
+> Status: version 0.4.1, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Firefox: submission to addons.mozilla.org is pending; until it is listed, install from source. The Firefox build is newer and has had less real-world use than the Chrome one. Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
 
 ![Sending a Printables model to Manyfold with the extension](assets/demo.gif)
 
 ## What it does
 
-Open a model page, click the toolbar icon (or the green "Send to Manyfold" button where the page has one), check the prefilled details, pick the files and a collection, and press Send. Apart from a read-only check of whether the page is already in your Manyfold, nothing is sent until you press Send.
+Open a model page, click the toolbar icon (or the green "Send to Manyfold" button where the page has one), check the prefilled details, pick the files and a collection, and press Send. Apart from read-only checks to your own Manyfold (whether the page is already saved, and, when you open the popup, your collections and upload limit), nothing is sent until you press Send.
 
 | Site | Pages | What happens |
 |---|---|---|
@@ -93,7 +93,7 @@ The full policy is at <https://jackalopes.github.io/send-to-manyfold/privacy/>.
 - No analytics, no tracking, no other servers.
 - Your Manyfold address and token are stored in the browser's local extension storage (`chrome.storage.local`, also used by Firefox) on your computer.
 - The extension never reads or copies the login tokens of the source sites.
-- The only automatic request is a read-only check, sent to your own Manyfold, of whether the model page you're on is already saved (a search by the page's link, so it can show a check). Nothing else is sent until you press Send. On the supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
+- On a model page, the extension makes one read-only check, sent to your own Manyfold, of whether the page is already saved (a search by the page's link, so it can show a check). When you open the popup it also reads your collections and your server's upload limit. Nothing else is sent until you press Send. On the supported sites the toolbar icon is greyed out on other pages; on a model page that is already in your Manyfold it shows a green check badge, and the button on the page reads "✓ In Manyfold" and opens the model.
 
 ## Site terms and model licenses
 
@@ -111,7 +111,7 @@ If you represent Manyfold or one of these sites and have a concern, please [open
 - Firefox lets you revoke the extension's host permissions, including the download hosts (`files.printables.com`, `media.printables.com`, `makerworld.bblmw.com`, `mods.vorondesign.com`), in `about:addons`. If you do, sends from that site fail until you grant them again.
 - On Firefox the site access for `printables.com`, `thingiverse.com`, `makerworld.com` and `mods.vorondesign.com` can also be revoked in `about:addons`. If you do, there is no injected button and the toolbar icon stays greyed until you grant it again.
 - On Firefox, sends run in a hidden page inside the extension's background page, kept alive while a send runs. If Firefox restarts the extension in the middle of a send, that send is lost and you need to send again.
-- Files over 1 GiB are not accepted by Manyfold and are disabled in the popup.
+- Files larger than your Manyfold server's upload limit are unticked and disabled in the popup, and a note names them and gives the limit. The extension never sends a file over 1 GiB, even if the server allows more.
 - Collections can only be chosen when the model is created.
 - If your Manyfold library's path template contains `{tags}`, Manyfold makes one folder level per tag, so a model with many tags lands in a deeply nested folder. The extension sends the tags when it creates the model, so the model is stored at its tag path from the start. Manyfold, not the extension, chooses the order of the folders. To get fewer folders, turn off tags in the settings or remove some in the popup.
 - Manyfold limits how fast models can be created. Large batches are paced and may wait.
