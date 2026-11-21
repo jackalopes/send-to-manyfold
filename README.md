@@ -4,7 +4,7 @@ A Chrome and Firefox extension that sends 3D models from Printables, Thingiverse
 
 Not affiliated with or endorsed by Manyfold, Printables, Thingiverse, MakerWorld or Voron Mods. Those names are trademarks of their respective owners and are used here only to say which services this works with.
 
-> Status: version 0.4.1, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb). Firefox: submission to addons.mozilla.org is pending; until it is listed, install from source. The Firefox build is newer and has had less real-world use than the Chrome one. Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
+> Status: version 0.4.1, available on the [Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb) and on [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/send-to-manyfold/). The Firefox build is newer and has had less real-world use than the Chrome one. Tested with automated tests and in real use with Manyfold. See [Known limitations](#known-limitations).
 
 ![Sending a Printables model to Manyfold with the extension](assets/demo.gif)
 
@@ -30,9 +30,10 @@ GitHub support is planned. [Tell us what you'd expect it to do](https://github.c
 - The Manyfold user that owns your token must be allowed to upload: the "contributor" role or higher. A plain member gets "not found" (404) on uploads.
 - The library folder must be writable by the user the Manyfold container runs as (uid 1000). If it is not, uploaded ZIP files are never extracted and the send appears to hang until it times out.
 
-## Install from the Chrome Web Store
+## Install from the store
 
-Install [Send To Manyfold from the Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb).
+- Chrome: install [Send To Manyfold from the Chrome Web Store](https://chromewebstore.google.com/detail/send-to-manyfold/ebbpcpaiebehbkdeopjclobhadoofjcb).
+- Firefox: install [Send To Manyfold from Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/send-to-manyfold/).
 
 ## Install from source
 
